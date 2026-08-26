@@ -1,0 +1,66 @@
+========================================================
+  MUÑIZ PEDIDOS - App instalable (PWA)
+  Cómo ponerla en línea para los 22 mayordomos
+========================================================
+
+QUÉ ES ESTO
+Una app real: ícono en la pantalla del teléfono, pantalla
+completa (sin barras del navegador), funciona sin señal, y
+se actualiza sola cuando yo le haga cambios. NO necesita la
+App Store, no cuesta $99/año, no necesita Mac.
+
+Contenido de esta carpeta (NO borrar ni renombrar nada):
+  index.html          - la app
+  app.js              - el programa (React incluido)
+  styles.css          - los estilos
+  manifest.json       - hace que se instale como app
+  sw.js               - hace que funcione sin señal
+  icon-192 / 512 / maskable / apple-touch-icon .png - íconos
+
+------------------------------------------------------------
+OPCIÓN A - NETLIFY (la más rápida, 60 segundos, gratis)
+------------------------------------------------------------
+1. Comprime esta carpeta en un archivo .zip
+   (o usa el zip que ya te di).
+2. Entra a  https://app.netlify.com/drop
+3. Arrastra el .zip a la página.
+4. Netlify te da un link tipo  https://algo-123.netlify.app
+   Ese link YA tiene HTTPS y la app YA es instalable.
+5. Manda ese link por WhatsApp a los mayordomos.
+(Opcional: crea cuenta gratis para cambiar el nombre del link
+ y para poder re-subir actualizaciones.)
+
+------------------------------------------------------------
+OPCIÓN B - GITHUB PAGES (permanente, gratis)
+------------------------------------------------------------
+1. Crea cuenta en github.com
+2. Crea un repositorio público llamado  muniz-pedidos
+3. Sube TODOS los archivos de esta carpeta.
+4. Settings -> Pages -> Branch: main -> Save
+5. En 1 minuto tu link es:
+   https://TUUSUARIO.github.io/muniz-pedidos/
+6. Manda ese link a los mayordomos.
+
+------------------------------------------------------------
+CÓMO INSTALA EL MAYORDOMO (una sola vez)
+------------------------------------------------------------
+iPhone (Safari):
+  Abre el link -> botón Compartir -> "Agregar a inicio"
+  -> Agregar.  Aparece el ícono M. en su pantalla.
+Android (Chrome):
+  Abre el link -> menú (3 puntos) -> "Instalar aplicación".
+
+Ya instalada, abre en pantalla completa y funciona aunque
+tenga poca señal.
+
+------------------------------------------------------------
+ACTUALIZAR (cuando ACE agregue un item, etc.)
+------------------------------------------------------------
+Dime el cambio, te regreso los archivos nuevos, los vuelves
+a subir (arrastrar el zip nuevo a Netlify, o subir a GitHub).
+Los teléfonos se actualizan solos la próxima vez que abran
+la app con señal.
+
+IMPORTANTE: la app debe abrirse desde un link https:// para
+que se instale y funcione sin señal. Abrir el archivo
+directamente (file://) NO sirve para eso.
