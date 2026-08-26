@@ -107,3 +107,17 @@ ARCHIVO NUEVO: config.js
 
 AL SUBIR LA V3: sube TODOS los archivos otra vez, incluyendo
 el NUEVO config.js. Son 12 archivos ahora.
+
+
+------------------------------------------------------------
+VERSION 3.1 (26 agosto 2026) - FOTOS ARREGLADAS
+------------------------------------------------------------
+Las fotos venian de ~50 paginas de tiendas (Home Depot,
+Amazon, etc.) y esas paginas bloquean el uso externo de sus
+imagenes - por eso dejaron de verse.
+ARREGLO PERMANENTE: las 548 fotos ahora viven DENTRO de la
+app (archivo nuevo: fotos.json, sacadas del catalogo de
+Claudia). Ya no dependen de nadie, cargan al instante y
+funcionan sin señal. 10 articulos no tenian foto en el
+catalogo y muestran un icono.
+AL SUBIR: ahora son 13 archivos - incluye el NUEVO fotos.json.
