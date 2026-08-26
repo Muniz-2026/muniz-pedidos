@@ -1,5 +1,5 @@
 ========================================================
-  MUÑIZ PEDIDOS - App instalable (PWA)
+  MUÑIZ PEDIDOS - App instalable (PWA)  [v2]
   Cómo ponerla en línea para los 22 mayordomos
 ========================================================
 
@@ -26,7 +26,7 @@ OPCIÓN A - NETLIFY (la más rápida, 60 segundos, gratis)
 3. Arrastra el .zip a la página.
 4. Netlify te da un link tipo  https://algo-123.netlify.app
    Ese link YA tiene HTTPS y la app YA es instalable.
-5. Manda ese link por WhatsApp a los mayordomos.
+5. Manda ese link por mensaje (SMS) a los mayordomos.
 (Opcional: crea cuenta gratis para cambiar el nombre del link
  y para poder re-subir actualizaciones.)
 
@@ -39,7 +39,7 @@ OPCIÓN B - GITHUB PAGES (permanente, gratis)
 4. Settings -> Pages -> Branch: main -> Save
 5. En 1 minuto tu link es:
    https://TUUSUARIO.github.io/muniz-pedidos/
-6. Manda ese link a los mayordomos.
+6. Manda ese link por mensaje (SMS) a los mayordomos.
 
 ------------------------------------------------------------
 CÓMO INSTALA EL MAYORDOMO (una sola vez)
@@ -64,3 +64,17 @@ la app con señal.
 IMPORTANTE: la app debe abrirse desde un link https:// para
 que se instale y funcione sin señal. Abrir el archivo
 directamente (file://) NO sirve para eso.
+
+
+------------------------------------------------------------
+CAMBIOS EN LA VERSION 2 (26 agosto 2026)
+------------------------------------------------------------
+- Arreglado: la barra de arriba del iPhone (hora/bateria) ya
+  no tapa el titulo ni el boton de regresar.
+- Boton de REGRESAR (flecha) mas grande, negro, facil de
+  tocar con guante.
+- Todo mas compacto: los 22 nombres caben en una pantalla,
+  y se ven 8 productos a la vez en lugar de 4.
+- QUITADO: el boton de WhatsApp. Ahora el pedido se manda
+  por mensaje de texto (SMS) con el boton verde
+  "MANDAR A TITO", o con "COPIAR TEXTO".
