@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MUÑIZ — Actualizar Catálogo</title>
+<style>
+  body{margin:0;background:#EDEBE6;font-family:system-ui,-apple-system,sans-serif;color:#17181A;}
+  .hz{height:8px;background:repeating-linear-gradient(45deg,#17181A 0 14px,#FFB800 14px 28px);}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 60px;}
+  h1{font-size:26px;margin:14px 0 2px;} .sub{color:#6B675E;font-size:14px;margin-bottom:18px;}
+  .steps{background:#fff;border:2px solid #D8D4CB;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.55;}
+  .steps b{color:#0072BB}
+  #drop{margin:18px 0;border:3px dashed #0072BB;border-radius:16px;background:#fff;padding:44px 20px;text-align:center;cursor:pointer;transition:.15s;}
+  #drop.over{background:#E8F2FA;border-color:#17181A;}
+  #drop .big{font-size:20px;font-weight:800;} #drop .small{color:#6B675E;font-size:13px;margin-top:6px;}
+  #log{background:#17181A;color:#EDEBE6;border-radius:12px;padding:10px 12px;font-family:ui-monospace,monospace;font-size:12px;max-height:220px;overflow:auto;}
+  .log-line{padding:1px 0;} .log-line.ok{color:#7BE495;font-weight:700;} .log-line.err{color:#FF8A8A;font-weight:700;}
+  #results{display:none;margin-top:16px;}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;}
+  .stat{background:#fff;border:2px solid #D8D4CB;border-radius:12px;padding:10px;text-align:center;}
+  .stat .n{font-size:24px;font-weight:900;} .stat .l{font-size:11px;color:#6B675E;font-weight:700;}
+  #sinfoto{font-size:12px;color:#6B675E;background:#fff;border:2px solid #D8D4CB;border-radius:12px;padding:10px 12px;margin-bottom:14px;}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  button.dl{border:0;border-radius:14px;padding:16px;font-size:16px;font-weight:900;color:#fff;cursor:pointer;}
+  #dl-cat{background:#0072BB;} #dl-fot{background:#1F8A3B;}
+  button.dl:disabled{background:#C9C5BC;cursor:not-allowed;}
+  .note{font-size:12px;color:#6B675E;margin-top:14px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="hz"></div>
+<div class="wrap">
+  <h1>MUÑIZ<span style="color:#FF5A00">.</span> Actualizar catálogo</h1>
+  <div class="sub">Para Tito y Claudia — convierte el Excel en los 2 archivos del app. Nadie más necesita esta página.</div>
+
+  <div class="steps">
+    <b>1.</b> Edita el Excel como siempre (Catalog_Construction_Items.xlsx).<br>
+    &nbsp;&nbsp;&nbsp;· Bloquear un artículo → escribe <b>"Purchases are not allowed"</b> en Comments.<br>
+    &nbsp;&nbsp;&nbsp;· Límite de cantidad → escribe <b>"MAX: 5"</b> en Comments.<br>
+    &nbsp;&nbsp;&nbsp;· Artículo nuevo → agrégalo en su hoja con código, descripción, español y foto (fórmula IMAGE).<br>
+    <b>2.</b> Arrastra el Excel al recuadro azul de abajo.<br>
+    <b>3.</b> Descarga los 2 archivos (catalog.json y fotos.json).<br>
+    <b>4.</b> Súbelos a GitHub: repositorio → <b>Add file → Upload files</b> → arrastra los 2 → <b>Commit changes</b>.<br>
+    Los teléfonos se actualizan solos la próxima vez que abran el app con señal.
+  </div>
+
+  <div id="drop">
+    <div class="big">📗 Arrastra aquí el Excel del catálogo</div>
+    <div class="small">o toca para buscarlo — no se sube a ningún lado, todo pasa en tu computadora</div>
+    <input type="file" id="file" accept=".xlsx" style="display:none">
+  </div>
+
+  <div id="log"></div>
+
+  <div id="results">
+    <div class="stats">
+      <div class="stat"><div class="n" id="st-items">–</div><div class="l">ARTÍCULOS</div></div>
+      <div class="stat"><div class="n" id="st-block">–</div><div class="l">BLOQUEADOS</div></div>
+      <div class="stat"><div class="n" id="st-max">–</div><div class="l">CON MAX</div></div>
+      <div class="stat"><div class="n" id="st-fotos">–</div><div class="l">FOTOS</div></div>
+    </div>
+    <div id="sinfoto"></div>
+    <div class="btns">
+      <button class="dl" id="dl-cat" disabled>⬇ DESCARGAR catalog.json</button>
+      <button class="dl" id="dl-fot" disabled>⬇ DESCARGAR fotos.json</button>
+    </div>
+    <div class="note">Si algo sale mal, no pasa nada: mientras no subas archivos nuevos, el app sigue con el catálogo anterior. Y si subes un archivo dañado, el app lo ignora y usa su copia interna — nunca se queda en blanco.</div>
+  </div>
+</div>
+<script src="./admin.js"></script>
+</body>
+</html>

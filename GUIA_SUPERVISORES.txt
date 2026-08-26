@@ -44,3 +44,11 @@ QUIEN APRUEBA A QUIEN (del 6-Week Lookahead):
 
 Si un mayordomo cambia de supervisor, Tito lo cambia en
 config.js en 1 minuto - no hay que reinstalar nada.
+
+NUEVO (v3.2): USTEDES TAMBIEN PUEDEN PEDIR
+Tu nombre aparece en la seccion azul "SUPERVISORES" del app.
+Tu pedido NO necesita aprobacion - va directo a Tito con todo
+listo para la oficina.
+Si en un pedido de tu mayordomo ves una linea NARANJA que dice
+"FUERA DE CATALOGO", es algo que el escribio a mano porque no
+esta en el catalogo - revisala con mas cuidado.

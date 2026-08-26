@@ -121,3 +121,47 @@ Claudia). Ya no dependen de nadie, cargan al instante y
 funcionan sin señal. 10 articulos no tenian foto en el
 catalogo y muestran un icono.
 AL SUBIR: ahora son 13 archivos - incluye el NUEVO fotos.json.
+
+
+============================================================
+VERSION 3.2 (26 agosto 2026) - LISTA PARA EL ROLLOUT DEL LUNES
+============================================================
+
+LO NUEVO:
+1. ACTUALIZACION DIARIA DEL CATALOGO (Tito y Claudia, sin ayuda):
+   - Editen el Excel como siempre. Reglas en Comments (columna H):
+       "Purchases are not allowed"  -> el articulo se bloquea
+       "MAX: 5"                     -> limite de cantidad por pedido
+   - Abran   TU-LINK/admin.html   (la pagina de administracion)
+   - Arrastren el Excel -> descarga catalog.json y fotos.json
+   - Suban ESOS 2 archivos a GitHub (Add file -> Upload files -> Commit)
+   - Listo. Los telefonos se actualizan solos. NUNCA hay que
+     tocar app.js ni reconstruir nada.
+
+2. SUPERVISORES COMPRAN DIRECTO: los 5 supervisores aparecen
+   en su propia seccion azul. Su pedido va DIRECTO a Tito con
+   el link de oficina (sin segunda aprobacion).
+
+3. ARTICULO FUERA DE CATALOGO: si un mayordomo busca algo y no
+   existe, puede agregarlo escribiendolo (boton naranja). Va
+   marcado "FUERA DE CATALOGO" en todo el camino y en el email
+   a ACE dice "resolve code with ACE" para que Tito lo resuelva.
+
+4. AGREGAR TU NOMBRE: si el nombre no esta, "¿NO ESTA TU
+   NOMBRE?" lo agrega en ese telefono. Su pedido va directo a
+   Tito hasta que la oficina lo asigne en config.js.
+
+5. A PRUEBA DE FALLOS: si catalog.json falta o se sube danado,
+   el app lo ignora y usa su copia interna. Nunca se queda en
+   blanco. La version del app aparece abajo en la pantalla de
+   nombres (v3.2) - asi Tito verifica en cada sitio que el
+   telefono ya se actualizo.
+
+CHECKLIST DE INSTALACION (5 telefonos por dia):
+  [ ] El telefono tiene señal o WiFi
+  [ ] Abrir el link en Safari
+  [ ] Verificar "v3.2" abajo de los nombres
+  [ ] Compartir -> Agregar a inicio
+  [ ] Abrir desde el icono M.
+  [ ] El mayordomo hace UN pedido de practica contigo ahi mismo
+  [ ] Confirmar que le llego el texto al supervisor correcto
