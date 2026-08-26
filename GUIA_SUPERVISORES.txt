@@ -1,0 +1,46 @@
+=====================================================
+  MUÑIZ PEDIDOS - GUIA PARA SUPERVISORES
+  (Miguel, Tacho, Jose Luis, Martin, Lupe)
+=====================================================
+
+TU TRABAJO TOMA 15 SEGUNDOS. NO HAY CONTRASEÑA.
+NO TIENES QUE INSTALAR NADA.
+
+1. TE LLEGA UN MENSAJE de tu mayordomo:
+   "PEDIDO PARA APROBAR - REVISAR Y APROBAR AQUI: (link)"
+
+2. TOCA EL LINK. Se abre el pedido con fotos:
+   - Cambia cantidades con  −  y  +
+   - Quita una linea con  ✕  (y DEVOLVER si te equivocas)
+   - El numero cambia a NARANJA si lo ajustaste
+
+3. TOCA EL BOTON VERDE: ✅ APROBAR Y MANDAR A TITO
+   Se abre un mensaje YA ESCRITO para Tito con el pedido
+   final. Solo toca ENVIAR. Listo.
+
+   ¿No sirve nada del pedido? Toca el boton rojo:
+   ❌ RECHAZAR PEDIDO - escoge el motivo y se abre un
+   mensaje para avisarle al mayordomo. El pedido NO llega
+   a la oficina.
+
+REGLAS:
+- Lo que TU apruebas es lo UNICO que se compra en ACE.
+- Tito solo recibe pedidos aprobados por un supervisor.
+- Tu mensaje de aprobacion queda como registro (tu numero,
+  la fecha, y que cambiaste).
+
+QUIEN APRUEBA A QUIEN (del 6-Week Lookahead):
+  MIGUEL JUAREZ:  Enrique Alvarado, Carlos Diaz,
+                  Pedro Limon, Sergio Nino, Gerardo Sanchez
+  TACHO HERNANDEZ: Alvaro Aguirre, Francisco Aguirre,
+                  Daniel Ortega, Giovanni Rodriguez,
+                  Ricardo Sanchez
+  JOSE LUIS ZAMARRIPA: Julian Gonzalez, Omar Hernandez,
+                  David Molina, Isidro Sanchez, Victor Sanchez
+  MARTIN GONZALEZ: Francisco Bocanegra, Juan Perez,
+                  Hervey Quintero, Diego Vazquez,
+                  Jose Zamarripa
+  LUPE JUAREZ:    Ruben Cano, Jose Guadalupe Juarez
+
+Si un mayordomo cambia de supervisor, Tito lo cambia en
+config.js en 1 minuto - no hay que reinstalar nada.

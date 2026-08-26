@@ -1,5 +1,5 @@
 ========================================================
-  MUÑIZ PEDIDOS - App instalable (PWA)  [v2]
+  MUÑIZ PEDIDOS - App instalable (PWA)  [v3]
   Cómo ponerla en línea para los 22 mayordomos
 ========================================================
 
@@ -78,3 +78,32 @@ CAMBIOS EN LA VERSION 2 (26 agosto 2026)
 - QUITADO: el boton de WhatsApp. Ahora el pedido se manda
   por mensaje de texto (SMS) con el boton verde
   "MANDAR A TITO", o con "COPIAR TEXTO".
+
+
+------------------------------------------------------------
+NUEVO EN LA VERSION 3 (26 agosto 2026) - APROBACION
+------------------------------------------------------------
+FLUJO NUEVO (sin contraseñas, sin cuentas):
+  MAYORDOMO arma el pedido -> lo manda A SU SUPERVISOR
+  (el app ya sabe quien es, del 6-Week Lookahead) ->
+  SUPERVISOR toca el link, ajusta cantidades o quita
+  lineas, toca APROBAR -> a TITO le llega SOLO el pedido
+  final aprobado, con un link que abre el email de ACE
+  ya escrito.
+
+ARCHIVO NUEVO: config.js
+  Ahi viven: el telefono de Tito, los telefonos de los
+  5 supervisores, y quien aprueba a quien.
+  PARA PONER LOS NUMEROS (hazlo en la junta):
+  1. GitHub -> tu repositorio -> click en config.js
+  2. Click el LAPIZ (Edit)
+  3. Pon el numero entre las comillas:
+     "MIGUEL JUAREZ": "15125551234",
+     (1 + area + numero, sin espacios ni guiones)
+  4. Commit changes. Listo - los telefonos se actualizan solos.
+  Mientras un numero este vacio (""), el mensaje se abre sin
+  destinatario y el mayordomo escoge el contacto - todo sigue
+  funcionando.
+
+AL SUBIR LA V3: sube TODOS los archivos otra vez, incluyendo
+el NUEVO config.js. Son 12 archivos ahora.
