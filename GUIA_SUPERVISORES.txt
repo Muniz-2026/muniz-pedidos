@@ -52,3 +52,11 @@ listo para la oficina.
 Si en un pedido de tu mayordomo ves una linea NARANJA que dice
 "FUERA DE CATALOGO", es algo que el escribio a mano porque no
 esta en el catalogo - revisala con mas cuidado.
+
+NUEVO (v4.0):
+- DOS TIENDAS: ACE (naranja) y CMC (verde azulado). El letrero
+  de arriba siempre dice en cual estas. Cada tienda lleva su
+  propio pedido.
+- Si te llega un pedido marcado ➕ AGREGADO: es algo que el
+  mayordomo olvido en su pedido de hace rato. Revisalo igual;
+  a Tito le llega con la nota de juntarlo al mismo PO.

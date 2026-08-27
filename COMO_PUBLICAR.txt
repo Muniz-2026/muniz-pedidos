@@ -165,3 +165,51 @@ CHECKLIST DE INSTALACION (5 telefonos por dia):
   [ ] Abrir desde el icono M.
   [ ] El mayordomo hace UN pedido de practica contigo ahi mismo
   [ ] Confirmar que le llego el texto al supervisor correcto
+
+
+============================================================
+VERSION 4.0 (27 agosto 2026) - DOS PROVEEDORES + AGREGADOS
+============================================================
+
+LO NUEVO:
+1. DOS TIENDAS: despues de escoger su nombre, el mayordomo
+   escoge ACE (naranja) o CMC (verde azulado). Cada tienda
+   tiene SU PROPIO pedido - no se mezclan. El color y el
+   letrero de arriba siempre dicen en que catalogo estas.
+
+2. "¿OLVIDASTE ALGO?": al mandar un pedido, el app muestra
+   PEDIDO ENVIADO y vacia el carrito (ya no se puede mandar
+   doble). Por 30 minutos aparece una opcion chiquita para
+   AGREGAR lo que se olvido. El agregado viaja marcado (➕)
+   al MISMO supervisor y llega a Tito con la nota "JUNTAR
+   con el pedido anterior - mismo PO". Despues de 30 min,
+   ya es pedido nuevo. La opcion es discreta a proposito:
+   no queremos fomentar pedidos a pedazos.
+
+3. CATALOGOS SEPARADOS EN GITHUB: ahora son 4 archivos de
+   datos: catalog_ace.json, fotos_ace.json, catalog_cmc.json,
+   fotos_cmc.json. En admin.html arrastras el Excel del
+   proveedor (el nombre del archivo DEBE decir ACE o CMC) y
+   descarga los 2 archivos de ESE proveedor. Solo subes los
+   del proveedor que editaste.
+
+4. VERIFICADO CONTRA TUS EXCELS DE HOY:
+   ACE: 530 articulos (28 duplicados que quitaste, confirmado,
+   ninguno agregado por error) - 131 bloqueados - 530 con foto.
+   CMC: 112 articulos - 3 bloqueados - 61 con foto propia.
+
+SUBIR HOY (todos los archivos, 18):
+  index.html, app.js, styles.css, config.js,
+  catalog_ace.json, catalog_cmc.json, fotos_ace.json,
+  fotos_cmc.json, manifest.json, sw.js, icon-192.png,
+  icon-512.png, icon-512-maskable.png, apple-touch-icon.png,
+  admin.html, admin.js, COMO_PUBLICAR.txt, GUIA_SUPERVISORES.txt
+  (Puedes BORRAR del repositorio: catalog.json y fotos.json viejos.)
+
+CHECKLIST 7 AM (5 iPhones de supervisores):
+  [ ] Subir los 18 archivos ANTES de la junta (hoy en la noche)
+  [ ] En cada iPhone: Safari -> tu link -> verificar "v4.0" abajo
+  [ ] Compartir -> Agregar a inicio -> abrir desde el icono M.
+  [ ] Cada supervisor manda UN pedido de practica (el es comprador
+      directo: le llega a Tito con link de oficina)
+  [ ] Ensenales la pantalla de las DOS tiendas y el boton CAMBIAR

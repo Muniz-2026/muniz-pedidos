@@ -32,15 +32,17 @@
 <div class="hz"></div>
 <div class="wrap">
   <h1>MUÑIZ<span style="color:#FF5A00">.</span> Actualizar catálogo</h1>
-  <div class="sub">Para Tito y Claudia — convierte el Excel en los 2 archivos del app. Nadie más necesita esta página.</div>
+  <div class="sub">Para Tito y Claudia — convierte el Excel de CADA proveedor en sus 2 archivos. Nadie más necesita esta página.</div>
+  <div id="provbadge" style="display:none;background:#17181A;color:#FFB800;font-weight:900;font-size:13px;padding:6px 12px;border-radius:10px;margin-bottom:10px;"></div>
 
   <div class="steps">
-    <b>1.</b> Edita el Excel como siempre (Catalog_Construction_Items.xlsx).<br>
+    <b>0.</b> El nombre del archivo debe decir <b>ACE</b> o <b>CMC</b> (ej. ACE_Catalog_08_2026.xlsx).<br>
+    <b>1.</b> Edita el Excel del proveedor como siempre.<br>
     &nbsp;&nbsp;&nbsp;· Bloquear un artículo → escribe <b>"Purchases are not allowed"</b> en Comments.<br>
     &nbsp;&nbsp;&nbsp;· Límite de cantidad → escribe <b>"MAX: 5"</b> en Comments.<br>
     &nbsp;&nbsp;&nbsp;· Artículo nuevo → agrégalo en su hoja con código, descripción, español y foto (fórmula IMAGE).<br>
     <b>2.</b> Arrastra el Excel al recuadro azul de abajo.<br>
-    <b>3.</b> Descarga los 2 archivos (catalog.json y fotos.json).<br>
+    <b>3.</b> Descarga los 2 archivos (catalog_ace.json/fotos_ace.json o catalog_cmc.json/fotos_cmc.json).<br>
     <b>4.</b> Súbelos a GitHub: repositorio → <b>Add file → Upload files</b> → arrastra los 2 → <b>Commit changes</b>.<br>
     Los teléfonos se actualizan solos la próxima vez que abran el app con señal.
   </div>
