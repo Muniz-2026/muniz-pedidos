@@ -1,7 +1,7 @@
 /* MUÑIZ Pedidos - service worker: offline app shell + instant load (fully self-contained) */
-const CACHE = "muniz-pedidos-v7";
+const CACHE = "muniz-pedidos-v8";
 const SHELL = [
-  "./","./index.html","./app.js","./styles.css","./manifest.json","./config.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json",
+  "./","./index.html","./app.js","./styles.css","./manifest.json","./config.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
 ];
 self.addEventListener("install",(e)=>{e.waitUntil((async()=>{

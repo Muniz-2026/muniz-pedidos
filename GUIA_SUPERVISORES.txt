@@ -60,3 +60,6 @@ NUEVO (v4.0):
 - Si te llega un pedido marcado ➕ AGREGADO: es algo que el
   mayordomo olvido en su pedido de hace rato. Revisalo igual;
   a Tito le llega con la nota de juntarlo al mismo PO.
+
+NUEVO (v4.1): tercera tienda RSS STEEL SUPPLY (color MORADO).
+Mismo proceso. La franja de arriba siempre dice la tienda.

@@ -213,3 +213,24 @@ CHECKLIST 7 AM (5 iPhones de supervisores):
   [ ] Cada supervisor manda UN pedido de practica (el es comprador
       directo: le llega a Tito con link de oficina)
   [ ] Ensenales la pantalla de las DOS tiendas y el boton CAMBIAR
+
+
+============================================================
+VERSION 4.1 (28 agosto 2026) - TERCER PROVEEDOR: RSS
+============================================================
+
+- RSS STEEL SUPPLY agregado como tercera tienda (MORADO).
+  Mismo flujo que ACE y CMC: su propio pedido, su propio
+  catalogo, su propia franja de color.
+- RSS: 104 articulos, 0 bloqueados. OJO: solo 12 tienen foto
+  (el Excel solo trae 12 enlaces de imagen). Los demas
+  muestran el icono de su categoria. Cuando Claudia agregue
+  "Direct Image URL" a mas filas y pase el Excel por
+  admin.html, las fotos apareceran solas.
+- admin.html ahora reconoce ACE, CMC y RSS por el nombre del
+  archivo, y descarga catalog_rss.json / fotos_rss.json.
+
+SUBIR (20 archivos ahora — los 2 nuevos son catalog_rss.json
+y fotos_rss.json):
+  Los 18 de siempre + catalog_rss.json + fotos_rss.json
+  Verifica "v4.1" abajo de los nombres despues de subir.
