@@ -234,3 +234,14 @@ SUBIR (20 archivos ahora — los 2 nuevos son catalog_rss.json
 y fotos_rss.json):
   Los 18 de siempre + catalog_rss.json + fotos_rss.json
   Verifica "v4.1" abajo de los nombres despues de subir.
+
+============================================================
+VERSION 4.2 (28 agosto 2026) - EL RADAR DE CHAPA
+============================================================
+- Cuando alguien pone CANTIDAD 10 en cualquier articulo,
+  aparece Chapa senalandose: "¡YA TE CACHE! ESTAS COMPRANDO
+  DE MAS". Es broma interna - NO bloquea nada, el pedido
+  sigue normal. Solo sale al SUBIR a 10 (no al bajar), y
+  nunca en la pantalla del supervisor ni en la de oficina.
+- Subir de nuevo: app.js, styles.css y sw.js (cache v9 para
+  que los telefonos se actualicen solos). Verificar "v4.2".
