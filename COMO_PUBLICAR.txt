@@ -245,3 +245,31 @@ VERSION 4.2 (28 agosto 2026) - EL RADAR DE CHAPA
   nunca en la pantalla del supervisor ni en la de oficina.
 - Subir de nuevo: app.js, styles.css y sw.js (cache v9 para
   que los telefonos se actualicen solos). Verificar "v4.2".
+
+============================================================
+VERSION 4.3 (28 agosto 2026) - REGISTRO Y MEDICION
+============================================================
+COMO FUNCIONA (sin servidor, sin cuentas):
+- Cada telefono cuenta sus aperturas y sus minutos por
+  catalogo (ACE/CMC/RSS). Esos numeros VIAJAN dentro de cada
+  pedido y se reinician al mandarlo.
+- Cada link de oficina (#t) que TU abres se registra solo en
+  TU telefono: quien, tienda, piezas, cambios del supervisor,
+  hora de envio -> hora de aprobacion -> hora en que tecleas
+  el PO. ABRE TODOS LOS LINKS FINALES EN EL MISMO TELEFONO.
+- En OFICINA (boton arriba a la derecha) esta el panel
+  REGISTRO: pedidos y piezas de hoy, promedio envio->PO,
+  ultimos 12 pedidos, y EXPORTAR CSV.
+- El CSV se abre en Excel. Columnas: fecha, hora de envio,
+  mayordomo, supervisor, proveedor, obra, renglones, piezas,
+  ediciones del supervisor, minutos envio->aprobacion->PO,
+  PO, aperturas del app y minutos por catalogo del mayordomo.
+  Con tabla dinamica sacas: pedidos por dia, horas pico,
+  quien usa mas el app, y si el ciclo esta bajando.
+QUE MEDIR LA SEMANA 1 (5 telefonos):
+  [ ] pedidos/dia y piezas/dia
+  [ ] promedio envio->PO (la meta: que baje cada semana)
+  [ ] ediciones de supervisores (si es alto: los mayordomos
+      estan pidiendo mal -> entrenamiento)
+  [ ] minutos por catalogo (confirma si CMC/RSS se usan)
+SUBIR: app.js, styles.css, sw.js (cache v10). Verificar "v4.3".
