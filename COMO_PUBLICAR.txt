@@ -273,3 +273,34 @@ QUE MEDIR LA SEMANA 1 (5 telefonos):
       estan pidiendo mal -> entrenamiento)
   [ ] minutos por catalogo (confirma si CMC/RSS se usan)
 SUBIR: app.js, styles.css, sw.js (cache v10). Verificar "v4.3".
+
+============================================================
+VERSION 4.4 (28 agosto 2026) - A PRUEBA DE TODO
+============================================================
+1) CONFIRMACION DE ENVIO (lo mas importante):
+   Antes, al tocar MANDAR el app decia "ENVIADO" aunque el
+   mensaje se quedara sin mandar en Mensajes. YA NO.
+   Ahora sale una pantalla negra: "AHORA TOCA LA FLECHA ➤"
+   con el dibujo del boton verde de iPhone, y dos opciones:
+   SI, YA LO MANDE  /  NO - ABRIR MENSAJES OTRA VEZ.
+   El carrito NO se borra y el pedido NO se cuenta como
+   enviado hasta que la persona confirma. Aplica a
+   mayordomos Y supervisores.
+2) LETRA GRANDE en la pantalla del supervisor: titulo 22px,
+   nombre del articulo 16px, botones +/- de 44px (antes 36),
+   boton APROBAR de 72px de alto y siempre pegado abajo
+   (no hay que buscarlo). Pensado para vista cansada y
+   guantes de trabajo.
+3) MENSAJE DE TEXTO CORTO: ahora el link va en la linea 3.
+   "PEDRO LIMON - 6 articulos ACE / TOCA PARA APROBAR: link"
+   y el detalle queda hasta abajo. Antes el link se perdia
+   entre 7 lineas.
+4) ESCUCHAR EL PEDIDO: boton 🔊 que LEE el pedido en voz
+   alta en espanol (en el carrito del mayordomo y en la
+   revision del supervisor). Sirve para quien no ve bien o
+   prefiere oir. No necesita internet.
+SUBIR: app.js, styles.css, sw.js (cache v11). Verificar "v4.4".
+INSTALACION LUNES: instala en el telefono DE EL, que EL haga
+el pedido de practica 3 veces, y la tercera que salga de
+Mensajes SIN mandar para que aprenda a usar el boton
+"NO - ABRIR MENSAJES OTRA VEZ".

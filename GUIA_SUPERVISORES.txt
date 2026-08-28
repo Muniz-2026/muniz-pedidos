@@ -63,3 +63,12 @@ NUEVO (v4.0):
 
 NUEVO (v4.1): tercera tienda RSS STEEL SUPPLY (color MORADO).
 Mismo proceso. La franja de arriba siempre dice la tienda.
+
+NUEVO (v4.4):
+- Letra mas grande y boton APROBAR grande, siempre abajo.
+- Boton 🔊 ESCUCHAR EL PEDIDO: te lo lee en voz alta.
+- Al aprobar sale una pantalla negra que dice AHORA TOCA LA
+  FLECHA ➤. Eso significa que Mensajes ya se abrio pero
+  TODAVIA no se manda: toca la flecha verde. Luego regresa
+  al app y toca SI, YA LO MANDE. Si te saliste sin mandar,
+  toca NO - ABRIR MENSAJES OTRA VEZ.
