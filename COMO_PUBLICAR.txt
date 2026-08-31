@@ -304,3 +304,37 @@ INSTALACION LUNES: instala en el telefono DE EL, que EL haga
 el pedido de practica 3 veces, y la tercera que salga de
 Mensajes SIN mandar para que aprenda a usar el boton
 "NO - ABRIR MENSAJES OTRA VEZ".
+
+============================================================
+VERSION 4.5 (31 agosto 2026) - MODO PRACTICA + BLINDAJE FINAL
+============================================================
+1) MODO PRACTICA (para instalar y entrenar HOY):
+   - En la pantalla de nombres, hasta abajo: boton
+     "🎓 MODO PRACTICA".
+   - Todo funciona IGUAL pero: los textos van a TITO (no al
+     supervisor), todo lleva la marca 🎓 PRACTICA en amarillo
+     (en el app, en el texto, en la revision y en la pantalla
+     de oficina), NADA se registra en el REGISTRO ni cuenta
+     en el uso, y el carrito de practica es APARTE del real.
+   - Se sale con SALIR en la franja amarilla, y se apaga solo
+     al cerrar el app (nadie se puede quedar atorado en
+     practica sin darse cuenta).
+   - PARA LA DEMO DE HOY: enciende practica en el telefono
+     del mayordomo, que haga 2-3 pedidos jugando (los textos
+     te llegan a ti y puedes abrir el link de revision ahi
+     mismo para ensenarle que ve su supervisor). Luego SALIR
+     y que haga 1 pedido real chico.
+2) BLINDAJE:
+   - Pedidos GRANDES: el texto ya solo muestra 20 renglones
+     y dice "...y N mas - TODO viene en el link". El link
+     siempre lleva el pedido COMPLETO. (Antes un pedido de
+     40 renglones podia hacer un texto demasiado largo.)
+   - Corregido: 4 articulos aparecian DOS VECES (en LO MAS
+     PEDIDO y en el catalogo). Ya no hay repetidos (530/530
+     unicos verificado), y los articulos bloqueados de alta
+     rotacion ahora SI se ven (en gris, NO SE PUEDE).
+   - 25 mayordomos al mismo tiempo: el app vive en GitHub
+     Pages (archivos estaticos con CDN) - 25 o 250 telefonos
+     da igual, no hay servidor que saturar. Cada telefono
+     trabaja solo y solo comparte por SMS.
+SUBIR: app.js, styles.css, sw.js (cache v12). Verificar "v4.5".
