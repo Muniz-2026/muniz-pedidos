@@ -338,3 +338,37 @@ VERSION 4.5 (31 agosto 2026) - MODO PRACTICA + BLINDAJE FINAL
      da igual, no hay servidor que saturar. Cada telefono
      trabaja solo y solo comparte por SMS.
 SUBIR: app.js, styles.css, sw.js (cache v12). Verificar "v4.5".
+
+============================================================
+VERSION 4.6 (31 agosto 2026) - BUSQUEDA COMO HABLA LA GENTE
+============================================================
+De donde salio: del hilo de Juan Daniel (PO 10662 "hoja de
+diamante") + las descripciones reales de ACE en 403 facturas.
+
+1) BUSQUEDA POR PALABRAS (antes solo buscaba la frase exacta):
+   "hoja de diamante"      -> 17 discos diamantados
+   "hoja de diamante de 14"-> 7 (solo los de 14")
+   "2x4 de 8 pies"         -> el 2x4x8 exacto
+   "proteger arboles"       -> 2x4x8
+   "suero de uva"          -> electrolitos sabor uva
+   Ignora palabras vacias (de, la, para, numero...) y entiende
+   medidas escritas de cualquier forma (2x4 = 2" x 4").
+   Los resultados ahora salen ORDENADOS: primero los que
+   coinciden en el NOMBRE, despues por apodo.
+2) NOMBRES CON MEDIDA: 157 articulos que decian solo
+   "Disco diamantado" ahora dicen "Disco diamantado 14" x .125
+   x 1"". La medida sale de la FACTURA de ACE, no inventada.
+   IMPORTANTE: habia 152 articulos (29%) que se veian
+   IDENTICOS en el telefono. Bajaron a 85 (ver el Excel de
+   mejoras, hoja FALTA ACLARAR - eso lo tiene que aclarar
+   Claudia).
+3) ALIAS DESDE EL EXCEL: ahora en la columna H (Comments) se
+   puede escribir:  ALIAS: hoja de diamante hoja
+   y el app lo usa para buscar. Ya no hay que pedirle nada a
+   nadie: se agrega el apodo en el Excel, se pasa por
+   admin.html y listo. admin.html ya reporta cuantos ALIAS
+   encontro.
+4) PRECIOS NTE: 244 articulos con precio real (mediana de lo
+   facturado en 403 facturas).
+SUBIR: app.js, styles.css, catalog_ace.json, admin.js, sw.js
+       (cache v13). Verificar "v4.6".
