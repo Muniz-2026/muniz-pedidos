@@ -507,3 +507,31 @@ VERSION 5.1 (1 septiembre 2026) - PRESENTACION EN EL YARD
    para que pidan 12 si quieren una caja.
 SUBIR: app.js, styles.css, config.js, catalog_ace.json, admin.js,
        sw.js (cache v18). Verificar "v5.1".
+
+============================================================
+VERSION 5.2 (1 septiembre 2026)
+============================================================
+1) LISTA CORTA PARA ACE (nuevo, caja verde en modo oficina):
+   Copia EXACTAMENTE este formato, sin nada extra:
+       QTY 15 x L01SPF2616EURO - 2 x 6 - 16' #2 - SPF HT PREMIUM EURO
+       QTY 10 x WRMEXP1/2X4''STR - 1/2" X 4" X 10' EXPANSION STRIP
+   Esta arriba del email largo (que sigue disponible con NTE y
+   condiciones). Los dos botones copian de verdad.
+2) FOTOS: por que unas se ven HD y otras no.
+   La foto del RUST203027 en el Excel mide 1200x1200 px.
+   La del TT6MIL20BLACK mide 175x154 px. No se puede inventar
+   detalle que no existe: antes el app la estiraba y se veia
+   borrosa. AHORA se muestra a su tamaño real, nitida, sobre
+   una tarjeta blanca (se ve intencional, no rota).
+   125 de 530 fotos de ACE son asi de chicas -> hoja
+   "FOTOS BORROSAS" en el Excel de mejoras, con prioridad.
+   Reemplazando esas imagenes en el Excel, el app las toma
+   solas (admin.html) y se veran HD.
+   Las demas mejoraron: la capa HD subio de 640 a 700 px y el
+   app NO se hizo mas lento (el archivo del catalogo se quedo
+   en 3.3 MB; la capa HD se baja sola en segundo plano).
+3) CANTIDAD MAXIMA: antes el app no dejaba pasar de 99. Por eso
+   la tira de 100 salio como 99. Ahora llega hasta 999 (los
+   limites MAX del Excel se respetan igual).
+SUBIR: app.js, styles.css, fotos_*.json, fotos_hd_*.json, sw.js
+       (cache v19). Verificar "v5.2".
