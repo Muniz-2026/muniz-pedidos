@@ -11,6 +11,10 @@ window.MUNIZ_CONFIG = {
   /* Telefono de Tito (recibe los pedidos APROBADOS) */
   TITO_PHONE: "15129651933",
 
+  /* Mayordomos que ven el catalogo BILINGUE (español + inglés) automaticamente.
+     Cualquiera puede prenderlo con el boton "EN" en la franja de la tienda. */
+  BILINGUES: ["PEDRO LIMON"],
+
   /* Telefonos de los 5 supervisores (reciben pedidos para APROBAR) */
   SUPERVISORES: {
     "MIGUEL JUAREZ":       "15128004698",

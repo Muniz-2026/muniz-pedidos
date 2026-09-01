@@ -472,3 +472,38 @@ de respaldo interno y no se pierden. Los NOMBRES no.
 
 SUBIR: app.js, styles.css, catalog_ace.json, fotos_ace.json,
        fotos_hd_ace.json, sw.js (cache v17). Verificar "v5.0".
+
+============================================================
+VERSION 5.1 (1 septiembre 2026) - PRESENTACION EN EL YARD
+============================================================
+1) BUG DE COPIAR EMAIL — ARREGLADO. Antes, en el iPhone el boton
+   decia "COPIADO" pero el portapapeles se quedaba con lo ultimo que
+   habias copiado (el link del texto = letras y numeros raros). Ahora
+   copia de verdad, y si iOS lo bloquea el boton te lo DICE en vez de
+   mentir. Probado: el portapapeles trae el email, no codigo.
+2) PRECIOS NTE CORREGIDOS (importante para el email a ACE):
+   99 de 244 precios estaban INFLADOS - el sistema tomaba el TOTAL del
+   renglon en vez del precio UNITARIO. Ej: varilla #4 decia $580.72,
+   es $7.09. Pintura decia $90 (caja), es $7.50 la lata. Ya son
+   unitarios y hay 325 articulos con precio (antes 244).
+3) CATALOGO BILINGUE: PEDRO LIMON lo ve automatico (español + inglés
+   debajo). Cualquier mayordomo lo puede prender con el boton "EN" en
+   la franja naranja. Se controla en config.js -> BILINGUES.
+4) ARTICULOS MARCADOS (nuevo):
+   ⚠ ESPECIAL  = no es compra normal -> R16-189 Llave para hidrante
+   🏭 TALLER   = lo maneja Fernando Arellano (yard) -> las 3 sierras
+                circulares (MAKITA5007F, DWE575SB, ML283020) y la
+                cortadora Husqvarna K770 (HUSK770, su comentario en el
+                Excel ya decia "Yard Manager").
+   Se ve en el cuadrito, en la foto grande (con explicacion), en el
+   carrito, en el texto, y el SUPERVISOR ve una franja amarilla
+   "REVISA CON CUIDADO" arriba + la marca en cada renglon. El email a
+   ACE los marca [SPECIAL ITEM] / [YARD SHOP ITEM].
+   Para marcar mas: en el Excel col H escribir ESPECIAL o TALLER.
+5) CEPILLOS DE ALAMBRE: MB8-SC = mango estandar (8SC, $9.20);
+   MB1-SC = MANGO LARGO (1SC-LH, $8.50). Ya dicen la diferencia.
+6) PINTURA EN AEROSOL: el precio es POR LATA ($7.50) y se compra por
+   CAJA DE 12 ($90). Ahora el nombre dice "(lata · caja = 12 latas)"
+   para que pidan 12 si quieren una caja.
+SUBIR: app.js, styles.css, config.js, catalog_ace.json, admin.js,
+       sw.js (cache v18). Verificar "v5.1".
