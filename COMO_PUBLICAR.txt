@@ -535,3 +535,40 @@ VERSION 5.2 (1 septiembre 2026)
    limites MAX del Excel se respetan igual).
 SUBIR: app.js, styles.css, fotos_*.json, fotos_hd_*.json, sw.js
        (cache v19). Verificar "v5.2".
+
+============================================================
+VERSION 5.3 (1 septiembre 2026)
+============================================================
+1) EL LINK VUELVE A VERSE BONITO (cuadro con el icono M).
+   Fue culpa mia: en la v4.4 movi el link al principio del
+   mensaje. iPhone SOLO dibuja el cuadro de vista previa
+   cuando el link es lo ULTIMO del mensaje. Ya quedo asi en
+   los 4 tipos de mensaje (mayordomo->supervisor,
+   supervisor->Tito, supervisor directo, y practica):
+       ALVARO AGUIRRE - 6 articulos ACE
+       Obra: Braker Lane
+       1) 2x Estaca...
+       2) ...
+       TOCA EL CUADRO DE ABAJO PARA APROBAR:
+       [cuadro MUNIZ Pedidos]
+2) SE QUITO EL NOMBRE DE FERNANDO de todo el app. Los
+   articulos del yard ahora dicen "LO SURTE EL TALLER" y el
+   email dice [YARD SHOP ITEM]. Verificado: 0 menciones.
+3) NUEVO: "¿COMO TE FUE?" (1 toque, despues de mandar)
+   - El app APUNTA SOLO lo que buscaron y NO existia. Si el
+     mayordomo busco "cinta de peligro roja" y no salio nada,
+     al terminar le aparece un boton amarillo
+     "BUSQUE Y NO ESTABA (2)" con la lista. Un toque y te
+     llega por texto. Eso es oro para el catalogo y a el no
+     le cuesta nada escribir.
+   - 4 botones mas, sin escribir: TODO BIEN / FOTO MALA /
+     NOMBRE RARO / NO SUPE CUAL.
+   - NO hay caja de comentarios libres, a proposito.
+   - Las busquedas sin resultado tambien viajan dentro del
+     pedido y salen en el CSV (columna busco_y_no_estaba).
+   - En MODO PRACTICA no aparece nada de esto.
+4) RACHA: si mandan 2 o mas pedidos seguidos completos (sin
+   agregados y sin articulos fuera de catalogo) les sale
+   "⭐ 3 pedidos seguidos completos". Premia pedir BIEN a la
+   primera, no pedir mas.
+SUBIR: app.js, styles.css, sw.js (cache v20). Verificar "v5.3".

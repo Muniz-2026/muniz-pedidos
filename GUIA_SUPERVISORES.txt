@@ -77,3 +77,7 @@ NUEVO (v4.7): las fotos se ven mas grandes. Si quieres ver
 una foto EN GRANDE, toca el boton de la lupa 🔍 que esta en
 la esquina de cada foto. Ahi puedes agregar el articulo o
 cerrar. Tocar el cuadrito sigue agregando como siempre.
+
+NUEVO (v5.3): el mensaje vuelve a llegar con el cuadro azul
+del app (tocalo y se abre). Los articulos del yard dicen
+"LO SURTE EL TALLER".
