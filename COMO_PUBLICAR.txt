@@ -439,3 +439,36 @@ VERSION 4.9 (31 agosto 2026) - ESCUADRA BLOQUEADA
   el catalogo desde admin.html el bloqueo se pierde.
 SUBIR: app.js, styles.css, catalog_ace.json, sw.js (cache v16).
 Verificar "v4.9".
+
+============================================================
+VERSION 5.0 (31 agosto 2026) - CATALOGO ACE RE-VERIFICADO
+============================================================
+Se revisó el Excel de ACE nuevo contra el app, articulo por
+articulo. RESULTADO:
+  articulos:              530 en Excel = 530 en el app  ✓
+  codigos duplicados:     0                              ✓
+  sin traduccion español: 0                              ✓
+  categorias mal puestas: 0                              ✓
+  fotos:                  530 normales + 530 HD          ✓
+  fotos movidas de lugar: 0 (se re-extrajeron y comparo)  ✓
+  bloqueados:             133 en Excel = 133 en el app    ✓
+
+SE CORRIGIO 1 DIFERENCIA:
+  2695666 "Nivel torpedo magnético 9"" estaba BLOQUEADO en
+  el Excel pero seguia ABIERTO en el app. Ya quedo bloqueado.
+  (1904-0700 Escuadra ya estaba bien en los dos.)
+
+*** OJO — LO MAS IMPORTANTE PARA CLAUDIA ***
+Los 157 NOMBRES CON MEDIDA (los del Excel de mejoras, hoja
+NOMBRES) todavia NO estan en el Excel del catalogo. Ahorita
+viven solo dentro del app. Si Claudia pasa el Excel por
+admin.html ANTES de pegar esos nombres, el app va a regresar
+a los nombres cortos y volveran los 152 articulos que se ven
+identicos (ej. 7 tiles que dicen nomas "Disco diamantado").
+   -> Pegar la columna "NOMBRE NUEVO (usar este)" en la
+      columna C del Excel ANTES del proximo admin.html.
+Los ALIAS y los PRECIOS si estan protegidos: el app los tiene
+de respaldo interno y no se pierden. Los NOMBRES no.
+
+SUBIR: app.js, styles.css, catalog_ace.json, fotos_ace.json,
+       fotos_hd_ace.json, sw.js (cache v17). Verificar "v5.0".
