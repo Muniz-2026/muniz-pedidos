@@ -424,3 +424,18 @@ VERSION 4.8 (31 agosto 2026) - SE QUITO EL RADAR DE CHAPA
 - Todo lo demas sigue igual: fotos grandes, lupa 🔍, alta
   definicion, busqueda por palabras, modo practica, registro.
 SUBIR: app.js, styles.css, sw.js (cache v15). Verificar "v4.8".
+
+============================================================
+VERSION 4.9 (31 agosto 2026) - ESCUADRA BLOQUEADA
+============================================================
+- 1904-0700 "Escuadra para carpintero 7"" queda BLOQUEADA:
+  es articulo PERSONAL (viene en la bolsa de herramienta del
+  nuevo ingreso). Sale en gris con 🚫 NO SE PUEDE COMPRAR,
+  no se puede agregar y no tiene lupa.
+- PARA QUE NO SE PIERDA: Claudia debe poner en la columna H
+  (Comments) del Excel de ACE, en el renglon de 1904-0700:
+      Purchases are not allowed
+  Si no se pone en el Excel, la proxima vez que se actualice
+  el catalogo desde admin.html el bloqueo se pierde.
+SUBIR: app.js, styles.css, catalog_ace.json, sw.js (cache v16).
+Verificar "v4.9".
