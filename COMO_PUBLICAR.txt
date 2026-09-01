@@ -372,3 +372,55 @@ diamante") + las descripciones reales de ACE en 403 facturas.
    facturado en 403 facturas).
 SUBIR: app.js, styles.css, catalog_ace.json, admin.js, sw.js
        (cache v13). Verificar "v4.6".
+
+============================================================
+VERSION 4.7 (31 agosto 2026) - FOTOS GRANDES Y CLARAS
+============================================================
+Por el comentario de los mayordomos ("las fotos estan muy
+chicas / no se ven bien"):
+
+1) FOTOS DEL CATALOGO MAS GRANDES Y NITIDAS:
+   - El cuadro de la foto paso de 80px a 144px de alto (casi
+     el doble) y ahora ocupa la mayor parte del cuadrito.
+   - La foto ya no es de 160px, ahora es de 320px, asi que se
+     ve NITIDA en pantallas retina (antes se veia borrosa
+     porque la estirabamos).
+2) LUPA 🔍 PARA VER LA FOTO GRANDE:
+   - Cada articulo tiene un boton 🔍 abajo a la derecha de la
+     foto. Al tocarlo se abre la FOTO EN GRANDE, a pantalla
+     completa, en alta definicion (640px).
+   - Ahi mismo aparece el nombre completo, el codigo, y los
+     botones para AGREGAR o cambiar la cantidad.
+   - Tocar el cuadrito (como siempre) SIGUE agregando el
+     articulo. La lupa NO agrega, solo muestra la foto.
+   - Los articulos bloqueados no tienen lupa.
+3) COMO FUNCIONA LA ALTA DEFINICION (importante):
+   - Las fotos grandes van en archivos APARTE:
+     fotos_hd_ace.json (8 MB), fotos_hd_cmc.json (1 MB),
+     fotos_hd_rss.json (0.2 MB).
+   - NO se descargan al instalar el app. Se bajan solas en
+     segundo plano despues de 12 segundos, o la primera vez
+     que alguien toca la lupa. Despues quedan guardadas en el
+     telefono para siempre (funcionan sin senal).
+   - Si el telefono no las ha bajado todavia, la lupa igual
+     muestra la foto normal - nunca sale en blanco.
+4) admin.html AHORA DA 3 ARCHIVOS: catalog_xxx.json,
+   fotos_xxx.json y fotos_hd_xxx.json. Hay que subir los TRES
+   cuando se actualiza un catalogo.
+
+SUBIR AHORA (23 archivos): todo lo de siempre + los 3 nuevos
+   fotos_hd_ace.json, fotos_hd_cmc.json, fotos_hd_rss.json
+   (y los fotos_xxx.json cambiaron, son mas grandes ahora)
+   Cache v14. Verificar "v4.7".
+
+============================================================
+VERSION 4.8 (31 agosto 2026) - SE QUITO EL RADAR DE CHAPA
+============================================================
+- Se quito por completo la broma que salia al poner cantidad
+  10 (la foto de Chapa con "YA TE CACHE"). Ya no aparece
+  ninguna ventana al llegar a 10 ni en ninguna cantidad.
+- La foto tambien se saco del app, asi que el archivo app.js
+  bajo de 400KB a 376KB.
+- Todo lo demas sigue igual: fotos grandes, lupa 🔍, alta
+  definicion, busqueda por palabras, modo practica, registro.
+SUBIR: app.js, styles.css, sw.js (cache v15). Verificar "v4.8".

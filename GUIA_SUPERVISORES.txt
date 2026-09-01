@@ -72,3 +72,8 @@ NUEVO (v4.4):
   TODAVIA no se manda: toca la flecha verde. Luego regresa
   al app y toca SI, YA LO MANDE. Si te saliste sin mandar,
   toca NO - ABRIR MENSAJES OTRA VEZ.
+
+NUEVO (v4.7): las fotos se ven mas grandes. Si quieres ver
+una foto EN GRANDE, toca el boton de la lupa 🔍 que esta en
+la esquina de cada foto. Ahi puedes agregar el articulo o
+cerrar. Tocar el cuadrito sigue agregando como siempre.
