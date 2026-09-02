@@ -11,6 +11,14 @@ window.MUNIZ_CONFIG = {
   /* Telefono de Tito (recibe los pedidos APROBADOS) */
   TITO_PHONE: "15129651933",
 
+  /* ===== USUARIO MAESTRO (solo el ve MODO OFICINA) =====
+     OFFICE_PIN: clave de 4 digitos. Para cambiarla, cambia el numero de abajo.
+     ATENCION: este archivo es publico en GitHub. Cualquiera que sepa buscar
+     puede leer esta clave. Sirve para que un mayordomo no entre por error,
+     NO es seguridad de verdad. NO usar la misma clave del telefono. */
+  MASTER_USER: "TITO CUETO",
+  OFFICE_PIN:  "4605",
+
   /* Mayordomos que ven el catalogo BILINGUE (español + inglés) automaticamente.
      Cualquiera puede prenderlo con el boton "EN" en la franja de la tienda. */
   BILINGUES: ["PEDRO LIMON"],

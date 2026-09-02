@@ -572,3 +572,50 @@ VERSION 5.3 (1 septiembre 2026)
    "⭐ 3 pedidos seguidos completos". Premia pedir BIEN a la
    primera, no pedir mas.
 SUBIR: app.js, styles.css, sw.js (cache v20). Verificar "v5.3".
+
+============================================================
+VERSION 5.4 (1 septiembre 2026) - USUARIO MAESTRO CON CLAVE
+============================================================
+- MODO OFICINA ya NO existe para nadie mas. El boton OFICINA
+  desaparecio de la pantalla de todos los mayordomos y
+  supervisores.
+- En la pantalla de nombres, hasta abajo, hay un boton azul:
+  "🔒 TITO CUETO · OFICINA". Pide una clave de 4 digitos en un
+  teclado tipo iPhone. Con la clave correcta entra como
+  TITO CUETO y aparece el boton OFICINA.
+- Los links de oficina (#t, los que manda el supervisor)
+  tambien piden la clave: el contenido sale BORROSO hasta que
+  se escribe. Asi no se ven precios ni el email de ACE si el
+  telefono no es de Tito.
+- La clave se guarda en ESE telefono: se escribe una vez y ya.
+  Para cerrarla otra vez, borrar los datos del sitio en Safari.
+- Los links de REVISION (#r) del supervisor NO piden clave -
+  ellos siguen aprobando igual que siempre.
+- La clave se cambia en config.js -> OFFICE_PIN.
+
+*** IMPORTANTE - LEER ***
+config.js es un archivo PUBLICO en GitHub. Cualquiera que sepa
+buscar puede leer la clave ahi. Esta clave sirve para que un
+mayordomo no entre por error al modo oficina, NO es seguridad
+de verdad. POR ESO: NO usar la misma clave que abre el
+telefono. Poner un numero distinto en OFFICE_PIN.
+
+SUBIR: app.js, styles.css, config.js, sw.js (cache v21).
+Verificar "v5.4".
+
+============================================================
+VERSION 5.5 (1 septiembre 2026) - ENTRADA DISCRETA
+============================================================
+- Se quito el boton azul "🔒 TITO CUETO · OFICINA". Ya no hay
+  nada que llame la atencion en la pantalla.
+- Ahora TITO CUETO aparece como CUALQUIER OTRO NOMBRE en la
+  lista de mayordomos, en su lugar alfabetico (entre CANO y
+  DIAZ), con el MISMO cuadro, mismo color, mismo tamano y
+  misma letra. Verificado con el navegador: identico.
+- Al tocarlo sale un teclado que solo dice "CLAVE" - no dice
+  ningun nombre ni la palabra OFICINA. Si un mayordomo lo
+  toca por curiosidad, ve un teclado sin explicacion y sale
+  con SALIR. No se entera de nada.
+- Con la clave correcta entra como TITO CUETO y aparece
+  OFICINA. Los links #t siguen pidiendo la clave igual.
+SUBIR: app.js, styles.css, sw.js (cache v22). Verificar "v5.5".
