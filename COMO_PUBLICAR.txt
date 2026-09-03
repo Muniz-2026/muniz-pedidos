@@ -619,3 +619,68 @@ VERSION 5.5 (1 septiembre 2026) - ENTRADA DISCRETA
 - Con la clave correcta entra como TITO CUETO y aparece
   OFICINA. Los links #t siguen pidiendo la clave igual.
 SUBIR: app.js, styles.css, sw.js (cache v22). Verificar "v5.5".
+
+============================================================
+VERSION 5.6 (1 septiembre 2026) - CUARTO PROVEEDOR: WHITE CAP
+============================================================
+1) WHITE CAP agregado (AZUL MARINO). Cuarta tarjeta en la
+   pantalla de tiendas. 184 articulos. Mismo flujo que las
+   otras: su propio pedido, su propia franja de color, su
+   propio email y LISTA CORTA. En pantalla dice "WHITE CAP"
+   (no WHITECAP) en todos lados: franja, carrito, boton de
+   mandar, texto al supervisor, y el email dice
+   "Supplier: WHITE CAP CONSTRUCTION SUPPLY".
+
+2) *** FOTOS DE WHITE CAP: FALTAN 169 DE 184 ***
+   El Excel de White Cap NO trae fotos pegadas en las celdas
+   (los otros catalogos si). Solo 15 articulos tienen un
+   enlace de imagen. Los otros 169 salen con el icono de su
+   categoria - funciona, pero no se ve igual de bien.
+   COMO ARREGLARLO: Claudia tiene que pegar las imagenes en
+   la columna de imagen del Excel de White Cap, igual que en
+   ACE/CMC/RSS, y volver a pasarlo por admin.html. El app las
+   toma solas. (La columna "Direct Image URL" ya trae 15.)
+
+3) SE REVISARON LOS 4 CATALOGOS DE CLAUDIA, ARTICULO POR
+   ARTICULO. Resultado:
+   ACE      530 articulos (0 agregados, 0 quitados)
+   CMC      112 articulos (0 agregados, 0 quitados)
+   RSS      104 articulos (0 agregados, 0 quitados)
+   WHITE CAP 184 articulos (nuevo)
+   CAMBIOS DE CLAUDIA - RESPETADOS:
+     - ACE: MB2024-FX (escoba de 24") ahora BLOQUEADA
+     - ACE: 6110266 (toallas de taller) ya NO esta bloqueada
+     - RSS: 17 articulos nuevos BLOQUEADOS
+     - RSS: las fotos subieron de 12 a 58 (muy bien)
+     - CMC: fotos 61 -> 64
+   LO QUE FALTABA EN SU EXCEL Y SE VOLVIO A PONER AQUI:
+     - los 163 nombres con MEDIDA (ella tenia los nombres
+       cortos otra vez) -> ya estan
+     - los 120 ALIAS (apodos de obra) -> ya estan
+     - las marcas ESPECIAL / TALLER de R16-189 y las 3
+       sierras -> ya estan
+     - los 325 precios NTE -> ya estan
+   NO HUBO NINGUN CONFLICTO: ella no cambio ninguno de esos
+   nombres a otra cosa, nomas no los habia pegado.
+
+   *** PARA QUE ESTO NO SE REPITA: Claudia tiene que pegar la
+   hoja NOMBRES y la hoja ALIAS del Excel de mejoras en su
+   catalogo. Mientras no lo haga, cada vez que ella suba su
+   Excel por admin.html se pierden otra vez. ***
+
+SUBIR (26 archivos): todo lo de siempre + los 3 nuevos
+   catalog_whitecap.json, fotos_whitecap.json,
+   fotos_hd_whitecap.json
+   Cache v23. Verificar "v5.6".
+
+4) admin.html ARREGLADO PARA WHITE CAP: el Excel de White Cap
+   tiene el encabezado en el renglon 4 (no en el 1) y las
+   columnas en otro orden (Category en D, imagen en E). Antes
+   admin.html lo leia mal (salian 185 articulos y las
+   categorias equivocadas). Ya lee el encabezado por NOMBRE de
+   columna, asi que sirve para los 4 catalogos aunque cambien
+   de orden. Verificado con los 4 archivos:
+      ACE 530 / 133 bloqueados / 530 fotos
+      CMC 112 /   3 bloqueados /  64 fotos
+      RSS 104 /  17 bloqueados /  58 fotos
+      WHITE CAP 184 / 0 bloqueados / 0 fotos
