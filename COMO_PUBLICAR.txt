@@ -743,3 +743,36 @@ El catalogo se acomoda a como el habla y como el escribe.
 
 SUBIR: app.js, styles.css, los 4 catalog_*.json, sw.js
        (cache v25). Verificar "v5.8".
+
+============================================================
+VERSION 5.9 (1 septiembre 2026) - PRIMERO EL PRODUCTO
+============================================================
+Del hilo de Pedro Limon (PO 10665, "Redwood and rebar"):
+
+1) BUG ENCONTRADO Y CORREGIDO: buscar "rebar" o "varilla"
+   sacaba primero las BROCAS para varilla (Broca Rebar Demon),
+   no la varilla. Pasaba porque las brocas se compran mas
+   seguido que la varilla. Igual con "escoba": salia primero
+   el MANGO de escoba.
+   Ahora el app sabe la diferencia entre la COSA y el
+   ACCESORIO PARA la cosa. Si pides "escoba" te da la escoba;
+   si pides "mango" te da el mango.
+   Verificado: 15 de 15 busquedas dan primero el producto.
+
+2) "rebar" YA FUNCIONA (lo dicen en ingles todo el tiempo):
+      rebar / rebar #3 / rivar / varilla / varilla del 3
+      -> Varilla corrugada #3 / #4 / #5 de 20'
+   Los nombres ahora dicen: "Varilla corrugada #3 de 20'
+   (rebar #3)".
+
+3) "redwood" tambien: redwood / redwod / madera roja
+      -> Madera Redwood (8 medidas)
+
+4) PO 10665 revisado contra la factura 241707: pidio
+   "Redwood and rebar" y le facturaron exactamente eso -
+   40 varillas #3 de 20' ($4.85 c/u) y 7 tablas de Redwood
+   1x6-18' ($21.50 c/u). Sin sustituciones, sin extras.
+   Pedido limpio.
+
+SUBIR: app.js, styles.css, catalog_ace.json, sw.js (cache v26).
+Verificar "v5.9".
