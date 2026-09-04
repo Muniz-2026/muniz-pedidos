@@ -776,3 +776,45 @@ Del hilo de Pedro Limon (PO 10665, "Redwood and rebar"):
 
 SUBIR: app.js, styles.css, catalog_ace.json, sw.js (cache v26).
 Verificar "v5.9".
+
+============================================================
+VERSION 6.0 (1 septiembre 2026) - HILO DE ALVARO (PO 10680)
+============================================================
+Su pedido de 7 renglones ya se puede armar COMPLETO en el app:
+   barrotes de 2x6              -> Madera SPF 2x6x16'
+   barrotes de 2x4 de 12 pies   -> Madera SPF 2x4x12'
+   caja de alambre para amarrar -> Alambre para amarre (caja)
+   escoba                       -> Escoba de 24"
+   caja de bolsa para basura    -> Bolsas negras 42 GAL
+   cadenas de 10 pies           -> Cadena de arrastre
+   banda para el roto martillo  -> ESLINGA de 2" x 10'
+   (y en White Cap: "hojas de playwood" -> Triplay CDX)
+
+1) SE RESOLVIO "BANDA": banda = ESLINGA (sling). La factura
+   241817 lo confirma: TUF-EET-2-902X10, eslinga 2"x10', $26.50.
+   Ya se puede buscar como banda / faja / correa / eslinga.
+
+2) BUG GRANDE CORREGIDO: la MEDIDA ya no se ignora.
+   "barrotes de 2x6" daba primero un 2x4. Ahora cuando el
+   pedido trae una medida (2x6, 12 pies, #4), el app la exige.
+   Verificado: 20 de 20 busquedas dan el articulo correcto.
+
+3) PALABRAS NUEVAS: barrote, banda, faja, correa, cadena,
+   playwood, hojas de playwood, "bodas de cemento" (asi lo
+   escribe el telefono cuando dictan "bolsas"), caja de
+   alambre, roto martillo (separado).
+
+4) *** LO MAS IMPORTANTE PARA CLAUDIA - HOJA NUEVA
+   "FALTAN EN CATALOGO" ***
+   Se comparo lo que ACE nos factura contra el catalogo:
+   120 codigos que ACE SI nos vende NO estan en el app.
+   El peor caso: LAS ESCOBAS. 9 codigos distintos, 48 compras,
+   y NINGUNA se puede pedir en el app (la unica que estaba,
+   MB2024-FX, quedo bloqueada). Por eso siguen pidiendo
+   "una escoba" por texto: no hay otra manera.
+   La que mas compran es MB5524FX (24 veces, $33.40).
+   La hoja trae los 120 con veces compradas, precio, y que
+   hacer con cada uno.
+
+SUBIR: app.js, styles.css, catalog_ace.json, sw.js (cache v27).
+Verificar "v6.0".
