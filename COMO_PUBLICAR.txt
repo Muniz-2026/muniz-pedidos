@@ -818,3 +818,81 @@ Su pedido de 7 renglones ya se puede armar COMPLETO en el app:
 
 SUBIR: app.js, styles.css, catalog_ace.json, sw.js (cache v27).
 Verificar "v6.0".
+
+============================================================
+VERSION 6.1 (1 septiembre 2026) - HILO OMAR / HECTOR (chofer)
+============================================================
+Confirmado con la FACTURA 242206 (PO 10733). Ya se resolvieron
+varias palabras que llevaban meses sin aclararse:
+   hilo            = HILO DE ALBANIL (mason line), NO chalk line
+   bote rojo 3.5   = ROCIADOR CHAPIN CH1949 ($180)
+   hendo del largo = MANGO DE EXTENSION 8'-16' (MTREP816)
+   quicli          = DISCO DE CORTE 14" para metal/varilla
+   orillero        = ORILLADORA (edger)
+   flota           = LLANA / flota redonda = kit bull float 48"
+   cerca           = MALLA NARANJA DE SEGURIDAD 48" x 100'
+   pins 2 pies     = ESTACA DE CIMBRA 3/4" x 24"
+   trae la / traela= TRAILER      el ave = ACE
+Todas ya buscan bien en el app.
+
+ADEMAS SE ARREGLO LA BUSQUEDA CON CANTIDADES:
+   "3 cercas"  -> el 3 es CUANTOS, no una medida  ✓
+   "16 pies"   -> el 16 SI es medida             ✓
+   "2 pies"    -> tambien encuentra 24"          ✓
+   Antes "3 cercas" sacaba bolsas de basura.
+   Verificado: 22 de 24 busquedas correctas.
+
+SUBIR: app.js, styles.css, los 4 catalog_*.json, sw.js
+       (cache v28). Verificar "v6.1".
+
+============================================================
+VERSION 6.2 (1 septiembre 2026) - CHOFERES
+============================================================
+Para los mayordomos que NO manejan y tienen chofer (ej. Omar
+con Hector Segura).
+
+1) "SOY CHOFER" (pantalla de nombres, boton azul)
+   El chofer toca SOY CHOFER -> escoge su nombre -> luego
+   escoge el nombre del MAYORDOMO para quien recoge.
+   EL PEDIDO SE SIGUE REGISTRANDO AL MAYORDOMO (el material
+   es de el). El chofer solo queda anotado como quien recoge.
+   Arriba sale siempre una franja azul:
+      "RECOGE: HECTOR SEGURA · PEDIDO DE: OMAR"
+   El texto al supervisor dice "Recoge: HECTOR SEGURA (chofer)"
+   y el CSV del registro trae una columna nueva "chofer".
+   Los choferes se agregan en config.js -> CHOFERES.
+   Si CHOFERES queda vacio, el boton no aparece.
+
+2) LISTA PARA RECOGER (nuevo link, solo para el chofer)
+   En modo oficina, despues de capturar el PO, hay dos botones:
+   - "MANDAR LISTA PARA RECOGER" -> le manda al chofer un link
+     con la LISTA APROBADA: numero de PO, tienda, y cada
+     articulo con codigo, cantidad y FOTO. Le pone palomita a
+     cada renglon cuando lo carga, y al final le dice
+     "TODO CARGADO".
+     *** NO TRAE PRECIOS *** (ni NTE, ni totales).
+     Arriba en ROJO le salen los articulos QUITADOS:
+     "NO RECOJAS ESTO - no viene en este PO. Si ACE te lo
+     ofrece, no lo aceptes."
+     Ese link NO pide clave (el chofer no es oficina).
+   - "AVISAR A [mayordomo]" -> le manda al mayordomo un texto
+     con APROBADO / NO AUTORIZADO, para que sepa que se le
+     quito y no lo vuelva a pedir ni lo compre por fuera.
+     Se necesitan los telefonos en config.js -> MAYORDOMOS.
+
+3) POR QUE IMPORTA (del hilo de Omar/Hector, PO 10733):
+   - El chofer llegaba a ACE sin saber que traia el PO
+     ("es como antes verdad, yo no voy a agarrar nada").
+     Ahora llega con la lista y la puede verificar.
+   - Ya no hay que decirle al chofer "si no puse el tamano tu
+     los puedes agarrar". Cada renglon tiene codigo y cantidad.
+   - Omar nunca supo que se le quitaron las flotas y los pins.
+     Ahora se le avisa.
+   - La factura de ACE dice "Ship To: HECTOR SEGURA" pero el
+     pedido es de Omar. Ahora el registro tiene los dos.
+
+PENDIENTE DE TITO: poner el telefono de Hector en CHOFERES y
+los telefonos de los mayordomos en MAYORDOMOS (config.js).
+
+SUBIR: app.js, styles.css, config.js, sw.js (cache v29).
+Verificar "v6.2".

@@ -59,5 +59,14 @@ window.MUNIZ_CONFIG = {
   },
 
   /* OPCIONAL: telefonos de mayordomos (para avisos de RECHAZO directos) */
+  /* ===== CHOFERES (recogen material para un mayordomo) =====
+     El pedido se sigue registrando al MAYORDOMO; el chofer solo lo recoge.
+     Agrega o quita choferes aqui. Si se deja vacio {}, el boton
+     "SOY CHOFER" no aparece en el app. */
+  CHOFERES: {
+    "HECTOR SEGURA": "",
+  },
+
+  /* Telefonos de los mayordomos (para avisarles aprobado / no autorizado) */
   MAYORDOMOS: {}
 };

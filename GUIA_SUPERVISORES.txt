@@ -81,3 +81,7 @@ cerrar. Tocar el cuadrito sigue agregando como siempre.
 NUEVO (v5.3): el mensaje vuelve a llegar con el cuadro azul
 del app (tocalo y se abre). Los articulos del yard dicen
 "LO SURTE EL TALLER".
+
+NUEVO (v6.2) - CHOFERES: si el pedido lo hizo un chofer para
+un mayordomo, el texto dice "Recoge: [nombre] (chofer)". El
+pedido sigue siendo del MAYORDOMO; apruebalo igual que siempre.

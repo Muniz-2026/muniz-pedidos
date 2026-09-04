@@ -1,5 +1,5 @@
 /* MUÑIZ Pedidos - service worker: offline app shell + instant load (fully self-contained) */
-const CACHE = "muniz-pedidos-v27";
+const CACHE = "muniz-pedidos-v29";
 const SHELL = [
   "./","./index.html","./app.js","./styles.css","./manifest.json","./config.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
