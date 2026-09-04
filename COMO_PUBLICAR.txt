@@ -896,3 +896,27 @@ los telefonos de los mayordomos en MAYORDOMOS (config.js).
 
 SUBIR: app.js, styles.css, config.js, sw.js (cache v29).
 Verificar "v6.2".
+
+============================================================
+VERSION 6.3 (1 septiembre 2026) - 6 MAYORDOMOS MAS
+============================================================
+Se revisaron 6 hilos (David Molina, Diego, Isidro, Lupe,
+Juan Perez, Francisco B) contra sus facturas. Palabras nuevas
+CONFIRMADAS por factura, ya funcionan en el app:
+   tamalon           = COLOCADOR DE CONCRETO (Texas Placer)
+   ojas / cerrucho   = DISCO PARA SIERRA CIRCULAR 7-1/4"
+   costales          = BOLSA NARANJA DE PLASTICO (para arena)
+   metal pins footer = ESTACA DE CIMBRA 3/4" x 24"
+   red word          = REDWOOD
+   duplexes          = CLAVO DUPLEX
+   concrete placer   = COLOCADOR DE CONCRETO
+   shovel square     = PALA DE PUNTA CUADRADA
+   portland          = CEMENTO PORTLAND
+   bolsa de ardex    = PARCHE (Patch Pro) - ya no saca bolsas
+                       de basura
+OJO: "bote para agua" sale AMBIGUO a proposito - muestra el
+agua embotellada Y el rociador CH1949. Preguntarle a David
+cual es.
+
+SUBIR: app.js, styles.css, los 4 catalog_*.json, sw.js
+       (cache v30). Verificar "v6.3".
