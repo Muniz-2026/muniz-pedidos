@@ -920,3 +920,26 @@ cual es.
 
 SUBIR: app.js, styles.css, los 4 catalog_*.json, sw.js
        (cache v30). Verificar "v6.3".
+
+============================================================
+VERSION 6.4 (1 septiembre 2026) - LISTA A MANO DE SERGIO
+============================================================
+Se descifro la lista escrita a mano de Sergio Nino (PO 10738)
+comparandola renglon por renglon con la factura 242220.
+Las 19 lineas ya se pueden armar en el app. Palabras nuevas:
+   llevera / hielera = HIELERA (Igloo 60qt) - la del hielo
+   rueda de teip     = ROLLO DE CINTA
+   camaron           = COLOCADOR DE CONCRETO  <-- el mismo
+                       aparato que David llama "tamalon"
+   clavo chico       = CLAVO DUPLEX 8D (el grande es 16D)
+   red jul           = REDWOOD (Lupe le dice "red word")
+   botecitos para mixtiar gas y aceite = ACEITE 2 TIEMPOS
+   brochas para el agua = CEPILLO PARA AGUA (MB561)
+   espatula de limpiar barrotes = RASPADOR PARA PISO
+   discos de carbon  = DISCO DE CORTE PARA METAL
+   mazos             = MARROS
+NOTA PARA CLAUDIA: el MB561 se llamaba nomas "Cepillo" en el
+catalogo. Ya dice "Cepillo / brocha para agua".
+
+SUBIR: app.js, styles.css, los 4 catalog_*.json, sw.js
+       (cache v31). Verificar "v6.4".
