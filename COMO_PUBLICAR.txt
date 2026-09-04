@@ -684,3 +684,62 @@ SUBIR (26 archivos): todo lo de siempre + los 3 nuevos
       CMC 112 /   3 bloqueados /  64 fotos
       RSS 104 /  17 bloqueados /  58 fotos
       WHITE CAP 184 / 0 bloqueados / 0 fotos
+
+============================================================
+VERSION 5.7 (1 septiembre 2026) - LENGUAJE DE OBRA (Diego)
+============================================================
+Del hilo de Diego Vazquez (PO 10664) + su factura 241754:
+1) "ardex" YA FUNCIONA en los catalogos que SI lo venden:
+      CMC 4 productos ARDEX · RSS 1 · WHITE CAP 2
+   En ACE sigue dando CERO resultados A PROPOSITO, porque ACE
+   NO vende Ardex. Asi el app lo apunta como "BUSQUE Y NO
+   ESTABA" y tu sabes que ese pedido va a CMC, no a ACE.
+2) White Cap vendia Ardex con nombre generico ("Parche /
+   resanador para concreto"). Ya dicen ARDEX CP y ARDEX CD,
+   asi que buscar la marca los encuentra.
+3) Palabras de obra nuevas que ya buscan bien en los 4
+   catalogos: parche, resanador, remiendo, mortero.
+SUBIR: app.js, styles.css, los 4 catalog_*.json, sw.js
+       (cache v24). Verificar "v5.7".
+
+============================================================
+VERSION 5.8 (1 septiembre 2026) - BUSQUEDA A PRUEBA DE TODO
+============================================================
+Regla nueva: el mayordomo NO tiene que aprender el catalogo.
+El catalogo se acomoda a como el habla y como el escribe.
+
+1) "ARDEX" EN ACE YA ENCUENTRA EL PATCH PRO.
+   Es el producto que el quiere, nomas no sabe el nombre.
+   Funciona en los 4 catalogos: ACE -> Patch Pro,
+   CMC/RSS/WHITE CAP -> el Ardex de verdad.
+
+2) BUSCA POR COMO SUENA, NO POR COMO SE ESCRIBE.
+   Ya no importa si le atinan a la ortografia:
+      ardes / ardecs / hardex / ardek  -> Parche (Patch Pro)
+      estaka / estacka                 -> Estacas
+      sinta metrica                    -> Cinta metrica
+      clabo duplex                     -> Clavo duplex
+      bariya / bariyas                 -> Varilla
+      rosiador                         -> Rociador
+      escova                           -> Escoba
+      yana                             -> Llana
+      diamnate / dimante / diamnte     -> Disco diamantado
+   El app entiende c/s/z, b/v, ll/y, k/qu, la h muda, x/cs, y
+   hasta letras volteadas (diamnate = diamante).
+
+3) MARCAS COMO LAS DICEN EN LA OBRA:
+      quikrete / sakrete -> mezcla de concreto
+      diablo             -> discos de sierra
+      rustoleum          -> pintura en aerosol
+      husqvarna          -> cortadora de concreto
+      makita / dewalt    -> sierra circular
+      hilti / bosch      -> rotomartillo
+
+4) NUNCA SE QUEDA EN BLANCO. Si no hay nada exacto, el app
+   busca lo parecido y avisa arriba en amarillo:
+   "No encontre 'X' exacto. Esto es lo mas parecido."
+   Y si de plano no hay, lo apunta para el reporte
+   "BUSQUE Y NO ESTABA".
+
+SUBIR: app.js, styles.css, los 4 catalog_*.json, sw.js
+       (cache v25). Verificar "v5.8".
