@@ -943,3 +943,53 @@ catalogo. Ya dice "Cepillo / brocha para agua".
 
 SUBIR: app.js, styles.css, los 4 catalog_*.json, sw.js
        (cache v31). Verificar "v6.4".
+
+============================================================
+VERSION 6.5 (9 septiembre 2026) - CATALOGOS NUEVOS + CLAUDIA
+============================================================
+1) CLAUDIA TAMAYO YA ES USUARIA DE OFICINA.
+   Su nombre aparece en la lista de nombres como cualquier
+   otro (en su lugar alfabetico, entre SANCHEZ y VAZQUEZ),
+   con el mismo cuadro, mismo color, mismo tamano. Nada la
+   distingue. Al tocarlo pide SU PROPIA clave.
+      TITO CUETO      -> 4605
+      CLAUDIA TAMAYO  -> 2718   <-- CAMBIAR esta clave
+   Cada uno tiene su clave. La de Tito no abre la de Claudia
+   y al revés. Los dos ven MODO OFICINA y los dos pueden
+   abrir los links de oficina (#t).
+   Se agregan o quitan en config.js -> OFICINA.
+   *** OJO: config.js es publico en GitHub. Cambien las dos
+   claves por numeros que no sean de sus telefonos. ***
+
+2) CATALOGOS NUEVOS DE CLAUDIA - REVISADOS RENGLON POR RENGLON
+   ACE        530 articulos (0 agregados, 0 quitados)
+              4 desbloqueados por Claudia (careta facial:
+              soporte, mica y adaptador) - RESPETADO
+              129 bloqueados
+   RSS        104 -> 101 (quito cubeta y 2 lentes)
+              8 bloqueados nuevos (cubrecaras, lentes,
+              candado, botas, casco, camisa) - RESPETADO
+              25 bloqueados en total
+              FOTOS: 58 -> 83
+   WHITE CAP  184 -> 182 (quito electrolitos en sobre y un
+              cepillo de alambre)
+              5 bloqueados nuevos (cortadora, nivel 48",
+              cinta metrica, aceite 2 tiempos, jalador)
+              *** FOTOS: 0 -> 168 *** Claudia le puso las
+              fotos a White Cap. Era lo que mas faltaba.
+   CMC        sin cambios (no mando archivo nuevo)
+
+   VERIFICADO: mismos articulos, sin codigos repetidos,
+   mismas categorias, mismo ingles, mismos MAX, mismos
+   enlaces de imagen, todos con nombre en español.
+
+3) NUESTROS CAMBIOS SE MANTUVIERON TODOS (15 de 15):
+   escuadra y nivel torpedo bloqueados, las marcas ESPECIAL
+   y TALLER, los 167 nombres con medida, los 198 alias
+   (incluyendo camaron/tamalon, hielera, teip, red jul,
+   pins, ardex), y los 325 precios NTE.
+
+SUBIR (26 archivos): app.js, config.js, sw.js (cache v32),
+   catalog_ace/rss/whitecap.json, fotos_ace/rss/whitecap.json,
+   fotos_hd_ace/rss/whitecap.json.
+   Verificar "v6.5".

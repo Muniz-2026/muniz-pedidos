@@ -16,6 +16,19 @@ window.MUNIZ_CONFIG = {
      ATENCION: este archivo es publico en GitHub. Cualquiera que sepa buscar
      puede leer esta clave. Sirve para que un mayordomo no entre por error,
      NO es seguridad de verdad. NO usar la misma clave del telefono. */
+  /* ===== USUARIOS DE OFICINA (cada uno con su propia clave) =====
+     Solo estas personas ven MODO OFICINA. Su nombre aparece en la lista de
+     nombres como cualquier otro, sin nada que llame la atencion; al tocarlo
+     pide SU clave. Para agregar o quitar gente, edita esta lista.
+     ATENCION: este archivo es publico en GitHub - la clave se puede leer.
+     Sirve para que un mayordomo no entre por error, NO es seguridad real.
+     NO usar la misma clave que abre el telefono. */
+  OFICINA: {
+    "TITO CUETO":     "4605",
+    "CLAUDIA TAMAYO": "2718",
+  },
+
+  /* (compatibilidad con la version anterior - ya no se usa si OFICINA existe) */
   MASTER_USER: "TITO CUETO",
   OFFICE_PIN:  "4605",
 
