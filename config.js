@@ -40,6 +40,127 @@ window.MUNIZ_CONFIG = {
     "LUIS PEREZ":         "",
   },
 
+  /* =====================================================================
+     COMBUSTIBLE  (fuel.html)  -  reglas de Rudy Muniz
+     Cada PO de combustible exige: quien, que vehiculo/equipo (placa o
+     numero), tipo de combustible (lo fija el registro, no la persona),
+     odometro (vehiculo) u horas (maquinaria), OBRA (lugar, no contrato),
+     y estacion. Se genera solo, sin supervisor, y queda en el registro.
+     ===================================================================== */
+  COMBUSTIBLE: {
+    /* A donde llega automaticamente CADA PO de combustible (el registro). */
+    LOG_TEL: "15129651933",
+
+    /* Estaciones. Si "tel" tiene numero, el PO tambien le llega a la estacion
+       en el mismo mensaje. Leo's colabora; Tex-Con se deja en blanco si no lo quiere. */
+    ESTACIONES: {
+      LEOS:   { nombre: "Leo's Service Station", corto: "LEO'S",   tel: "", color: "#F5B800" },
+      TEXCON: { nombre: "Tex-Con Oil",           corto: "TEX-CON", tel: "", color: "#1D4ED8" },
+    },
+
+    /* OBRAS = LUGARES (del 6-Week Lookahead). Nunca el numero de contrato. */
+    OBRAS: [
+      "St Johns Ave","Springdale Rd @ Lyons Rd","Middle Lake","Gonzales Ped Island","Mokan Trail",
+      "Violet Crown Trail","Violet Crown Circle C","North Lamar Blvd","Menchaca Rd","Banister Area",
+      "Rundberg Rd","Rundberg Rd @ Mearns Meadows","RBJ Health Center","CapMetro","Burnet Rd",
+      "Cameron Rd","Niels Thompson Dr @ Longhorn Blvd","Manor Rd","North Cross Dr","Mesa Dr",
+      "Duval Rd","Metro Center Dr","Pleasant Valley Ph1","E 12th St @ Chestnut Ave","CAUDI",
+      "West 12th St","Howard Ln","Radam Ln & 1st St","Middle Fiskville SUP","EM Franklin Ave",
+      "Yarda (Muniz)"
+    ],
+
+    /* Donde esta cada cuadrilla ESTA SEMANA (del 6-Week Lookahead, semana del 7 sep).
+       Claudia lo actualiza cada lunes con el correo de ubicaciones. El app lo propone
+       primero; la persona lo confirma o cambia. Si cambia, queda marcado. */
+    OBRA_SEMANA: {
+      "ENRIQUE ALVARADO": "St Johns Ave",           "DANIEL ORTEGA": "Springdale Rd @ Lyons Rd",
+      "RUBEN CANO": "Mokan Trail",                  "SERGIO NINO": "Metro Center Dr",
+      "ISIDRO SANCHEZ": "North Lamar Blvd",         "GERARDO SANCHEZ": "North Lamar Blvd",
+      "DIEGO VAZQUEZ": "Banister Area",             "FRANCISCO AGUIRRE": "Rundberg Rd",
+      "VICTOR SANCHEZ": "RBJ Health Center",        "JULIAN GONZALEZ": "CapMetro",
+      "GIOVANNI RODRIGUEZ": "Burnet Rd",            "OMAR ALFREDO HERNANDEZ": "Rundberg Rd @ Mearns Meadows",
+      "ISIDRO GARCIA": "Burnet Rd",                 "ALVARO AGUIRRE": "Cameron Rd",
+      "CARLOS DIAZ": "Niels Thompson Dr @ Longhorn Blvd", "PEDRO LIMON": "North Cross Dr",
+      "FRANCISCO BOCANEGRA": "Duval Rd",            "JUAN PEREZ": "Pleasant Valley Ph1",
+      "DAVID MOLINA": "E 12th St @ Chestnut Ave",   "JOSE ZAMARRIPA": "CAUDI",
+      "HERVEY QUINTERO": "West 12th St",            "JOSE GUADALUPE JUAREZ": "Howard Ln",
+      "IVAN MUNIZ": "Middle Fiskville SUP"
+    },
+
+    /* Gente que pide combustible y NO esta en la lista de mayordomos (del registro de POs). */
+    USUARIOS_EXTRA: [
+      "ABRAHAM GONZALEZ","ULISES LARA","JOSE ANTONIO LICEA","ISIDRO GARCIA","ENRIQUE CHAPA",
+      "RAFAEL PEREZ","JOSE DE LA CERDA","JESUS G RODRIGUEZ","FRANCIS ECHEVESTRE","AVISAI JIMENEZ",
+      "ROGELIO LOPEZ","ALEJANDRO ESQUIVEL","ANDY HERNANDEZ","MARTIN JUAREZ","JOSE GERARDO GARCIA",
+      "MARCELA CASTANEDA","IVAN MUNIZ","FERNANDO ARELLANO","ALEXANDER ROSALES","URIEL SOTO",
+      "BRYAN LOPEZ","JULIO MARTINEZ","PABLO REYNAGA"
+    ],
+
+    /* FLOTA. El tipo de combustible lo pone ESTE registro, no la persona.
+       tipo: CAMIONETA (pide odometro) | MAQUINARIA (pide horas) | TAMBO (no pide lectura) | PIPA (camion de combustible)
+       placa: dejarla "" hasta tenerla; mientras, la persona la dicta y queda MARCADO en el registro.
+       Regla: mayordomos = camioneta DIESEL. supervisores = camioneta GASOLINA. gerentes = pipa. */
+    FLOTA: [
+      /* --- mayordomos: camioneta DIESEL --- */
+      { id:"V-AAG", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"ALVARO AGUIRRE" },
+      { id:"V-FAG", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"FRANCISCO AGUIRRE" },
+      { id:"V-EAL", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"ENRIQUE ALVARADO" },
+      { id:"V-FBO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"FRANCISCO BOCANEGRA" },
+      { id:"V-RCA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"RUBEN CANO" },
+      { id:"V-CDI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"CARLOS DIAZ" },
+      { id:"V-JGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"JULIAN GONZALEZ" },
+      { id:"V-OHE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"OMAR ALFREDO HERNANDEZ" },
+      { id:"V-JGJ", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"JOSE GUADALUPE JUAREZ" },
+      { id:"V-PLI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"PEDRO LIMON" },
+      { id:"V-DMO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"DAVID MOLINA" },
+      { id:"V-SNI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"SERGIO NINO" },
+      { id:"V-DOR", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"DANIEL ORTEGA" },
+      { id:"V-JPE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"JUAN PEREZ" },
+      { id:"V-HQU", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"HERVEY QUINTERO" },
+      { id:"V-GRO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"GIOVANNI RODRIGUEZ" },
+      { id:"V-GSA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"GERARDO SANCHEZ" },
+      { id:"V-ISA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"ISIDRO SANCHEZ" },
+      { id:"V-RSA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"RICARDO SANCHEZ" },
+      { id:"V-VSA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"VICTOR SANCHEZ" },
+      { id:"V-DVA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"DIEGO VAZQUEZ" },
+      { id:"V-JZA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"JOSE ZAMARRIPA" },
+      { id:"V-IGA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"ISIDRO GARCIA" },
+      { id:"V-IMU", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"IVAN MUNIZ" },
+      /* --- supervisores: camioneta GASOLINA --- */
+      { id:"V-MJU", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"MIGUEL JUAREZ" },
+      { id:"V-THE", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"TACHO HERNANDEZ" },
+      { id:"V-JLZ", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"JOSE LUIS ZAMARRIPA" },
+      { id:"V-MGO", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"MARTIN GONZALEZ" },
+      { id:"V-LJU", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"LUPE JUAREZ" },
+      /* --- gerentes: pipa (camion de combustible) --- */
+      { id:"P-HMA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"HECTOR MANZANARES" },
+      { id:"P-SMA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"SIMON MARTINEZ" },
+      { id:"P-MMU", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"MARIO MUNOZ" },
+      { id:"P-HCA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"HUGO CARLINO" },
+      { id:"P-EVA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"EDUARDO VALENZUELA" },
+      { id:"P-LPE", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"LUIS PEREZ" },
+      /* --- choferes y otros (revisar tipo de combustible) --- */
+      { id:"V-HSE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"HECTOR SEGURA" },
+      { id:"V-AGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ABRAHAM GONZALEZ" },
+      { id:"V-ULA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ULISES LARA" },
+      { id:"V-JLI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JOSE ANTONIO LICEA" },
+      { id:"V-ECH", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ENRIQUE CHAPA" },
+      { id:"V-RPE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"RAFAEL PEREZ" },
+      { id:"V-JCE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JOSE DE LA CERDA" },
+      { id:"V-JRO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JESUS G RODRIGUEZ" },
+      { id:"V-FEC", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"FRANCIS ECHEVESTRE" },
+      { id:"V-AJI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"AVISAI JIMENEZ" },
+      { id:"V-RLO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ROGELIO LOPEZ" },
+      /* --- equipo compartido: cualquiera puede escogerlo, pide numero de equipo --- */
+      { id:"M-GEN", placa:"", desc:"Maquinaria (bobcat, rodillo, compactador, generador…)", tipo:"MAQUINARIA", comb:"DIESEL",   de:"" },
+      { id:"T-DSL", placa:"", desc:"Tambo / tanque de DIÉSEL",   tipo:"TAMBO", comb:"DIESEL",   de:"" },
+      { id:"T-GAS", placa:"", desc:"Tambo / tanque de GASOLINA", tipo:"TAMBO", comb:"GASOLINA", de:"" },
+    ],
+
+    /* Alertas. La oficina las ve; el app avisa en el momento. */
+    ALERTAS: { HORAS_MIN_ENTRE_CARGAS: 6, CARGAS_MAX_7DIAS: 4, MILLAS_MIN_ENTRE_CARGAS: 40 },
+  },
+
   /* (compatibilidad con la version anterior - ya no se usa si OFICINA existe) */
   MASTER_USER: "TITO CUETO",
   OFFICE_PIN:  "4605",

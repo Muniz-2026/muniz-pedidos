@@ -1094,3 +1094,80 @@ directo en su archivo, igual que en ACE.
 SUBIR: app.js, catalog_whitecap.json, fotos_whitecap.json,
        fotos_hd_whitecap.json, sw.js (cache v36).
        Verificar "v6.9".
+
+============================================================
+VERSION 7.0 (10 septiembre 2026) - MUÑIZ COMBUSTIBLE
+============================================================
+POR QUE: desde el 1 de marzo se han emitido 1,707 POs; 986 son
+de combustible (58%), 5 al dia. De esos 986, en 968 la
+descripcion dice nomas "fuel" - no dice diesel ni gasolina - y
+en mas de 800 la obra es el numero de contrato (ADA 33), no el
+lugar. Cero control. Eso se acaba con esto.
+
+QUE ES: una pagina aparte, fuel.html, con boton grande
+"⛽ COMBUSTIBLE" en la pantalla de nombres. Es para TODOS
+(mayordomos, supervisores, gerentes, choferes y la gente que
+pide combustible sin estar en la lista de mayordomos).
+
+COMO FUNCIONA (6 pasos, una pregunta por pantalla):
+  1. ¿Quien eres?  - toca tu nombre (se recuerda)
+  2. ¿Que vas a cargar?  - escoge de LA FLOTA. Tu camioneta sale
+     primero. EL TIPO DE COMBUSTIBLE LO PONE EL REGISTRO, la
+     persona NO lo escoge. Asi no hay como ponerle gasolina a un
+     diesel en el PO. Tambien: Maquinaria (pide # de equipo y
+     horas) y Tambo/tanque (diesel o gasolina).
+  3. Placa  - solo la primera vez, si el registro no la tiene.
+     Queda MARCADA "dictada" hasta que Tito la ponga en config.
+  4. Odometro (camioneta) u Horas (maquinaria) - teclado grande.
+     ⛔ NO deja poner una lectura MENOR a la ultima. Bloquea.
+  5. ¿En que obra?  - LUGAR, nunca contrato. Le propone primero
+     la obra que le toca ESTA SEMANA segun el 6-Week Lookahead
+     (config -> OBRA_SEMANA, Claudia lo actualiza los lunes).
+     Si escoge otra, queda marcado. "Otra ubicacion" a mano
+     tambien queda marcado.
+  6. Estacion (Leo's / Tex-Con) + resumen -> GENERAR PO.
+
+EL PO SE GENERA SOLO. Formato: F260910-H20G
+  F = combustible, 260910 = fecha, H20G = codigo unico.
+  Inconfundible con un PO de ACE. NADIE lo aprueba. No pasa por
+  supervisor. Tito no recibe llamada ni texto pidiendo PO.
+
+EL TICKET: pantalla tipo pase de abordar. Arriba, GIGANTE y en
+  color: DIESEL (verde) o GASOLINA (naranja). Luego PO, PLACA,
+  ODOMETRO, CHOFER, VEHICULO, OBRA, ESTACION, FECHA. Es lo que
+  Leo's pide (PO, placa, nombre). Se muestra en la bomba.
+  Boton "MANDAR PO" -> UN texto que va al REGISTRO (config ->
+  COMBUSTIBLE.LOG_TEL) y, si la estacion tiene telefono en
+  config, tambien a la estacion en el mismo mensaje.
+
+EL REGISTRO (oficina): fuel.html -> "OFICINA" abajo, o el link
+  que llega en el texto. Pide la clave de Tito o Claudia una vez
+  por telefono. Cada link que abren queda registrado. Muestra:
+  HOY / 7 DIAS / por estacion / diesel vs gasolina, la lista de
+  POs, la FLOTA con su ultima lectura, EXPORTAR CSV, y las
+  ALERTAS:
+    🔴 mismo vehiculo cargo 2 veces en 24 h
+    🔴 odometro u horas retrocedieron
+    🔴 vehiculo fuera del registro
+    🟠 placa dictada (no registrada)   🟠 obra escrita a mano
+    🟠 obra distinta al rol de la semana
+    🟠 menos de 40 millas desde la ultima carga
+    🟠 mas de 4 cargas en 7 dias      🟠 domingo / fuera de horario
+    🟠 misma persona, 3+ vehiculos distintos en un dia
+  Los umbrales se cambian en config -> COMBUSTIBLE.ALERTAS.
+
+*** ANTES DE SALIR EN VIVO - TITO ***
+  1. config.js -> COMBUSTIBLE.FLOTA: PONER LAS PLACAS. Van en
+     blanco. Mientras esten en blanco la gente las dicta y queda
+     marcado; en cuanto las pongas, ya no se puede dictar.
+     Revisa tambien el tipo de combustible de cada quien (puse
+     mayordomos=diesel, supervisores=gasolina, gerentes=pipa).
+  2. config.js -> ESTACIONES: el telefono de Leo's si quieren
+     recibir el PO por texto. Tex-Con se puede dejar vacio.
+  3. config.js -> LOG_TEL: a que telefono llega el registro
+     (ahora esta el de Tito). Puede ser el de Claudia.
+  4. Cada lunes: Claudia actualiza OBRA_SEMANA con el correo de
+     ubicaciones.
+
+SUBIR (29 archivos): fuel.html, fuel.js, fuel.css (NUEVOS) +
+  app.js, config.js, sw.js (cache v37). Verificar "v7.0".
