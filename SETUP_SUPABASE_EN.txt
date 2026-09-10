@@ -18,8 +18,22 @@ STEP 2 · CREATE THE TABLES
   3. Safe to run again at any time (it never duplicates anything).
 
 ====================================================================
-  PATCH 1 - REQUIRED  (run this after Step 2)
+  PATCHES - RUN IN ORDER after Step 2
 ====================================================================
+  Run supabase_parche1.sql, then supabase_parche2.sql.
+  If you already ran parche1, just run parche2 - it replaces the
+  function with the corrected version and TESTS ITSELF, printing:
+     PRUEBA 1/4 OK · se registro F####
+     PRUEBA 2/4 OK · reintento devuelve el mismo PO
+     PRUEBA 3/4 OK · lectura menor rechazada
+     PRUEBA 4/4 OK · numero de contrato rechazado como obra
+     PRUEBAS LIMPIADAS · la funcion quedo lista
+     OK · create_fuel_po arreglada y probada
+  (The test rows are deleted automatically. Look in the "Results"
+   panel; the PRUEBA lines appear under Messages/Notices.)
+
+--------------------------------------------------------------------
+  ABOUT PATCH 1
   SQL Editor -> New query -> paste ALL of supabase_parche1.sql -> RUN
   It should finish with:  OK · create_fuel_po lista
 
@@ -111,6 +125,32 @@ STEP 5 · ACCEPTANCE TEST (5 minutes, with your phone)
       the proof that the truth lives on the server.
   [ ] Airplane mode on -> GENERAR -> "Sin señal" screen; airplane mode off
       -> REINTENTAR -> the PO appears. Nothing was lost.
+
+====================================================================
+  VERSION NUMBERS - HOW TO READ THEM
+====================================================================
+  Do NOT hand-edit version numbers. There are three, each in its own
+  file, and I bump them when I change that file:
+
+    v7.4  -> lives in app.js. Prints at the bottom of the NAMES screen
+             of the orders app (index.html). If you only uploaded
+             fuel.js/fuel.css/sw.js, this correctly stays at 7.4 -
+             app.js did not change.
+    v2.1  -> lives in fuel.js. Prints on the fuel "PO registrado" screen.
+    v42   -> the cache name inside sw.js. Not shown anywhere; it is what
+             forces phones to pick up new files.
+
+  IF A PHONE STILL SHOWS OLD BEHAVIOR AFTER YOU UPLOAD:
+    The app is a PWA - the service worker serves the cached copy until
+    the new one takes over. To force it:
+      iPhone: close the tab AND swipe the app closed, then reopen.
+               (Or Settings > Safari > Advanced > Website Data > remove
+                muniz-2026.github.io)
+      Installed to home screen: swipe it closed and reopen twice.
+    GitHub Pages also takes 1-2 minutes to publish after a commit.
+    The reliable check is not the version number - it is behavior:
+    tap a name and see if the VEHICLE LIST appears. That list only
+    comes from the database.
 
 AFTER THAT · YOU OPERATE FROM SUPABASE (Table Editor), not config.js
   vehicles   -> ENTER THE PLATES (plate column). Once a plate is in, nobody
