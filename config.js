@@ -51,6 +51,28 @@ window.MUNIZ_CONFIG = {
     /* A donde llega automaticamente CADA PO de combustible (el registro). */
     LOG_TEL: "15129651933",
 
+    /* ===== REGISTRO AUTOMATICO (lo mas importante) =====
+       Si aqui va una URL, CADA PO se registra solo, sin que la persona mande
+       nada. Es lo que hace imposible saltarse el control.
+       Como se hace (10 minutos, gratis, una sola vez):
+         1. Hoja de Google nueva -> Extensiones -> Apps Script
+         2. Pegar:
+              function doGet(e){
+                var h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("PO") ||
+                        SpreadsheetApp.getActiveSpreadsheet().insertSheet("PO");
+                if (h.getLastRow() === 0) h.appendRow(["po","fecha","quien","vehiculo","tipo",
+                  "combustible","placa","equipo","lectura","obra","obra_semana","estacion","alertas"]);
+                var p = e.parameter;
+                h.appendRow([p.po, new Date(Number(p.ts)), p.who, p.veh, p.tipo, p.comb, p.placa,
+                  p.equipo, p.lectura, p.obra, p.obraSemana, p.est, p.flags]);
+                return ContentService.createTextOutput("ok");
+              }
+         3. Implementar -> Nueva implementacion -> Aplicacion web
+            Ejecutar como: yo    |    Con acceso: cualquier persona
+         4. Copiar la URL /exec y pegarla aqui abajo.
+       Si se deja vacio, el app usa el candado del PO (ver COMO_PUBLICAR). */
+    WEBHOOK: "",
+
     /* Estaciones. Si "tel" tiene numero, el PO tambien le llega a la estacion
        en el mismo mensaje. Leo's colabora; Tex-Con se deja en blanco si no lo quiere. */
     ESTACIONES: {

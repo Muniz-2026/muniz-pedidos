@@ -10,7 +10,7 @@ import { createRoot } from "react-dom/client";
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
 const FUEL = CFG.COMBUSTIBLE || {};
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "1.0";
+const VERSION = "1.2";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -47,6 +47,27 @@ const LS = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
 const K_ME = "muniz_fuel_me", K_HIST = "muniz_fuel_hist", K_LOG = "muniz_fuel_log", K_PLATES = "muniz_fuel_plates", K_OF = "muniz_oficina";
+const K_PEND = "muniz_fuel_pend";     /* POs generated but not yet registered */
+const WEBHOOK = String(FUEL.WEBHOOK || "");
+
+/* Fire-and-forget server log. An image beacon needs no CORS and no keys, so it
+   works from a static page. If it fails we keep the PO pending and the SMS
+   backlog picks it up. */
+function beacon(e) {
+  if (!WEBHOOK) return false;
+  try {
+    const q = new URLSearchParams({ po: e.po, ts: String(e.ts), who: e.who, vid: e.vid, veh: e.veh,
+      tipo: e.tipo, comb: e.comb, placa: e.placa || "", equipo: e.equipo || "",
+      lectura: String(e.lectura ?? ""), obra: e.obra, obraSemana: e.obraSemana || "",
+      est: e.est, flags: (e.autoFlags || []).join("|") }).toString();
+    const img = new Image(); img.src = WEBHOOK + (WEBHOOK.indexOf("?") >= 0 ? "&" : "?") + q;
+    try { fetch(WEBHOOK, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(e) }); } catch (x) {}
+    return true;
+  } catch (x) { return false; }
+}
+const pendList = () => LS.get(K_PEND, []);
+const pendAdd  = e => { const p = pendList(); if (!p.some(x => x.po === e.po)) { p.push(e); LS.set(K_PEND, p.slice(-40)); } };
+const pendClear = pos => { LS.set(K_PEND, pendList().filter(x => pos.indexOf(x.po) < 0)); };
 const officeUnlocked = () => { try { return localStorage.getItem(K_OF) === "1"; } catch (e) { return false; } };
 
 /* ---------- encoding (same as the orders app) ---------- */
@@ -64,6 +85,21 @@ function makePO(d) {
 const fmtNum = n => (n === "" || n == null) ? "—" : Number(n).toLocaleString("en-US");
 const fmtDT = ts => { const d = new Date(ts); return d.toLocaleDateString("es-MX", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }); };
 const hoursBetween = (a, b) => Math.abs(a - b) / 36e5;
+
+/* One SMS can register several POs: any that never got sent ride along. */
+function pendBody(list) {
+  const L = list.slice(0, 8);
+  const head = L.length > 1 ? [`⛽ ${L.length} POs DE COMBUSTIBLE`, ""] : [];
+  const blocks = L.map(e => {
+    const s = (FUEL.ESTACIONES || {})[e.est] || {};
+    return [`PO ${e.po} · ${e.comb}`, e.who,
+      `${e.veh}${e.placa ? " · Placa " + e.placa : ""}${e.equipo ? " · Equipo " + e.equipo : ""}`,
+      e.lectura !== "" && e.lectura != null ? `${e.tipo === "MAQUINARIA" ? "Horas" : "Odómetro"}: ${Number(e.lectura).toLocaleString("en-US")}` : null,
+      `Obra: ${e.obra}`, `${s.nombre || e.est}`].filter(x => x !== null).join("\n");
+  });
+  const link = APP_URL + "fuel.html#f=" + b64e(L.length === 1 ? L[0] : { multi: L });
+  return [...head, blocks.join("\n\n"), "", "REGISTRO:", link].join("\n");
+}
 
 /* ---------- red flags: one function, used live and in the office ---------- */
 function flagsFor(e, history) {
@@ -189,6 +225,10 @@ function Wizard({ initialWho, onDone, onOffice }) {
   const [obraOtra, setObraOtra] = useState("");
   const [station, setStation] = useState("");
   const [ticket, setTicket] = useState(null);
+  const [sent, setSent] = useState(false);
+  const [asked, setAsked] = useState(false);
+  const [askedP, setAskedP] = useState(false);
+  const [tick, setTick] = useState(0);
   const [warn, setWarn] = useState(null);
   const hist = LS.get(K_HIST, []);
   const plates = LS.get(K_PLATES, {});
@@ -225,12 +265,52 @@ function Wizard({ initialWho, onDone, onOffice }) {
       placa: effPlate || "", equipo: equipNo || "", lectura: needsLectura ? lectura : "",
       obra: obraOtra || obra, obraOtra: !!obraOtra, obraSemana,
       est: station, plateTyped: !!(veh && !veh.placa && (plates[veh.id] || plate) && (veh.tipo === "CAMIONETA" || veh.tipo === "PIPA")), manualVeh: false, v: 1 };
+    e.autoFlags = flagsFor(e, LS.get(K_HIST, [])).map(f => f.t);
     const h = LS.get(K_HIST, []); h.push(e); LS.set(K_HIST, h.slice(-400));
     if (veh && !veh.placa && plate) { const p = LS.get(K_PLATES, {}); p[veh.id] = up(plate); LS.set(K_PLATES, p); }
-    setTicket(e); go(7);
+    pendAdd(e);
+    e.srv = beacon(e);          /* server log attempted */
+    setTicket(e); setSent(false); go(7);
   };
 
   const filtered = EVERYONE.filter(n => !q || norm(n).includes(norm(q)));
+
+  /* ---------- 0 · an unregistered PO blocks everything ---------- */
+  const pend = useMemo(() => pendList(), [tick, step]);
+  if (pend.length && step < 7) {
+    const p = pend[0];
+    const s0 = STATIONS[p.est] || {};
+    const body = pendBody(pend);
+    const tels = [FUEL.LOG_TEL, s0.tel].filter(Boolean);
+    return (
+      <Shell>
+        <Top title="Falta registrar un PO" sub="No se puede sacar otro hasta que este quede registrado" />
+        <div className="px-4 pb-8">
+          <div className="rounded-2xl bg-[#7F1D1D] px-4 py-4">
+            <div className="text-[12px] font-black tracking-widest opacity-90">PO SIN REGISTRAR{pend.length > 1 ? ` (${pend.length})` : ""}</div>
+            <div className="mono display text-[30px] leading-none mt-1">{p.po}</div>
+            <div className="text-[13px] font-bold mt-2">{p.who} · {p.veh}{p.placa ? " · " + p.placa : ""}</div>
+            <div className="text-[13px] mt-0.5 opacity-90">{p.obra} · {(STATIONS[p.est] || {}).corto || p.est} · {fmtDT(p.ts)}</div>
+          </div>
+          <div className="mt-4 text-[14px] text-[#B4BCC8] leading-snug">
+            Este PO ya está en la bomba pero la oficina todavía no lo tiene. Mándalo y ya puedes seguir.
+          </div>
+          <div className="mt-4">
+            <a href={smsHref(tels, body)} onClick={() => setAskedP(true)}
+               className="btn block w-full py-4 text-center text-[18px] bg-[#F5B800] text-[#0B0F14]">MANDAR REGISTRO ➤</a>
+          </div>
+          {askedP ? (
+            <div className="mt-4 card px-4 py-4 pop">
+              <div className="text-[15px] font-black text-center">¿Ya tocaste enviar en Mensajes?</div>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <button onClick={() => { pend.forEach(x => beacon(x)); pendClear(pend.map(x => x.po)); setAskedP(false); setTick(t => t + 1); }}
+                  className="btn py-3.5 bg-[#16A34A] text-white text-[15px]">SÍ, YA LO MANDÉ</button>
+                <button onClick={() => setAskedP(false)} className="btn py-3.5 bg-[#1A2230] text-white text-[15px]">TODAVÍA NO</button>
+              </div>
+            </div>) : null}
+        </div>
+      </Shell>);
+  }
 
   /* ---------- 1 · WHO ---------- */
   if (step === 1) return (
@@ -382,7 +462,47 @@ function Wizard({ initialWho, onDone, onOffice }) {
       </Shell>);
   }
 
-  /* ---------- 7 · TICKET ---------- */
+  /* ---------- 7 · REGISTER, THEN THE TICKET ---------- */
+  if (step === 7 && ticket && !sent && !ticket.srv) {
+    const s = STATIONS[ticket.est] || {};
+    const tels = [FUEL.LOG_TEL, s.tel].filter(Boolean);
+    const body = pendBody(pendList().length ? pendList() : [ticket]);
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    return (
+      <Shell>
+        <Top title="Manda el registro" sub="Tu número de PO aparece en cuanto quede registrado" />
+        <div className="px-4 pb-8">
+          <div className="card px-5 py-6 text-center">
+            <div className="text-6xl">🔒</div>
+            <div className="display text-[22px] mt-3">Tu PO está listo</div>
+            <div className="text-[14px] text-[#B4BCC8] mt-2 leading-snug">Falta un paso: mandar el registro a la oficina.<br />Sin eso no se muestra el número.</div>
+          </div>
+          <div className="mt-4 card px-4 py-3">
+            {[["Quién", ticket.who], ["Vehículo", ticket.veh + (ticket.placa ? " · " + ticket.placa : "") + (ticket.equipo ? " · " + ticket.equipo : "")],
+              ticket.lectura !== "" ? [ticket.tipo === "MAQUINARIA" ? "Horas" : "Odómetro", fmtNum(ticket.lectura)] : null,
+              ["Obra", ticket.obra], ["Estación", s.nombre || ticket.est]].filter(Boolean)
+              .map(([k, v]) => <div key={k} className="flex justify-between gap-3 py-2 border-b border-[#1E2733] last:border-0"><span className="text-[13px] text-[#8B95A5]">{k}</span><span className="text-[14px] font-black text-right">{v}</span></div>)}
+          </div>
+          <div className="mt-5">
+            <a href={smsHref(tels, body)} onClick={() => { setAsked(true); }}
+               className="btn block w-full py-5 text-center text-[19px] bg-[#F5B800] text-[#0B0F14]">MANDAR REGISTRO ➤</a>
+            <div className="mt-2 text-center text-[11px] text-[#5B6572]">Se abre Mensajes con todo escrito. Solo toca la flecha de enviar.</div>
+          </div>
+          {asked ? (
+            <div className="mt-5 card px-4 py-4 pop">
+              <div className="text-[15px] font-black text-center">¿Ya tocaste enviar en Mensajes?</div>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <button onClick={() => { pendClear([ticket.po]); setSent(true); }} className="btn py-3.5 bg-[#16A34A] text-white text-[15px]">SÍ, YA LO MANDÉ</button>
+                <button onClick={() => setAsked(false)} className="btn py-3.5 bg-[#1A2230] text-white text-[15px]">TODAVÍA NO</button>
+              </div>
+            </div>) : null}
+          {offline ? (
+            <button onClick={() => setSent(true)} className="mt-6 w-full py-3 rounded-2xl bg-[#78350F] text-white text-[13px] font-black">
+              SIN SEÑAL — ver mi PO ahora (se manda solo cuando haya señal)
+            </button>) : null}
+        </div>
+      </Shell>);
+  }
   if (step === 7 && ticket) {
     const s = STATIONS[ticket.est] || { nombre: ticket.est, corto: ticket.est, color: "#374151" };
     const payload = { ...ticket };
@@ -528,7 +648,14 @@ function App() {
     const route = () => {
       const h = window.location.hash || "";
       if (h.startsWith("#f=")) {
-        const e = b64d(h.slice(3));
+        const raw = b64d(h.slice(3));
+        const batch = raw && Array.isArray(raw.multi) ? raw.multi : (raw && raw.po ? [raw] : null);
+        if (batch) {
+          if (officeUnlocked()) { const L = LS.get(K_LOG, []); batch.forEach(e => { if (!L.some(x => x.po === e.po)) L.push(e); }); LS.set(K_LOG, L); setLogged(batch[0]); setMode("office"); setOfName(n => n || "OFICINA"); }
+          else { setLogged(batch); setPin(true); }
+          return;
+        }
+        const e = raw;
         if (e && e.po) {
           if (officeUnlocked()) { const L = LS.get(K_LOG, []); if (!L.some(x => x.po === e.po)) { L.push(e); LS.set(K_LOG, L); } setLogged(e); setMode("office"); setOfName(n => n || "OFICINA"); }
           else { setLogged(e); setPin(true); }
@@ -538,12 +665,14 @@ function App() {
       if (h === "#oficina") { setPin(true); return; }
       setMode("wizard");
     };
+    /* anything still pending gets another try at the server on every open */
+    try { if (WEBHOOK) { const p = pendList(); if (p.length) { p.forEach(e => beacon(e)); } } } catch (x) {}
     route();
     window.addEventListener("hashchange", route);
     return () => window.removeEventListener("hashchange", route);
   }, []);
 
-  if (pin) return <PinGate onOk={n => { setOfName(n); setPin(false); if (logged) { const L = LS.get(K_LOG, []); if (!L.some(x => x.po === logged.po)) { L.push(logged); LS.set(K_LOG, L); } } setMode("office"); }} onCancel={() => { setPin(false); setLogged(null); window.location.hash = ""; setMode("wizard"); }} />;
+  if (pin) return <PinGate onOk={n => { setOfName(n); setPin(false); if (logged) { const L = LS.get(K_LOG, []); (Array.isArray(logged) ? logged : [logged]).forEach(e => { if (e && e.po && !L.some(x => x.po === e.po)) L.push(e); }); LS.set(K_LOG, L); } setMode("office"); }} onCancel={() => { setPin(false); setLogged(null); window.location.hash = ""; setMode("wizard"); }} />;
   if (mode === "office") return <Office whoOf={ofName || "OFICINA"} onExit={() => { window.location.hash = ""; setMode("wizard"); }} onNew={() => { window.location.hash = ""; setMode("wizard"); }} />;
   if (mode === "wizard") return <Wizard key={me} initialWho={me} onDone={() => { setMe(LS.get(K_ME, "")); setMode("done"); }} onOffice={() => setPin(true)} />;
   if (mode === "done") return (

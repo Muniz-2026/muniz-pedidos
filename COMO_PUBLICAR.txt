@@ -1201,3 +1201,57 @@ VERSION 7.1 (10 septiembre 2026) - AJUSTES DE COMBUSTIBLE
 
 SUBIR: app.js, config.js, fuel.js, fuel.css, sw.js (cache v38).
 Verificar "v7.1".
+
+============================================================
+VERSION 7.2 (10 septiembre 2026) - EL REGISTRO YA NO ES OPCIONAL
+============================================================
+PROBLEMA QUE TENIA (Tito lo detecto): el PO se generaba y el
+mandar el texto era OPCIONAL. Si la persona no lo mandaba, la
+oficina nunca se enteraba de ese PO. Eso ya se acabo. Hay DOS
+niveles de control:
+
+--- NIVEL 1: EL CANDADO (ya funciona, no hay que hacer nada) ---
+   1. La persona llena los 6 pasos y toca GENERAR PO.
+   2. NO SE LE MUESTRA EL NUMERO DE PO. Sale una pantalla con
+      candado: "Tu PO esta listo - falta mandar el registro".
+      Se le muestra el resumen (para que sepa que va a mandar)
+      pero NO el numero.
+   3. Toca MANDAR REGISTRO -> se abre Mensajes con todo escrito.
+   4. Regresa al app y le pregunta "¿Ya tocaste enviar?".
+      SI -> aparece el ticket con el numero de PO.
+      TODAVIA NO -> sigue con candado.
+   5. Si cierra el app, apaga el telefono, o le da para atras:
+      LA PROXIMA VEZ QUE ABRA EL APP le sale
+      "FALTA REGISTRAR UN PO" y NO LO DEJA SACAR OTRO
+      hasta que mande el anterior. Verificado: recargar la
+      pagina NO se lo salta.
+   6. Si quedaron VARIOS sin mandar, se van TODOS en UN solo
+      mensaje. El registro se pone al corriente solo.
+   7. Sin señal: hay un boton "SIN SEÑAL - ver mi PO ahora".
+      Le da el PO (para que pueda cargar) pero el PO queda
+      pendiente y lo bloquea hasta mandarlo.
+   POR QUE FUNCIONA: lo que la persona NECESITA es el numero de
+   PO (Leo's no le carga sin PO). Ese numero es ahora la llave,
+   y la llave se entrega al registrar.
+
+--- NIVEL 2: REGISTRO AUTOMATICO DE VERDAD (recomendado) ---
+   Con esto el PO se registra SOLO, sin que la persona mande
+   nada, y ya no se le pide el texto (se le muestra el PO
+   directo).
+   Se pone una URL en config.js -> COMBUSTIBLE.WEBHOOK.
+   La receta completa de Google Apps Script (10 min, gratis,
+   una vez) esta escrita ahi mismo en config.js, con el codigo
+   listo para copiar y pegar. Queda una hoja de Google que se
+   llena sola con: PO, fecha, quien, vehiculo, tipo,
+   combustible, placa, equipo, lectura, obra, obra de la
+   semana, estacion y alertas.
+   El app manda el registro por dos vias (imagen y POST) para
+   que funcione desde el telefono sin permisos ni claves. Si
+   falla, el candado del Nivel 1 sigue aplicando y se reintenta
+   cada vez que se abre el app.
+   NOTA HONESTA: no pude probar el envio real a Google desde
+   aqui (mi entorno no tiene salida a internet). El codigo es
+   el estandar y es a prueba de fallos, pero hay que probarlo
+   con un PO de prueba el primer dia.
+
+SUBIR: fuel.js, fuel.css, config.js, sw.js (cache v39).
