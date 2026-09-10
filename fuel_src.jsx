@@ -242,9 +242,8 @@ function Wizard({ initialWho, onDone, onOffice }) {
         <div className="mt-3 grid grid-cols-1 gap-2">
           {filtered.map(n => (
             <button key={n} onClick={() => { setWho(n); LS.set(K_ME, n); setQ(""); go(2); }}
-              className="btn card flex items-center justify-between px-4 py-3.5 text-left">
-              <span className="text-[16px] font-black">{n}</span>
-              <span className="text-[10px] font-black tracking-widest text-[#8B95A5]">{roleOf(n) === "OFICINA" ? "" : roleOf(n)}</span>
+              className="btn card px-4 py-4 text-left">
+              <span className="text-[17px] font-black">{n}</span>
             </button>))}
         </div>
         <button onClick={onOffice} className="mt-8 w-full text-[11px] font-black tracking-widest text-[#5B6572]">OFICINA</button>

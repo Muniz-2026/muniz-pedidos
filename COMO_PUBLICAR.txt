@@ -1171,3 +1171,33 @@ EL REGISTRO (oficina): fuel.html -> "OFICINA" abajo, o el link
 
 SUBIR (29 archivos): fuel.html, fuel.js, fuel.css (NUEVOS) +
   app.js, config.js, sw.js (cache v37). Verificar "v7.0".
+
+============================================================
+VERSION 7.1 (10 septiembre 2026) - AJUSTES DE COMBUSTIBLE
+============================================================
+1) EL BOTON "⛽ COMBUSTIBLE" SE QUITO DE LA PANTALLA PRINCIPAL.
+   Ahora solo aparece en el telefono de TITO o de CLAUDIA
+   (despues de que uno de los dos entra con su clave en ese
+   telefono). En el telefono de un mayordomo no existe.
+   Para que alguien mas lo use, Tito le manda el link directo:
+        https://muniz-2026.github.io/muniz-pedidos/fuel.html
+   Asi Tito controla a quien se le da y cuando.
+
+2) EL REGISTRO (oficina) de combustible ya solo lo abren las
+   claves de TITO y CLAUDIA. Cualquier otra clave la rechaza.
+   Verificado.
+
+3) LA PRIMERA PANTALLA YA SOLO TRAE EL NOMBRE. Se quitaron las
+   etiquetas de puesto (MAYORDOMO / SUPERVISOR / GERENTE /
+   PERSONAL / CHOFER). No importa el puesto: cargan porque
+   manejan de la yarda a la obra todas las mañanas.
+
+4) SE AGREGO LA YARDA CON SU DIRECCION en la lista de obras:
+        "Yarda Muñiz · 7907 S FM 973"
+   Sirve para la carga de la mañana antes de salir a la obra.
+   OJO: si el combustible es para llegar a una obra, conviene
+   escoger LA OBRA (ahi va el costo). La yarda es para cuando
+   la carga es de la yarda misma (maquinaria, tambos).
+
+SUBIR: app.js, config.js, fuel.js, fuel.css, sw.js (cache v38).
+Verificar "v7.1".

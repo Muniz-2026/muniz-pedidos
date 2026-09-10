@@ -66,7 +66,7 @@ window.MUNIZ_CONFIG = {
       "Cameron Rd","Niels Thompson Dr @ Longhorn Blvd","Manor Rd","North Cross Dr","Mesa Dr",
       "Duval Rd","Metro Center Dr","Pleasant Valley Ph1","E 12th St @ Chestnut Ave","CAUDI",
       "West 12th St","Howard Ln","Radam Ln & 1st St","Middle Fiskville SUP","EM Franklin Ave",
-      "Yarda (Muniz)"
+      "Yarda Muñiz \u00b7 7907 S FM 973"
     ],
 
     /* Donde esta cada cuadrilla ESTA SEMANA (del 6-Week Lookahead, semana del 7 sep).
