@@ -1,0 +1,81 @@
+====================================================================
+  MUÑIZ · CENTRO DE MANDO  (command center)
+  https://muniz-2026.github.io/muniz-pedidos/mando.html
+====================================================================
+Open it on a LAPTOP. Log in with the same email/password you created
+in Supabase -> Authentication -> Users. Only emails listed in the
+office_users table can get in. Foremen cannot see this page.
+
+It refreshes itself every 7 seconds. Nobody has to send you anything.
+
+--------------------------------------------------------------------
+TOP ROW  (switch the range with HOY / 7 DÍAS / 30 DÍAS / TODO)
+--------------------------------------------------------------------
+  HOY                POs today, split diesel vs gasoline
+  7 DÍAS             count for the range + average per day
+  TIEMPO POR PO      median seconds a person spends in the app
+  ALERTAS ROJAS      hard problems, with amber count underneath
+  EN EL APP AHORA    who is using it this minute
+  PERSONAS           how many distinct people fueled
+  VEHÍCULOS          how many units of the fleet were used
+
+--------------------------------------------------------------------
+PANELS
+--------------------------------------------------------------------
+  ACTIVIDAD EN VIVO   Who is in the app right now and which step they
+                      are on ("paso 4"), or "✓ generó PO". Last 6 min.
+  POs POR DÍA         Volume per day. Hover a bar for the number.
+  COMBUSTIBLE         Diesel vs gasoline share.
+  ESTACIÓN            Tex-Con vs Leo's share. This is your negotiating
+                      number: today it is roughly 75/25 to Tex-Con.
+  TIPO DE UNIDAD      Trucks vs machinery vs drums vs fuel trucks.
+  CARGAS POR OBRA     Which jobsites burn the most fuel. Top 10.
+  DÓNDE SE TARDAN     Median seconds per step of the wizard, measured
+                      from real use. If one step is slow, that is the
+                      step to simplify. Nothing to guess.
+  ALERTAS ROJAS       The list to actually work through.
+
+--------------------------------------------------------------------
+TABS
+--------------------------------------------------------------------
+  POs        Every PO: number, time, person, unit, fuel, reading,
+             jobsite, station, TIME IN THE APP, and flags.
+             Click any row for the full record.
+  FLOTA      Every vehicle: assigned to, fuel, plate (or "dictada" =
+             typed by the person = go enter it in Supabase, or "falta"),
+             total fills, fills in 7 days, last reading, and Δ SINCE
+             LAST FILL. A negative Δ or a tiny Δ is where fuel theft
+             or a wrong odometer shows up.
+  PERSONAS   Per person: fills, how many different vehicles they
+             fueled, median time per PO, Tex-Con vs Leo's split, and
+             total flags. Someone fueling 3+ vehicles is worth a look.
+
+  Search box filters all of it by PO, name, plate or jobsite.
+  ⬇ CSV exports exactly what is on screen, flags included.
+
+--------------------------------------------------------------------
+FLAGS AND WHAT THEY MEAN
+--------------------------------------------------------------------
+  RED
+    2ª carga en N h        same vehicle fueled twice inside 24 hours
+    Lectura retrocedió     odometer/hours went backwards
+  AMBER
+    Placa dictada          plate typed by the person, not registered
+    N mi desde la última   under 40 miles since the last fill
+    Obra ≠ rol             fueled for a jobsite other than their
+                           assigned one that week
+    Obra a mano            typed a location instead of picking one
+    N cargas/7d            more than 4 fills in a week
+    Domingo                Sunday
+    Fuera de horario       before 5am or after 8pm
+    N vehículos en un día  one person, 3+ different units in a day
+  Thresholds live in the database. Tell me and I move them.
+
+--------------------------------------------------------------------
+WHAT IS NOT HERE YET  (Phases 2-4)
+--------------------------------------------------------------------
+  - Gallons and dollars per PO. The columns exist; they fill in when
+    invoices get read automatically (Phase 4). Until then the console
+    counts events, not money.
+  - Material orders (ACE/CMC/RSS/White Cap) on the same database.
+  - Spend by jobsite and vendor, PO vs invoice variance.
