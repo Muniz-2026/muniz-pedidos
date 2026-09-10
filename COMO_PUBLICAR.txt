@@ -1049,3 +1049,48 @@ VERSION 6.8 (9 septiembre 2026) - PANTALLA MAS LIMPIA
    su clave en ese telefono (queda guardado). En el telefono
    de un mayordomo el boton ya no existe.
 SUBIR: app.js, sw.js (cache v35). Verificar "v6.8".
+
+============================================================
+VERSION 6.9 (9 septiembre 2026) - WHITE CAP TERMINADO
+============================================================
+Claudia entrego el catalogo de White Cap COMPLETO. Revisado
+renglon por renglon contra su Excel:
+
+   *** LOS 173 ARTICULOS TIENEN FOTO (173 de 173) ***
+   Antes: 168 de 182. Ahora no queda ninguno con icono.
+
+   articulos     182 -> 173 (quito 9)
+   bloqueados      5 -> 30  (bloqueo 25 mas)
+   fotos         168 -> 173 (todas)
+
+QUITO 9 (herramienta personal y repetidos):
+   marro, rueda de medicion, sopladora, 3 cintas metricas,
+   nivel electronico, bolsas de basura, pala
+
+BLOQUEO 25 MAS - casi todo articulo PERSONAL:
+   chaleco, guantes (x2), tirantes, botas, casco,
+   pasamontañas, bandanas (x3), electrolitos (x2),
+   agua embotellada, martillo, mazo de hule, palas (x2),
+   pico, rastrillo, llave perica, cinta larga, rueda de
+   medicion, escobas (x2)
+   OJO: bloqueo las 2 ESCOBAS de White Cap. Si un mayordomo
+   necesita escoba, ya solo queda ACE (y ahi la de 24" sigue
+   sin estar en el catalogo).
+
+ARREGLO UNA CATEGORIA: el capuchon de varilla (121PC110)
+   paso de "Seguridad (EPP)" a "Varilla y estacas". Bien.
+
+MEJORO 15 NOMBRES (se respetaron los de ella, no los
+nuestros): ladrillo con medida, plastico con calibre,
+redwood con medida, cerca para sedimentos tipo City, etc.
+   En 2 casos le quito la marca ARDEX al nombre
+   (471CP40 y 471CDFINE). NO afecta la busqueda: el alias
+   ya trae ardex/ardes/ardecs/hardex, verificado.
+
+NOTA: el Excel de White Cap ya tiene columna "Comments", asi
+que Claudia ya puede bloquear, poner MAX: y poner ALIAS:
+directo en su archivo, igual que en ACE.
+
+SUBIR: app.js, catalog_whitecap.json, fotos_whitecap.json,
+       fotos_hd_whitecap.json, sw.js (cache v36).
+       Verificar "v6.9".
