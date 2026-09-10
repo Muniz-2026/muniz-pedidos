@@ -20,7 +20,22 @@ STEP 2 · CREATE THE TABLES
 ====================================================================
   PATCHES - RUN IN ORDER after Step 2
 ====================================================================
-  Run supabase_parche1.sql, then supabase_parche2.sql.
+  Run supabase_parche1.sql, then supabase_parche2.sql, then
+  supabase_parche3.sql.
+
+  PARCHE 3 fixes this error, which appears when you log into the
+  command center or the fuel office screen:
+      {"code":"54001", ... "Increase the configuration parameter
+       max_stack_depth"}
+  Cause: the function that checks whether your email is an office user
+  reads the office_users table, but that table's own read rule called
+  the same function - an endless loop. Patch 3 makes the function
+  SECURITY DEFINER so it reads the table without re-checking the rule.
+  It prints:
+      PRUEBA 1/2 OK · is_office() respondió: ...
+      PRUEBA 2/2 OK · office_users tiene N correo(s)
+      OK · is_office() arreglada
+  If it says office_users has 0 emails, nobody can log in - add yours.
   If you already ran parche1, just run parche2 - it replaces the
   function with the corrected version and TESTS ITSELF, printing:
      PRUEBA 1/4 OK · se registro F####
