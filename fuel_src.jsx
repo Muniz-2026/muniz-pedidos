@@ -34,7 +34,15 @@ async function sbInsert(table, row, tok) {
 }
 async function sbRpc(fn, args, tok) {
   const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: hdr(tok), body: JSON.stringify(args || {}) });
-  if (!r.ok) throw new Error(`RPC ${fn}: ${r.status}`);
+  if (!r.ok) {
+    /* surface the database's own message - that is what makes a problem fixable */
+    let msg = "";
+    try { const j = await r.json(); msg = j.message || j.hint || j.error_description || j.error || JSON.stringify(j); }
+    catch (e) { try { msg = await r.text(); } catch (e2) { msg = ""; } }
+    const err = new Error(msg ? msg : `${fn}: HTTP ${r.status}`);
+    err.status = r.status; err.body = msg;
+    throw err;
+  }
   return r.json();
 }
 async function sbLogin(email, password) {
@@ -48,10 +56,10 @@ async function sbLogin(email, password) {
 /* fire-and-forget telemetry: every step is an event with a timestamp */
 function logEvent(event, extra) {
   if (!HAS_BACKEND) return;
-  try { sbInsert("events", { device_id: deviceId(), app: "fuel", event, ...(extra || {}) }).catch(() => {}); } catch (e) {}
+  try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "2.0";
+const VERSION = "2.1";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -359,7 +367,9 @@ function Wizard({ initialWho, onDone, onOffice }) {
     setBusy(true); setFailed(null);
     const row = buildRow();
     try {
-      const saved = await sbInsert("fuel_pos", row);
+      const res = await sbRpc("create_fuel_po", { payload: row });
+      const saved = Array.isArray(res) ? res[0] : res;
+      if (!saved || !saved.po) throw new Error("respuesta sin PO: " + JSON.stringify(res).slice(0, 160));
       const e = { po: saved.po, ts: new Date(saved.created_at).getTime(), who, role: row.role, vid: veh.id, veh: veh.desc, tipo: veh.tipo, comb: veh.comb,
         placa: row.plate || "", equipo: row.equipo || "", lectura: row.reading == null ? "" : String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other,
         obraSemana: row.jobsite_week || "", est: station, plateTyped: row.plate_typed, manualVeh: false, srv: true, v: 2 };
@@ -370,8 +380,9 @@ function Wizard({ initialWho, onDone, onOffice }) {
     } catch (err) {
       /* no signal or server down: keep it, retry, never lose it — but no PO until the server says so */
       const q = LS.get("muniz_fuel_queue", []); q.push(row); LS.set("muniz_fuel_queue", q.slice(-50));
-      logEvent("error", { who, meta: { where: "insert", msg: String(err && err.message || err).slice(0, 120) } });
-      setFailed(row);
+      const msg = String((err && (err.body || err.message)) || err).slice(0, 300);
+      logEvent("error", { who, meta: { where: "insert", msg: msg.slice(0, 200) } });
+      setFailed({ ...row, __err: msg });
     } finally { setBusy(false); }
   };
 
@@ -413,6 +424,22 @@ function Wizard({ initialWho, onDone, onOffice }) {
         </div>
       </Shell>);
   }
+
+  /* ---------- no signal: the server assigns the PO, so without the server there is no PO yet ---------- */
+  if (failed) return (
+    <Shell>
+      <Top title="Sin señal" sub="El PO lo asigna la oficina en el momento. Sin señal no hay número todavía." />
+      <div className="px-4 pb-8">
+        <div className="card px-5 py-6 text-center">
+          <div className="text-6xl">📡</div>
+          <div className="display text-[22px] mt-3">No se pudo registrar</div>
+          <div className="text-[14px] text-[#B4BCC8] mt-2 leading-snug">Tu solicitud quedó guardada en el teléfono. Acércate a donde haya señal y toca reintentar. Se registra solita y te da el PO.</div>
+          {failed.__err ? <div className="mt-3 mono text-[11px] text-[#F87171] break-all">{String(failed.__err).slice(0, 220)}</div> : null}
+        </div>
+        <div className="mt-5"><Big onClick={() => { setFailed(null); generateServer(); }} disabled={busy}>{busy ? "REINTENTANDO…" : "REINTENTAR ↻"}</Big></div>
+        <button onClick={() => { setFailed(null); go(6); }} className="mt-3 w-full py-3 text-[12px] font-black text-[#5B6572]">REGRESAR</button>
+      </div>
+    </Shell>);
 
   /* ---------- 1 · WHO ---------- */
   if (step === 1) return (
@@ -566,21 +593,6 @@ function Wizard({ initialWho, onDone, onOffice }) {
         </div>
       </Shell>);
   }
-
-  /* ---------- no signal: the server assigns the PO, so without the server there is no PO yet ---------- */
-  if (failed) return (
-    <Shell>
-      <Top title="Sin señal" sub="El PO lo asigna la oficina en el momento. Sin señal no hay número todavía." />
-      <div className="px-4 pb-8">
-        <div className="card px-5 py-6 text-center">
-          <div className="text-6xl">📡</div>
-          <div className="display text-[22px] mt-3">No se pudo registrar</div>
-          <div className="text-[14px] text-[#B4BCC8] mt-2 leading-snug">Tu solicitud quedó guardada en el teléfono. Acércate a donde haya señal y toca reintentar. Se registra solita y te da el PO.</div>
-        </div>
-        <div className="mt-5"><Big onClick={() => { setFailed(null); generateServer(); }} disabled={busy}>{busy ? "REINTENTANDO…" : "REINTENTAR ↻"}</Big></div>
-        <button onClick={() => { setFailed(null); go(6); }} className="mt-3 w-full py-3 text-[12px] font-black text-[#5B6572]">REGRESAR</button>
-      </div>
-    </Shell>);
 
   /* ---------- 7 · REGISTER, THEN THE TICKET (only when there is NO backend) ---------- */
   if (step === 7 && ticket && !sent && !ticket.srv) {
@@ -822,7 +834,8 @@ function App() {
     refreshRef().then(() => setRefTick(t => t + 1)).catch(() => {});
     /* flush anything a phone could not send earlier (idempotent via client_ref) */
     const q = LS.get("muniz_fuel_queue", []);
-    if (q.length) (async () => { const left = []; for (const row of q) { try { await sbInsert("fuel_pos", row); } catch (e) { if (!(e && e.status === 409)) left.push(row); } } LS.set("muniz_fuel_queue", left); })();
+    if (q.length) (async () => { const left = []; for (const row of q) { const r = { ...row }; delete r.__err;
+      try { await sbRpc("create_fuel_po", { payload: r }); } catch (e) { left.push(r); } } LS.set("muniz_fuel_queue", left); })();
   }, []);
   const [me, setMe] = useState(LS.get(K_ME, ""));
   const [logged, setLogged] = useState(null);

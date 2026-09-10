@@ -17,6 +17,25 @@ STEP 2 · CREATE THE TABLES
      It should finish with:  OK · tablas: 8
   3. Safe to run again at any time (it never duplicates anything).
 
+====================================================================
+  PATCH 1 - REQUIRED  (run this after Step 2)
+====================================================================
+  SQL Editor -> New query -> paste ALL of supabase_parche1.sql -> RUN
+  It should finish with:  OK · create_fuel_po lista
+
+  WHY: the phone has to save the PO and get the number back. A normal
+  INSERT that returns the row requires READ permission on the table, and
+  the field must NEVER be able to read the registry. This function does
+  both safely: it saves the row and returns only the PO number.
+
+  It also moves three checks into the database itself, where nobody can
+  get around them:
+    - the vehicle must exist in the fleet
+    - the jobsite must be a real jobsite (a contract number is refused)
+    - the odometer/hours cannot go backwards
+  And it is idempotent: if a phone retries, it gets the SAME PO back
+  instead of creating a duplicate.
+
 STEP 3 · OFFICE USERS (you and Claudia)
   1. Authentication -> Users -> Add user -> "Create new user"
      Email: tito@munizcontracting.com     Password: (a strong one, 12+ characters)
