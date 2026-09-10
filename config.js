@@ -28,6 +28,18 @@ window.MUNIZ_CONFIG = {
     "CLAUDIA TAMAYO": "2718",
   },
 
+  /* ===== GERENTES DE PROYECTO =====
+     Su pedido va DIRECTO a la oficina (no pasa por supervisor),
+     igual que los supervisores. Aparecen en su propia seccion. */
+  GERENTES: {
+    "HECTOR MANZANARES":  "",
+    "SIMON MARTINEZ":     "",
+    "MARIO MUNOZ":        "",
+    "HUGO CARLINO":       "",
+    "EDUARDO VALENZUELA": "",
+    "LUIS PEREZ":         "",
+  },
+
   /* (compatibilidad con la version anterior - ya no se usa si OFICINA existe) */
   MASTER_USER: "TITO CUETO",
   OFFICE_PIN:  "4605",

@@ -993,3 +993,45 @@ SUBIR (26 archivos): app.js, config.js, sw.js (cache v32),
    catalog_ace/rss/whitecap.json, fotos_ace/rss/whitecap.json,
    fotos_hd_ace/rss/whitecap.json.
    Verificar "v6.5".
+
+============================================================
+VERSION 6.6 (9 septiembre 2026) - GERENTES DE PROYECTO
+============================================================
+1) SE AGREGARON 6 GERENTES DE PROYECTO en su propia seccion
+   (cafe), abajo de los supervisores:
+      HECTOR MANZANARES    SIMON MARTINEZ
+      MARIO MUNOZ          HUGO CARLINO
+      EDUARDO VALENZUELA   LUIS PEREZ
+   Su pedido va DIRECTO A TITO - NO pasa por supervisor.
+   Igual que los supervisores: el boton dice "MANDAR A TITO"
+   y el texto ya trae el link de OFICINA (#t), no el de
+   revision. El pedido queda auto-aprobado a su nombre.
+   Se agregan o quitan en config.js -> GERENTES.
+
+2) TITO Y CLAUDIA PUEDEN AGREGAR ARTICULOS BLOQUEADOS.
+   Cuando entra TITO CUETO o CLAUDIA TAMAYO con su clave,
+   los articulos que dicen "NO SE PUEDE COMPRAR" se ven y se
+   comportan como cualquier otro: se pueden agregar al pedido.
+   Es para las excepciones (a veces si se necesita comprar
+   uno y hay que poder verlo).
+   IMPORTANTE: esto SOLO aplica a Tito y Claudia. Para los
+   mayordomos, supervisores y gerentes siguen bloqueados
+   igual que antes. Verificado: al cambiarse a un mayordomo
+   el bloqueo regresa solo.
+
+SUBIR: app.js, config.js, sw.js (cache v33). Verificar "v6.6".
+
+============================================================
+VERSION 6.7 (9 septiembre 2026) - AVISO EN LOS BLOQUEADOS
+============================================================
+Cuando entra TITO o CLAUDIA con su clave, los articulos que
+normalmente estan bloqueados ahora salen con una etiqueta
+naranja: "⚠ NORMALMENTE BLOQUEADO".
+Se pueden agregar igual (es la excepcion), pero la etiqueta
+avisa que ese articulo no es de compra normal, para no
+meterlo por error.
+Sale en el cuadrito y tambien en la foto grande (lupa).
+Los mayordomos, supervisores y gerentes NO ven la etiqueta:
+para ellos el articulo sigue diciendo NO SE PUEDE COMPRAR y
+no se puede agregar.
+SUBIR: app.js, sw.js (cache v34). Verificar "v6.7".
