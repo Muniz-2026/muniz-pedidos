@@ -1035,3 +1035,17 @@ Los mayordomos, supervisores y gerentes NO ven la etiqueta:
 para ellos el articulo sigue diciendo NO SE PUEDE COMPRAR y
 no se puede agregar.
 SUBIR: app.js, sw.js (cache v34). Verificar "v6.7".
+
+============================================================
+VERSION 6.8 (9 septiembre 2026) - PANTALLA MAS LIMPIA
+============================================================
+1) Los titulos de las secciones quedaron cortos:
+      antes: "SUPERVISORES (pedido directo a la oficina)"
+      ahora: "SUPERVISORS"
+      antes: "GERENTES DE PROYECTO (pedido directo a la oficina)"
+      ahora: "PROJECT MANAGERS"
+2) MODO PRACTICA ya solo se ve en el telefono de TITO o de
+   CLAUDIA. Aparece despues de que uno de los dos entra con
+   su clave en ese telefono (queda guardado). En el telefono
+   de un mayordomo el boton ya no existe.
+SUBIR: app.js, sw.js (cache v35). Verificar "v6.8".
