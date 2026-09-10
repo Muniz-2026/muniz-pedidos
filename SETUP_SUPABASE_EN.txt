@@ -1,0 +1,115 @@
+====================================================================
+  MUÑIZ · BACKEND · PHASE 1 (FUEL) · SETUP
+  Time: 15 minutes. Done once.
+====================================================================
+
+STEP 1 · CREATE THE PROJECT (you already have the account)
+  1. supabase.com -> New project
+     Name: muniz-ops   |  Database password: (save it)  |  Region: East US (Ohio)
+     Plan: PRO ($25/month). The free plan PAUSES the project after 7 days
+     of inactivity — in production that means a day with no POs. Pro never
+     pauses and includes backups.
+  2. Wait ~2 minutes until it says "Project is ready".
+
+STEP 2 · CREATE THE TABLES
+  1. Left menu -> SQL Editor -> New query
+  2. Open supabase_fase1.sql (in the zip), copy ALL of it, paste, click RUN.
+     It should finish with:  OK · tablas: 8
+  3. Safe to run again at any time (it never duplicates anything).
+
+STEP 3 · OFFICE USERS (you and Claudia)
+  1. Authentication -> Users -> Add user -> "Create new user"
+     Email: tito@munizcontracting.com     Password: (a strong one, 12+ characters)
+     Check "Auto Confirm User".
+  2. Same for Claudia with her email.
+  3. SQL Editor -> paste and run (with Claudia's real email):
+        insert into office_users (email,name) values
+          ('claudia@munizcontracting.com','CLAUDIA TAMAYO')
+        on conflict (email) do nothing;
+     (Yours was already added by the Step 2 script.)
+  IMPORTANT: only the emails in office_users can READ the registry.
+  The field can only INSERT. The database enforces this, not the app.
+
+STEP 4 · CONNECT THE APP  (2 values go into config.js)
+
+  4a · GET THE PROJECT URL
+       Project Settings -> Data API  (left sidebar, under Configuration)
+       Copy "Project URL". It looks like:
+            https://abcdefghij.supabase.co
+       No slash at the end.
+
+  4b · GET THE KEY
+       Project Settings -> API Keys
+       Under "Publishable key", row "default", click the copy icon.
+       It looks like:
+            sb_publishable_4z755311D1gF3oLmlQhksw_yn10-...
+       This is the PUBLIC key. It is meant to live in the app. It can only
+       INSERT fuel POs and READ the catalogs. It CANNOT read the registry.
+       (Verified: reading fuel_pos with this key returns 401.)
+
+       *** DO NOT USE the "Secret key" (sb_secret_...). ***
+       That one bypasses all security. It never goes in the app, never in
+       GitHub. If it ever leaks, click the 3 dots next to it and roll it.
+
+       If you prefer the older style key, the tab "Legacy anon, service_role
+       API keys" has an "anon public" key starting with eyJ... That works too;
+       the app accepts either.
+
+  4c · PASTE THEM IN config.js
+       Find this block near the top of config.js:
+
+            SUPABASE: {
+              URL:      "",
+              ANON_KEY: "",
+            },
+
+       Make it look like this (your real values, keep the quotes and commas):
+
+            SUPABASE: {
+              URL:      "https://abcdefghij.supabase.co",
+              ANON_KEY: "sb_publishable_4z755311D1gF3oLmlQhksw_yn10-...",
+            },
+
+  4d · UPLOAD TO GITHUB
+       config.js, fuel.js, fuel.css, fuel.html, sw.js
+       (fuel.js changed today to support the new key format - upload it.)
+
+  HOW YOU KNOW IT WORKED: open fuel.html on your phone. Tap a name. If the
+  vehicle list shows up, the app is talking to the database. If the app looks
+  the same but a PO still asks you to send a text, the keys did not take -
+  check for a missing quote or comma in config.js.
+
+STEP 5 · ACCEPTANCE TEST (5 minutes, with your phone)
+  [ ] Open muniz-2026.github.io/muniz-pedidos/fuel.html
+  [ ] Tap your name -> your truck -> enter plate -> odometer -> jobsite -> Leo's
+  [ ] GENERAR PO: the ticket must appear INSTANTLY with PO "F1001"
+      and "✓ Registrado en la oficina" underneath. No text message at all.
+  [ ] On your laptop: fuel.html#oficina -> log in with your email -> PO F1001
+      is already there, with "● EN VIVO" at the top.
+  [ ] In Supabase: Table Editor -> fuel_pos -> the row is there.
+  [ ] From Claudia's phone: same vehicle, a LOWER odometer -> it must
+      BLOCK ("no puede bajar") even though it's a different phone. That is
+      the proof that the truth lives on the server.
+  [ ] Airplane mode on -> GENERAR -> "Sin señal" screen; airplane mode off
+      -> REINTENTAR -> the PO appears. Nothing was lost.
+
+AFTER THAT · YOU OPERATE FROM SUPABASE (Table Editor), not config.js
+  vehicles   -> ENTER THE PLATES (plate column). Once a plate is in, nobody
+                can type one. Fix comb (DIESEL/GASOLINA) if any are wrong.
+  jobsites   -> add/remove jobsites (locations, never contract numbers)
+  roster     -> EVERY MONDAY: new rows (person, week_start = Monday, jobsite)
+                from the 6-Week Lookahead. The app proposes that jobsite first.
+  people     -> add/remove. active=false hides someone without deleting history.
+  stations   -> Leo's phone number if they want the PO by text.
+  fuel_pos   -> the registry. gallons/amount columns are for when the invoice
+                arrives (Phase 4 will fill them automatically).
+  fuel_pos_flagged (view) -> the red flags computed by the server.
+
+WHAT NO LONGER EXISTS
+  - Any text to Tito for fuel. Zero.
+  - The 4-digit PIN for the fuel office (it's email login now).
+  - The PO "padlock": not needed, the server assigns the number.
+
+WHAT'S NEXT (Phases 2/3/4): material orders in the database, the command
+  center (timing, spend by jobsite/vendor, locations), and automatic reading
+  of ACE invoices against POs.

@@ -9,8 +9,49 @@ import { createRoot } from "react-dom/client";
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
 const FUEL = CFG.COMBUSTIBLE || {};
+
+/* ---------- backend (Supabase: Postgres + REST). No SDK: plain fetch, ~40 lines. ---------- */
+const SB = CFG.SUPABASE || {};
+const SB_URL = String(SB.URL || "").trim().replace(/\/+$/, "").replace(/\/rest\/v1$/, "").replace(/\/auth\/v1$/, "");
+const SB_KEY = String(SB.ANON_KEY || "");
+const HAS_BACKEND = !!(SB_URL && SB_KEY);
+const K_TOKEN = "muniz_office_token", K_DEV = "muniz_device_id";
+const deviceId = () => { try { let d = localStorage.getItem(K_DEV); if (!d) { d = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2); localStorage.setItem(K_DEV, d); } return d; } catch (e) { return "nodev"; } };
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+const officeToken = () => { try { const t = JSON.parse(localStorage.getItem(K_TOKEN) || "null"); return t && t.exp * 1000 > Date.now() ? t : null; } catch (e) { return null; } };
+const hdr = tok => { const h = { apikey: SB_KEY, "Content-Type": "application/json" };
+  if (tok) h.Authorization = "Bearer " + tok;
+  return h; };
+async function sbGet(path, tok) {
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: hdr(tok) });
+  if (!r.ok) throw new Error(`GET ${path}: ${r.status} ${await r.text()}`);
+  return r.json();
+}
+async function sbInsert(table, row, tok) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method: "POST", headers: { ...hdr(tok), Prefer: "return=representation" }, body: JSON.stringify(row) });
+  if (!r.ok) { const e = new Error(`POST ${table}: ${r.status}`); e.status = r.status; e.body = await r.text(); throw e; }
+  const j = await r.json(); return Array.isArray(j) ? j[0] : j;
+}
+async function sbRpc(fn, args, tok) {
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: hdr(tok), body: JSON.stringify(args || {}) });
+  if (!r.ok) throw new Error(`RPC ${fn}: ${r.status}`);
+  return r.json();
+}
+async function sbLogin(email, password) {
+  const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+  if (!r.ok) throw new Error("login");
+  const j = await r.json();
+  const tok = { access_token: j.access_token, email: (j.user || {}).email || email, exp: Math.floor(Date.now() / 1000) + (j.expires_in || 3600) };
+  try { localStorage.setItem(K_TOKEN, JSON.stringify(tok)); } catch (e) {}
+  return tok;
+}
+/* fire-and-forget telemetry: every step is an event with a timestamp */
+function logEvent(event, extra) {
+  if (!HAS_BACKEND) return;
+  try { sbInsert("events", { device_id: deviceId(), app: "fuel", event, ...(extra || {}) }).catch(() => {}); } catch (e) {}
+}
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "1.2";
+const VERSION = "2.0";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -27,16 +68,40 @@ const EXTRA = (FUEL.USUARIOS_EXTRA || []).map(up);
 const OFICINA = (() => { const o = {}; const m = CFG.OFICINA || {};
   for (const k in m) o[up(k)] = String(m[k] || ""); return o; })();
 const lastName = s => { const p = up(s).split(/\s+/); return p[p.length - 1] + " " + p.slice(0, -1).join(" "); };
-const EVERYONE = Array.from(new Set([...FOREMEN_BASE, ...SUPS, ...PMS, ...DRIVERS, ...EXTRA, ...Object.keys(OFICINA)]))
+const everyone = () => (PEOPLE_DB ? PEOPLE_DB.map(p => up(p.name))
+  : Array.from(new Set([...FOREMEN_BASE, ...SUPS, ...PMS, ...DRIVERS, ...EXTRA, ...Object.keys(OFICINA)])))
   .sort((a, b) => lastName(a).localeCompare(lastName(b), "es"));
-const roleOf = n => OFICINA[n] !== undefined ? "OFICINA" : SUPS.includes(n) ? "SUPERVISOR" : PMS.includes(n) ? "GERENTE"
-  : DRIVERS.includes(n) ? "CHOFER" : FOREMEN_BASE.includes(n) ? "MAYORDOMO" : "PERSONAL";
+const roleOf = n => { if (PEOPLE_DB) { const p = PEOPLE_DB.find(x => up(x.name) === n); if (p) return up(p.role); }
+  return OFICINA[n] !== undefined ? "OFICINA" : SUPS.includes(n) ? "SUPERVISOR" : PMS.includes(n) ? "GERENTE"
+  : DRIVERS.includes(n) ? "CHOFER" : FOREMEN_BASE.includes(n) ? "MAYORDOMO" : "PERSONAL"; };
 
 /* ---------- fleet / stations / jobsites ---------- */
-const FLOTA = (FUEL.FLOTA || []).map(v => ({ ...v, de: up(v.de), comb: up(v.comb), tipo: up(v.tipo), placa: up(v.placa) }));
-const STATIONS = FUEL.ESTACIONES || {};
-const OBRAS = FUEL.OBRAS || [];
-const OBRA_SEMANA = (() => { const o = {}; const m = FUEL.OBRA_SEMANA || {}; for (const k in m) o[up(k)] = m[k]; return o; })();
+let FLOTA = (FUEL.FLOTA || []).map(v => ({ ...v, de: up(v.de), comb: up(v.comb), tipo: up(v.tipo), placa: up(v.placa) }));
+let STATIONS = FUEL.ESTACIONES || {};
+let OBRAS = FUEL.OBRAS || [];
+let OBRA_SEMANA = (() => { const o = {}; const m = FUEL.OBRA_SEMANA || {}; for (const k in m) o[up(k)] = m[k]; return o; })();
+let PEOPLE_DB = null;
+const K_REF = "muniz_fuel_ref";
+function applyRef(ref) {
+  if (!ref) return;
+  if (ref.vehicles && ref.vehicles.length) FLOTA = ref.vehicles.filter(v => v.active !== false).map(v => ({ id: v.id, placa: up(v.plate || ""), desc: v.descr, tipo: up(v.tipo), comb: up(v.comb), de: up(v.assigned_to || "") }));
+  if (ref.stations && ref.stations.length) { const o = {}; ref.stations.filter(s => s.active !== false).forEach(s => { o[s.code] = { nombre: s.name, corto: s.short, tel: s.phone || "", color: s.color }; }); STATIONS = o; }
+  if (ref.jobsites && ref.jobsites.length) OBRAS = ref.jobsites.filter(j => j.active !== false).map(j => j.name);
+  if (ref.roster && ref.roster.length) { const o = {}; ref.roster.forEach(r => { o[up(r.person)] = r.jobsite; }); OBRA_SEMANA = o; }
+  if (ref.people && ref.people.length) PEOPLE_DB = ref.people.filter(p => p.active !== false);
+}
+try { applyRef(JSON.parse(localStorage.getItem(K_REF) || "null")); } catch (e) {}
+async function refreshRef() {
+  if (!HAS_BACKEND) return false;
+  const monday = (() => { const d = new Date(); const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); return d.toISOString().slice(0, 10); })();
+  const [vehicles, stations, jobsites, roster, people] = await Promise.all([
+    sbGet("vehicles?select=*&order=id"), sbGet("stations?select=*"), sbGet("jobsites?select=*&order=name"),
+    sbGet(`roster?select=person,jobsite,week_start&week_start=lte.${monday}&order=week_start.desc`), sbGet("people?select=name,role,active&order=name")]);
+  const seen = {}; const latest = roster.filter(r => { if (seen[r.person]) return false; seen[r.person] = 1; return true; });
+  const ref = { vehicles, stations, jobsites, roster: latest, people, at: Date.now() };
+  try { localStorage.setItem(K_REF, JSON.stringify(ref)); } catch (e) {}
+  applyRef(ref); return true;
+}
 const AL = Object.assign({ HORAS_MIN_ENTRE_CARGAS: 6, CARGAS_MAX_7DIAS: 4, MILLAS_MIN_ENTRE_CARGAS: 40 }, FUEL.ALERTAS || {});
 const FUEL_COLOR = { DIESEL: "#16A34A", GASOLINA: "#EA580C" };
 const TIPO_LABEL = { CAMIONETA: "Camioneta", MAQUINARIA: "Maquinaria", TAMBO: "Tambo / tanque", PIPA: "Camión de combustible" };
@@ -229,6 +294,12 @@ function Wizard({ initialWho, onDone, onOffice }) {
   const [asked, setAsked] = useState(false);
   const [askedP, setAskedP] = useState(false);
   const [tick, setTick] = useState(0);
+  const [srvLast, setSrvLast] = useState(null);      // what the server knows about this vehicle
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(null);
+  const t0 = useRef(Date.now());
+  useEffect(() => { logEvent("open", { who: initialWho || null }); }, []);
+  useEffect(() => { logEvent("step", { who: who || null, step }); }, [step]);
   const [warn, setWarn] = useState(null);
   const hist = LS.get(K_HIST, []);
   const plates = LS.get(K_PLATES, {});
@@ -243,7 +314,8 @@ function Wizard({ initialWho, onDone, onOffice }) {
   const needsEquip = veh && veh.tipo === "MAQUINARIA";
   const needsLectura = veh && (veh.tipo === "CAMIONETA" || veh.tipo === "MAQUINARIA" || veh.tipo === "PIPA");
   const effPlate = veh ? (veh.placa || plates[veh.id] || plate) : "";
-  const last = veh ? lastFor(veh.id) : null;
+  const localLast = veh ? lastFor(veh.id) : null;
+  const last = (srvLast && srvLast.last_at) ? { lectura: srvLast.last_reading == null ? "" : String(srvLast.last_reading), ts: new Date(srvLast.last_at).getTime(), po: srvLast.last_po } : localLast;
   const obraSemana = OBRA_SEMANA[who] || "";
 
   /* live validation on the reading */
@@ -259,6 +331,7 @@ function Wizard({ initialWho, onDone, onOffice }) {
   const go = n => { setWarn(null); setStep(n); window.scrollTo(0, 0); };
 
   const generate = () => {
+    if (HAS_BACKEND) return generateServer();
     const now = new Date();
     const e = { po: makePO(now), ts: now.getTime(), who, role: roleOf(who),
       vid: veh.id, veh: veh.desc, tipo: veh.tipo, comb: veh.comb,
@@ -273,10 +346,39 @@ function Wizard({ initialWho, onDone, onOffice }) {
     setTicket(e); setSent(false); go(7);
   };
 
-  const filtered = EVERYONE.filter(n => !q || norm(n).includes(norm(q)));
+  const buildRow = () => ({
+    client_ref: uuid(), device_id: deviceId(), who, role: roleOf(who),
+    vehicle_id: veh.id, vehicle_desc: veh.desc, tipo: veh.tipo, comb: veh.comb,
+    plate: effPlate || null, plate_typed: !!(veh && !veh.placa && (plates[veh.id] || plate) && (veh.tipo === "CAMIONETA" || veh.tipo === "PIPA")),
+    equipo: equipNo || null, reading: needsLectura && lectura !== "" ? Number(lectura) : null,
+    jobsite: obraOtra || obra, jobsite_other: !!obraOtra, jobsite_week: obraSemana || null,
+    station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
+    flags: flagsFor({ vid: veh.id, tipo: veh.tipo, ts: Date.now(), lectura: needsLectura ? lectura : "", who, obra: obraOtra || obra, obraOtra: !!obraOtra, obraSemana, plateTyped: false, manualVeh: false }, LS.get(K_HIST, [])).map(f => f.t),
+  });
+  const generateServer = async () => {
+    setBusy(true); setFailed(null);
+    const row = buildRow();
+    try {
+      const saved = await sbInsert("fuel_pos", row);
+      const e = { po: saved.po, ts: new Date(saved.created_at).getTime(), who, role: row.role, vid: veh.id, veh: veh.desc, tipo: veh.tipo, comb: veh.comb,
+        placa: row.plate || "", equipo: row.equipo || "", lectura: row.reading == null ? "" : String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other,
+        obraSemana: row.jobsite_week || "", est: station, plateTyped: row.plate_typed, manualVeh: false, srv: true, v: 2 };
+      const h = LS.get(K_HIST, []); h.push(e); LS.set(K_HIST, h.slice(-400));
+      if (veh && !veh.placa && plate) { const p = LS.get(K_PLATES, {}); p[veh.id] = up(plate); LS.set(K_PLATES, p); }
+      logEvent("po_created", { who, meta: { po: saved.po, seconds: row.seconds_to_po, station } });
+      setTicket(e); setSent(true); go(7);
+    } catch (err) {
+      /* no signal or server down: keep it, retry, never lose it — but no PO until the server says so */
+      const q = LS.get("muniz_fuel_queue", []); q.push(row); LS.set("muniz_fuel_queue", q.slice(-50));
+      logEvent("error", { who, meta: { where: "insert", msg: String(err && err.message || err).slice(0, 120) } });
+      setFailed(row);
+    } finally { setBusy(false); }
+  };
+
+  const filtered = everyone().filter(n => !q || norm(n).includes(norm(q)));
 
   /* ---------- 0 · an unregistered PO blocks everything ---------- */
-  const pend = useMemo(() => pendList(), [tick, step]);
+  const pend = useMemo(() => (HAS_BACKEND ? [] : pendList()), [tick, step]);
   if (pend.length && step < 7) {
     const p = pend[0];
     const s0 = STATIONS[p.est] || {};
@@ -335,7 +437,9 @@ function Wizard({ initialWho, onDone, onOffice }) {
     const VehCard = ({ v }) => {
       const l = lastFor(v.id);
       return (
-        <button onClick={() => { setVeh(v); setPlate(""); setEquipNo(""); setLectura(""); go(3); }}
+        <button onClick={() => { setVeh(v); setPlate(""); setEquipNo(""); setLectura(""); setSrvLast(null);
+            if (HAS_BACKEND) sbRpc("vehicle_status", { vid: v.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (x) setSrvLast(x); }).catch(() => {});
+            go(3); }}
           className="btn card w-full text-left px-4 py-4 flex items-center gap-3 pop">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0" style={{ background: FUEL_COLOR[v.comb] + "22" }}>
             {v.tipo === "CAMIONETA" ? "🛻" : v.tipo === "MAQUINARIA" ? "🚜" : v.tipo === "PIPA" ? "🚛" : "🛢️"}
@@ -457,12 +561,28 @@ function Wizard({ initialWho, onDone, onOffice }) {
           </div>
           {last && hoursBetween(Date.now(), last.ts) < AL.HORAS_MIN_ENTRE_CARGAS && veh.tipo !== "PIPA" ? (
             <div className="mt-3 rounded-2xl bg-[#78350F] px-4 py-3 text-[13px] font-bold">⚠ Este vehículo cargó hace {Math.max(1, Math.round(hoursBetween(Date.now(), last.ts)))} h. Queda marcado para la oficina.</div>) : null}
-          <div className="mt-5"><Big onClick={generate} disabled={!station}>GENERAR PO ⛽</Big></div>
+          <div className="mt-5"><Big onClick={generate} disabled={!station || busy}>{busy ? "REGISTRANDO…" : "GENERAR PO ⛽"}</Big></div>
+          {HAS_BACKEND ? <div className="mt-2 text-center text-[11px] text-[#5B6572]">Se registra en la oficina en este instante. Nadie tiene que mandar nada.</div> : null}
         </div>
       </Shell>);
   }
 
-  /* ---------- 7 · REGISTER, THEN THE TICKET ---------- */
+  /* ---------- no signal: the server assigns the PO, so without the server there is no PO yet ---------- */
+  if (failed) return (
+    <Shell>
+      <Top title="Sin señal" sub="El PO lo asigna la oficina en el momento. Sin señal no hay número todavía." />
+      <div className="px-4 pb-8">
+        <div className="card px-5 py-6 text-center">
+          <div className="text-6xl">📡</div>
+          <div className="display text-[22px] mt-3">No se pudo registrar</div>
+          <div className="text-[14px] text-[#B4BCC8] mt-2 leading-snug">Tu solicitud quedó guardada en el teléfono. Acércate a donde haya señal y toca reintentar. Se registra solita y te da el PO.</div>
+        </div>
+        <div className="mt-5"><Big onClick={() => { setFailed(null); generateServer(); }} disabled={busy}>{busy ? "REINTENTANDO…" : "REINTENTAR ↻"}</Big></div>
+        <button onClick={() => { setFailed(null); go(6); }} className="mt-3 w-full py-3 text-[12px] font-black text-[#5B6572]">REGRESAR</button>
+      </div>
+    </Shell>);
+
+  /* ---------- 7 · REGISTER, THEN THE TICKET (only when there is NO backend) ---------- */
   if (step === 7 && ticket && !sent && !ticket.srv) {
     const s = STATIONS[ticket.est] || {};
     const tels = [FUEL.LOG_TEL, s.tel].filter(Boolean);
@@ -542,10 +662,13 @@ function Wizard({ initialWho, onDone, onOffice }) {
           </div>
 
           <div className="mt-5 text-center text-[13px] text-[#B4BCC8] font-bold">Muestra esta pantalla en la bomba. Leo's pide PO, placa y nombre — aquí están.</div>
-          <div className="mt-4">
-            <a href={smsHref(tels, lines.join("\n"))} className="btn block w-full py-4 text-center text-[18px] bg-[#F5B800] text-[#0B0F14]">MANDAR PO ➤</a>
-            <div className="mt-2 text-center text-[11px] text-[#5B6572]">Se manda solo al registro{s.tel ? " y a la estación" : ""}. Nadie tiene que aprobarlo.</div>
-          </div>
+          {ticket.srv ? (
+            <div className="mt-3 rounded-2xl bg-[#052E16] border border-[#16A34A] px-4 py-3 text-center text-[13px] font-black text-[#86EFAC]">✓ Registrado en la oficina · {fmtDT(ticket.ts)}</div>) : null}
+          {(!ticket.srv || s.tel) ? (
+            <div className="mt-4">
+              <a href={smsHref(ticket.srv ? [s.tel] : tels, lines.join("\n"))} className="btn block w-full py-4 text-center text-[18px] bg-[#F5B800] text-[#0B0F14]">{ticket.srv ? "MANDAR PO A " + (s.corto || "LA ESTACIÓN") + " ➤" : "MANDAR PO ➤"}</a>
+              <div className="mt-2 text-center text-[11px] text-[#5B6572]">{ticket.srv ? "Opcional: la estación lo recibe por texto." : "Se manda solo al registro" + (s.tel ? " y a la estación" : "") + ". Nadie tiene que aprobarlo."}</div>
+            </div>) : null}
           <button onClick={() => onDone(ticket)} className="mt-6 w-full py-3 rounded-2xl bg-[#1A2230] text-white text-[15px] font-black">LISTO</button>
         </div>
       </Shell>);
@@ -554,9 +677,50 @@ function Wizard({ initialWho, onDone, onOffice }) {
 }
 
 /* ===================================================================== OFFICE CONSOLE */
-function Office({ whoOf, onExit, onNew }) {
-  const [log, setLog] = useState(LS.get(K_LOG, []));
-  useEffect(() => { const f = () => setLog(LS.get(K_LOG, [])); window.addEventListener("hashchange", f); const t = setInterval(f, 1500); return () => { window.removeEventListener("hashchange", f); clearInterval(t); }; }, []);
+function Login({ onOk, onCancel }) {
+  const [email, setEmail] = useState(""); const [pw, setPw] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
+  const go = async () => { setBusy(true); setErr(""); try { const t = await sbLogin(email.trim(), pw); onOk(t); } catch (e) { setErr("Correo o contraseña incorrectos"); } finally { setBusy(false); } };
+  return (
+    <Shell>
+      <Top title="Oficina" sub="Entra con tu correo de Muñiz" />
+      <div className="px-4 pb-8">
+        <input value={email} onChange={e => setEmail(e.target.value)} placeholder="correo" type="email" autoCapitalize="none"
+          className="w-full h-14 rounded-2xl bg-[#121822] border border-[#1E2733] px-4 text-[17px] text-white outline-none" />
+        <input value={pw} onChange={e => setPw(e.target.value)} placeholder="contraseña" type="password" onKeyDown={e => e.key === "Enter" && go()}
+          className="mt-2 w-full h-14 rounded-2xl bg-[#121822] border border-[#1E2733] px-4 text-[17px] text-white outline-none" />
+        {err ? <div className="mt-3 text-[#F87171] text-[14px] font-black">{err}</div> : null}
+        <div className="mt-5"><Big onClick={go} disabled={busy || !email || !pw}>{busy ? "ENTRANDO…" : "ENTRAR"}</Big></div>
+        <button onClick={onCancel} className="mt-4 w-full text-[12px] font-black text-[#5B6572]">CANCELAR</button>
+      </div>
+    </Shell>);
+}
+
+function Office({ whoOf, onExit, onNew, token }) {
+  const [log, setLog] = useState(HAS_BACKEND ? [] : LS.get(K_LOG, []));
+  const [events, setEvents] = useState([]);
+  const [err, setErr] = useState("");
+  const [syncAt, setSyncAt] = useState(0);
+  useEffect(() => {
+    if (!HAS_BACKEND) { const f = () => setLog(LS.get(K_LOG, [])); window.addEventListener("hashchange", f); const t = setInterval(f, 1500); return () => { window.removeEventListener("hashchange", f); clearInterval(t); }; }
+    let alive = true;
+    const pull = async () => {
+      try {
+        const tok = token && token.access_token;
+        const [rows, ev] = await Promise.all([
+          sbGet("fuel_pos?select=*&order=created_at.desc&limit=1000", tok),
+          sbGet("events?select=ts,device_id,who,event,step,meta&order=ts.desc&limit=400", tok)]);
+        if (!alive) return;
+        setLog(rows.map(r => ({ po: r.po, ts: new Date(r.created_at).getTime(), who: r.who, role: r.role, vid: r.vehicle_id, veh: r.vehicle_desc, tipo: r.tipo, comb: r.comb,
+          placa: r.plate || "", equipo: r.equipo || "", lectura: r.reading == null ? "" : String(r.reading), obra: r.jobsite, obraOtra: r.jobsite_other,
+          obraSemana: r.jobsite_week || "", est: r.station, plateTyped: r.plate_typed, manualVeh: false, secs: r.seconds_to_po, srvFlags: r.flags || [] })));
+        setEvents(ev); setErr(""); setSyncAt(Date.now());
+      } catch (e) { if (alive) setErr(String(e.message || e)); }
+    };
+    pull(); const t = setInterval(pull, 8000);
+    return () => { alive = false; clearInterval(t); };
+  }, [token]);
+  const live = useMemo(() => { const cut = Date.now() - 5 * 60e3; const m = {}; events.forEach(e => { const t = new Date(e.ts).getTime(); if (t > cut && e.who) { if (!m[e.who] || m[e.who].t < t) m[e.who] = { t, step: e.step, event: e.event }; } }); return Object.entries(m).sort((a, b) => b[1].t - a[1].t); }, [events]);
+  const avgSecs = useMemo(() => { const x = log.filter(e => e.secs).map(e => e.secs); return x.length ? Math.round(x.reduce((a, b) => a + b, 0) / x.length) : null; }, [log]);
   const [tab, setTab] = useState("hoy");
   const [filter, setFilter] = useState("");
   const sorted = useMemo(() => [...log].sort((a, b) => b.ts - a.ts), [log]);
@@ -599,6 +763,15 @@ function Office({ whoOf, onExit, onNew }) {
           <div><div className="text-[11px] font-black tracking-[0.18em] text-[#8B95A5]">MUÑIZ COMBUSTIBLE · OFICINA</div><div className="display text-[24px]">Registro de combustible</div><div className="text-[12px] text-[#B4BCC8]">{whoOf}</div></div>
           <button onClick={onExit} className="text-[11px] font-black text-[#8B95A5]">SALIR</button>
         </div>
+        {HAS_BACKEND ? (
+          <div className="mt-3 flex items-center justify-between text-[11px] font-black">
+            <span className={err ? "text-[#F87171]" : "text-[#86EFAC]"}>{err ? "⚠ sin conexión con la base de datos" : `● EN VIVO · ${syncAt ? fmtDT(syncAt) : "…"}`}</span>
+            <span className="text-[#8B95A5]">{live.length} en el app ahora{avgSecs != null ? ` · ${Math.floor(avgSecs / 60)}:${String(avgSecs % 60).padStart(2, "0")} por PO` : ""}</span>
+          </div>) : null}
+        {live.length ? (
+          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+            {live.slice(0, 8).map(([n, x]) => <span key={n} className="shrink-0 text-[11px] font-black px-2.5 py-1 rounded-full bg-[#1A2230] text-white">● {n.split(" ")[0]}{x.event === "po_created" ? " ✓" : x.step ? ` · paso ${x.step}` : ""}</span>)}
+          </div>) : null}
         <div className="grid grid-cols-4 gap-2 mt-4 text-[#141414]">
           <Stat n={todayL.length} l="HOY" /><Stat n={weekL.length} l="7 DÍAS" />
           <Stat n={weekL.filter(e => e.est === "TEXCON").length} l="TEX-CON" /><Stat n={weekL.filter(e => e.est === "LEOS").length} l="LEO'S" />
@@ -640,7 +813,17 @@ function Office({ whoOf, onExit, onNew }) {
 function App() {
   const [mode, setMode] = useState("boot");
   const [pin, setPin] = useState(false);
+  const [login, setLogin] = useState(false);
+  const [token, setToken] = useState(officeToken());
   const [ofName, setOfName] = useState("");
+  const [refTick, setRefTick] = useState(0);
+  useEffect(() => {
+    if (!HAS_BACKEND) return;
+    refreshRef().then(() => setRefTick(t => t + 1)).catch(() => {});
+    /* flush anything a phone could not send earlier (idempotent via client_ref) */
+    const q = LS.get("muniz_fuel_queue", []);
+    if (q.length) (async () => { const left = []; for (const row of q) { try { await sbInsert("fuel_pos", row); } catch (e) { if (!(e && e.status === 409)) left.push(row); } } LS.set("muniz_fuel_queue", left); })();
+  }, []);
   const [me, setMe] = useState(LS.get(K_ME, ""));
   const [logged, setLogged] = useState(null);
 
@@ -662,7 +845,7 @@ function App() {
           return;
         }
       }
-      if (h === "#oficina") { setPin(true); return; }
+      if (h === "#oficina") { if (HAS_BACKEND) { officeToken() ? setMode("office") : setLogin(true); } else setPin(true); return; }
       setMode("wizard");
     };
     /* anything still pending gets another try at the server on every open */
@@ -672,15 +855,16 @@ function App() {
     return () => window.removeEventListener("hashchange", route);
   }, []);
 
+  if (login) return <Login onOk={t => { setToken(t); setOfName(t.email); setLogin(false); setMode("office"); }} onCancel={() => { setLogin(false); window.location.hash = ""; setMode("wizard"); }} />;
   if (pin) return <PinGate onOk={n => { setOfName(n); setPin(false); if (logged) { const L = LS.get(K_LOG, []); (Array.isArray(logged) ? logged : [logged]).forEach(e => { if (e && e.po && !L.some(x => x.po === e.po)) L.push(e); }); LS.set(K_LOG, L); } setMode("office"); }} onCancel={() => { setPin(false); setLogged(null); window.location.hash = ""; setMode("wizard"); }} />;
-  if (mode === "office") return <Office whoOf={ofName || "OFICINA"} onExit={() => { window.location.hash = ""; setMode("wizard"); }} onNew={() => { window.location.hash = ""; setMode("wizard"); }} />;
-  if (mode === "wizard") return <Wizard key={me} initialWho={me} onDone={() => { setMe(LS.get(K_ME, "")); setMode("done"); }} onOffice={() => setPin(true)} />;
+  if (mode === "office") return <Office key={refTick} token={token} whoOf={ofName || (token && token.email) || "OFICINA"} onExit={() => { window.location.hash = ""; setMode("wizard"); }} onNew={() => { window.location.hash = ""; setMode("wizard"); }} />;
+  if (mode === "wizard") return <Wizard key={me + ":" + refTick} initialWho={me} onDone={() => { setMe(LS.get(K_ME, "")); setMode("done"); }} onOffice={() => { if (HAS_BACKEND) { officeToken() ? setMode("office") : setLogin(true); } else setPin(true); }} />;
   if (mode === "done") return (
     <Shell>
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
         <div className="w-24 h-24 rounded-full bg-[#16A34A] flex items-center justify-center text-5xl">✓</div>
         <div className="display text-[28px] mt-5">PO registrado</div>
-        <div className="text-[14px] text-[#B4BCC8] mt-2">Ya quedó en el registro de la oficina.</div>
+        <div className="text-[14px] text-[#B4BCC8] mt-2">{HAS_BACKEND ? "Quedó registrado en la oficina en el momento." : "Ya quedó en el registro de la oficina."}</div>
         <button onClick={() => setMode("wizard")} className="btn mt-8 w-full py-4 bg-[#F5B800] text-[#0B0F14] text-[17px]">OTRO PO</button>
         <a href="./index.html" className="mt-4 text-[13px] font-black text-[#8B95A5]">← Volver a pedidos</a>
         <div className="mt-10 text-[10px] text-[#3B4553]">Muñiz Combustible v{VERSION}</div>

@@ -1255,3 +1255,26 @@ niveles de control:
    con un PO de prueba el primer dia.
 
 SUBIR: fuel.js, fuel.css, config.js, sw.js (cache v39).
+
+============================================================
+VERSION 7.3 (10 septiembre 2026) - BACKEND REAL (FASE 1)
+============================================================
+El PO de combustible se registra EN EL INSTANTE en una base de
+datos (Supabase/Postgres). Sin textos a Tito. Sin candados.
+El servidor asigna el numero (F1001, F1002...) y guarda todo.
+La oficina entra con correo y contraseña y ve el registro EN
+VIVO: quien esta en el app ahora y en que paso, cuanto tarda
+cada PO, alertas, flota, CSV.
+El odometro se valida contra el SERVIDOR: si otro telefono
+cargo esa camioneta, este telefono lo sabe y bloquea.
+Sin señal: la solicitud se guarda y se reintenta; no hay PO
+hasta que el servidor lo asigne (Leo's no carga sin PO, asi que
+no se pierde nada ni se inventa nada).
+Los catalogos (flota, obras, rol semanal, gente, estaciones)
+ahora viven en la base de datos y se editan en Supabase, no en
+config.js. config.js queda de respaldo por si no hay conexion.
+PUESTA EN MARCHA: ver SETUP_SUPABASE.txt (15 minutos).
+Mientras SUPABASE.URL este vacio, el app sigue funcionando en el
+modo anterior (candado + texto), asi que nada se rompe.
+SUBIR: fuel.js, fuel.css, config.js (con URL y ANON_KEY),
+       sw.js (cache v40). Verificar "v7.3" y "Combustible v2.0".

@@ -1,0 +1,73 @@
+====================================================================
+  MUÑIZ · BACKEND · FASE 1 (COMBUSTIBLE) · PUESTA EN MARCHA
+  Tiempo: 15 minutos. Se hace UNA vez.
+====================================================================
+
+PASO 1 · CREAR EL PROYECTO (ya tienes la cuenta)
+  1. supabase.com -> New project
+     Name: muniz-ops   |  Database password: (guardala)  |  Region: East US (Ohio)
+     Plan: PRO ($25/mes). El plan gratis PAUSA el proyecto tras 7 dias sin
+     uso: en produccion eso es un dia sin POs. Pro no se pausa y tiene respaldos.
+  2. Espera ~2 min a que diga "Project is ready".
+
+PASO 2 · CREAR LAS TABLAS
+  1. Menu izquierdo -> SQL Editor -> New query
+  2. Abre supabase_fase1.sql (viene en el zip), copia TODO, pegalo, RUN.
+     Debe terminar con:  OK · tablas: 8
+  3. Se puede volver a correr sin problema (no duplica nada).
+
+PASO 3 · USUARIOS DE OFICINA (tu y Claudia)
+  1. Authentication -> Users -> Add user -> "Create new user"
+     Email: tito@munizcontracting.com     Password: (una buena, 12+ caracteres)
+     Marcar "Auto Confirm User".
+  2. Igual para Claudia con su correo.
+  3. SQL Editor -> pegar y correr (con el correo real de Claudia):
+        insert into office_users (email,name) values
+          ('claudia@munizcontracting.com','CLAUDIA TAMAYO')
+        on conflict (email) do nothing;
+     (El tuyo ya quedo con el script del Paso 2.)
+  IMPORTANTE: solo los correos en office_users pueden LEER el registro.
+  El campo solo puede INSERTAR. Asi lo dicta la base de datos, no el app.
+
+PASO 4 · CONECTAR EL APP
+  1. Project Settings -> API. Copia:
+        Project URL          -> ej. https://abcdefghij.supabase.co
+        anon public (API key)-> empieza con eyJ...
+  2. Abre config.js -> SUPABASE -> pega los dos valores:
+        SUPABASE: { URL: "https://abcdefghij.supabase.co", ANON_KEY: "eyJ..." },
+  3. Sube a GitHub: config.js, fuel.js, fuel.css, fuel.html, sw.js.
+
+PASO 5 · PRUEBA DE ACEPTACION (5 min, con tu telefono)
+  [ ] Abre muniz-2026.github.io/muniz-pedidos/fuel.html
+  [ ] Toca tu nombre -> tu camioneta -> pon placa -> odometro -> obra -> Leo's
+  [ ] GENERAR PO: debe salir el ticket AL INSTANTE con PO "F1001"
+      y abajo "✓ Registrado en la oficina". Sin ningun texto.
+  [ ] En la laptop: fuel.html#oficina -> entra con tu correo -> el PO F1001
+      ya esta ahi, con "● EN VIVO" arriba.
+  [ ] En Supabase: Table Editor -> fuel_pos -> la fila esta ahi.
+  [ ] Con el telefono de Claudia: mismo vehiculo, odometro MENOR -> debe
+      BLOQUEAR ("no puede bajar") aunque sea otro telefono. Esa es la prueba
+      de que la verdad esta en el servidor.
+  [ ] Modo avion en el telefono -> GENERAR -> pantalla "Sin señal"; quita
+      el modo avion -> REINTENTAR -> sale el PO. Nada se perdio.
+
+DESPUES · OPERAR DESDE SUPABASE (Table Editor), no desde config.js
+  vehicles   -> PONER LAS PLACAS (columna plate). Con placa, ya no se dicta.
+                Cambiar comb (DIESEL/GASOLINA) si alguno esta mal.
+  jobsites   -> agregar/quitar obras (lugares, nunca contratos)
+  roster     -> CADA LUNES: filas nuevas (person, week_start=lunes, jobsite)
+                del 6-Week Lookahead. El app propone esa obra primero.
+  people     -> altas/bajas. active=false esconde a alguien sin borrar historia.
+  stations   -> telefono de Leo's si quieren recibir el PO por texto.
+  fuel_pos   -> el registro. Columnas gallons/amount para cuando llegue la
+                factura (Fase 4 lo hara solo).
+  fuel_pos_flagged (vista) -> las banderas calculadas por el servidor.
+
+QUE YA NO EXISTE
+  - Ningun texto a Tito por combustible. Cero.
+  - La clave de 4 digitos para la oficina de combustible (ahora es correo).
+  - El "candado" del PO: ya no hace falta, el servidor asigna el numero.
+
+QUE SIGUE (Fase 2/3/4): pedidos de material en la base de datos,
+  centro de mando (tiempos, gasto por obra/proveedor, ubicaciones), y
+  lectura automatica de facturas ACE contra POs.

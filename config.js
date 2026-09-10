@@ -11,6 +11,19 @@ window.MUNIZ_CONFIG = {
   /* Telefono de Tito (recibe los pedidos APROBADOS) */
   TITO_PHONE: "15129651933",
 
+  /* =====================================================================
+     BASE DE DATOS (Supabase). Con esto el PO de combustible se registra
+     EN EL INSTANTE en que se genera, sin textos. Es el corazon del sistema.
+     Supabase -> Project Settings -> API:
+        URL      = "Project URL"          (https://xxxxxxxx.supabase.co)
+        ANON_KEY = "anon public" key       (empieza con eyJ...)
+     La anon key es publica a proposito: solo puede INSERTAR registros y leer
+     catalogos. Leer el registro completo requiere el login de oficina. */
+  SUPABASE: {
+    URL:      "https://kchnylxocdniacpfugyf.supabase.co",
+    ANON_KEY: "sb_publishable_4z755311D1gF3oLmlQhksw_yn10-mpZ",
+  },
+
   /* ===== USUARIO MAESTRO (solo el ve MODO OFICINA) =====
      OFFICE_PIN: clave de 4 digitos. Para cambiarla, cambia el numero de abajo.
      ATENCION: este archivo es publico en GitHub. Cualquiera que sepa buscar
