@@ -184,6 +184,6 @@ WHAT NO LONGER EXISTS
   - The 4-digit PIN for the fuel office (it's email login now).
   - The PO "padlock": not needed, the server assigns the number.
 
-WHAT'S NEXT (Phases 2/3/4): material orders in the database, the command
-  center (timing, spend by jobsite/vendor, locations), and automatic reading
-  of ACE invoices against POs.
+PHASE 2 (material orders) is DONE - see SETUP_FASE2_EN.txt.
+WHAT'S NEXT (Phases 3/4): in-app supervisor approval (needs app_src.jsx),
+  spend by jobsite/vendor, and automatic reading of ACE invoices against POs.

@@ -1,0 +1,90 @@
+====================================================================
+  MUÑIZ · BACKEND · PHASE 2 (MATERIAL ORDERS) · SETUP
+  Time: 10 minutes. Requires Phase 1 + patches 1-3 already run.
+====================================================================
+
+WHAT IT DOES
+  The moment anyone taps MANDAR / APROBAR Y MANDAR / RECHAZAR or the
+  office generates a pickup TICKET in the orders app, the order is
+  registered in the database - BEFORE Messages opens. If the foreman
+  never sends the text, you still see it in the command center.
+  app.js is untouched. A new file, pedidos_db.js, does the work.
+
+STEP 1 · RUN THE SQL
+  Supabase -> SQL Editor -> New query -> paste ALL of supabase_fase2.sql
+  -> RUN. Under Messages/Notices you should see PRUEBA 1/6 .. 6/6 OK and
+  PRUEBAS LIMPIADAS. The Results panel ends with:
+      OK · Fase 2 lista | pedidos_registrados 0 | siguiente_folio S1001
+  Safe to run again at any time.
+
+STEP 2 · UPLOAD TO GITHUB (7 files)
+  pedidos_db.js  (NEW)      index.html        sw.js  (cache v44)
+  mando.js       mando.css  mando_src.jsx     supabase_fase2.sql
+  Nothing goes in config.js - it reuses the same URL and ANON_KEY.
+
+STEP 3 · ACCEPTANCE TEST (5 minutes)
+  [ ] Phone: open the orders app, pick ACE, add 2 items, MANDAR.
+      A banner must appear at the top: "✓ Pedido registrado en la
+      oficina · S1001" (in practice mode: "🎓 Práctica registrada").
+  [ ] Laptop: mando.html -> PEDIDOS. S1001 is in POR ATENDER as
+      "supervisor · 0 min". Click it: LO QUE PIDIÓ shows both lines
+      with catalog price.
+  [ ] Supervisor's phone: open the link from the text, lower one
+      quantity, remove the other, APROBAR Y MANDAR. In the mando the
+      row turns APROBADO · SIN PO, LÍNEAS reads 2→1 −1 ~1, and the
+      detail shows LO QUE APROBÓ EL SUPERVISOR with the cut line
+      struck through.
+  [ ] Your phone: open the approved link, type a PO, generate the
+      ticket. The row turns PO ASIGNADO with that PO.
+  [ ] Airplane mode -> MANDAR -> "⏳ Sin señal" banner. Airplane off,
+      switch away and back to the app -> "✓ Pedido registrado".
+  [ ] Supabase Table Editor -> material_orders: the rows are there.
+
+WHAT YOU SEE IN THE MANDO (PEDIDOS view)
+  POR ATENDER          oldest first. "supervisor · 3 h" = waiting on a
+                       supervisor. "PO · 4 h" = approved, waiting on YOU.
+  ESPERAN SUPERVISOR   turns red when the oldest is 2 h+.
+  APROBADOS SIN PO     your queue.
+  TIEMPO A APROBAR     median minutes from MANDAR to APROBAR.
+  ESTIMADO             sum at catalog price (approved lines if approved,
+                       requested lines if not). Not invoice money yet.
+  BUSCARON Y NO ENCONTRARON   words foremen typed that found nothing.
+                       This is Claudia's catalog to-do list.
+  LO MÁS PEDIDO        live lines in the range, by number of orders.
+  Detail (click a row) LO QUE PIDIÓ vs LO QUE APROBÓ EL SUPERVISOR vs
+                       TICKET, with "(pidió 2)" on trimmed lines and
+                       QUITADO / NO AUTORIZADO struck through.
+  ⬇ CSV                exports the table on screen, one row per order,
+                       lines in the last column.
+
+FLAGS
+  RED    Sin respuesta del supervisor 2 h+ · Aprobado sin PO 4 h+ ·
+         Abrió Mensajes y no confirmó · Mayordomo se aprobó a sí mismo
+  AMBER  Obra escrita a mano · Sin obra · Obra distinta al rol de la
+         semana · N fuera de catálogo · N quitada(s) por supervisor ·
+         Agregado al pedido anterior · Domingo · Fuera de horario
+  Thresholds live in the view material_orders_full. Tell me and I move them.
+
+FOLIO vs PO
+  S1001, S1002... is the internal request number the database assigns.
+  It is NOT the PO. The PO is whatever you type in the pickup ticket;
+  it lands in the "po" column and the row becomes PO ASIGNADO.
+  Practice-mode orders get a folio too but are flagged is_practice and
+  excluded from every count.
+
+TABLES (Table Editor)
+  material_orders        one row per order, its whole life
+  material_order_lines   one snapshot per stage: SOLICITADO / APROBADO / TICKET
+  material_order_events  who tapped what, when
+  material_orders_full   (view) what the mando reads, with flags
+
+ALSO FIXED
+  fuel_pos_flagged (Phase 1 view) could be read by any logged-in user
+  regardless of office_users. It now respects the table's rules.
+
+LIMITS OF THIS PHASE (because app_src.jsx is not in the zip)
+  The text-message leg still exists: supervisors approve from the link
+  in the text, as before. The database is a shadow copy of every step,
+  not yet the channel itself. With the orders-app source, Phase 3 can
+  move approval fully in-app and drop the texts.
+  Not captured: "AYUDA PARA EL CATALOGO" messages (they carry no order).

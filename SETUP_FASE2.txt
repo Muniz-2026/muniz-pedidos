@@ -1,0 +1,12 @@
+====================================================================
+  MUÑIZ · BASE DE DATOS · FASE 2 (PEDIDOS DE MATERIAL)
+  10 minutos. Requiere Fase 1 + parches 1-3 ya corridos.
+====================================================================
+1. Supabase -> SQL Editor -> New query -> pegar TODO supabase_fase2.sql
+   -> RUN. Debe terminar: OK · Fase 2 lista · siguiente_folio S1001
+2. Subir a GitHub: pedidos_db.js (nuevo), index.html, sw.js, mando.js,
+   mando.css, mando_src.jsx, supabase_fase2.sql. config.js no cambia.
+3. Prueba: en el teléfono, pedir 2 artículos y MANDAR. Arriba aparece
+   "✓ Pedido registrado en la oficina · S1001". En la laptop,
+   mando.html -> PEDIDOS: ahí está, en POR ATENDER.
+Detalle completo en SETUP_FASE2_EN.txt.
