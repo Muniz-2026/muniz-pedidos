@@ -326,7 +326,7 @@ function Pedidos({ orders, range, q, setQ, live, now, onCsvRef }) {
                   <td className="px-2 py-2 whitespace-nowrap text-[#B6C0CE]">{o.supervisor || (o.status === "SOLICITADO" ? <span className="text-[#5E6B7D]">esperando…</span> : "—")}{o.self_approved ? <span className="text-[9px] text-[#A78BFA] ml-1">directo</span> : null}</td>
                   <td className="px-2 py-2 mono whitespace-nowrap">{o.approved_lines != null ? <>{o.requested_lines}<span className="text-[#5E6B7D]">→</span>{o.approved_lines}{o.removed_lines ? <span className="text-[#F87171]"> −{o.removed_lines}</span> : null}{o.adjusted_lines ? <span className="text-[#FDE68A]"> ~{o.adjusted_lines}</span> : null}</> : o.requested_lines}{o.custom_lines ? <span className="text-[9px] text-[#FDE68A] ml-1">{o.custom_lines} fc</span> : null}</td>
                   <td className="px-2 py-2 mono whitespace-nowrap">{o.est_total ? money(o.est_total) : "—"}</td>
-                  <td className="px-2 py-2"><Pill color={STC[o.status].c}>{STC[o.status].l}</Pill></td>
+                  <td className="px-2 py-2 whitespace-nowrap"><Pill color={STC[o.status].c}>{STC[o.status].l}</Pill>{o.lane ? <span title={o.lane_note || o.lane} className="ml-1 inline-block w-2.5 h-2.5 rounded-full align-middle" style={{ background: { VERDE: "#22C55E", AMARILLO: "#F5B800", ROJO: "#EF4444", PRACTICA: "#6B7280" }[o.lane] }} /> : null}{o.decided_by === "REGLAS" ? <span className="ml-1 text-[9px] text-[#86EFAC]">auto</span> : null}</td>
                   <td className="px-2 py-2 mono whitespace-nowrap">{o.secs_to_approve != null ? ago(o.secs_to_approve * 1000) : "—"}</td>
                   <td className="px-2 py-2 mono font-black whitespace-nowrap">{o.po || "—"}</td>
                   <td className="px-2 py-2 min-w-[220px]"><div className="flex gap-1 flex-wrap">{o.flags.slice(0, 3).map((f, i) => <Flag key={i} f={f} />)}{o.flags.length > 3 ? <span className="text-[10px] text-[#7C8A9C]">+{o.flags.length - 3}</span> : null}</div></td>
@@ -370,6 +370,8 @@ function OrderDetail({ o, onClose }) {
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12px]">
             {tl.map(([k, t, who], i) => <div key={i}><span className="text-[#7C8A9C]">{k}</span> <span className="font-bold">{dt(t)}</span>{who ? <span className="text-[#5E6B7D]"> · {who}</span> : null}</div>)}
           </div>
+          {o.lane_note ? <div className="text-[12px] font-bold" style={{ color: { VERDE: "#86EFAC", AMARILLO: "#FDE68A", ROJO: "#FCA5A5" }[o.lane] || "#B6C0CE" }}>{o.lane} · {o.lane_note}{o.decided_by ? ` · decidió ${o.decided_by}${o.decided_via ? " (" + o.decided_via.toLowerCase() + ")" : ""}` : ""}</div> : null}
+          {o.justification ? <div className="text-[12px]"><span className="text-[#7C8A9C]">Justificación: </span>“{o.justification}”</div> : null}
           {o.not_found && o.not_found.length ? <div className="text-[12px] text-[#FDE68A]">Buscó y no encontró: {o.not_found.map(t => `“${t}”`).join(", ")}</div> : null}
           <div className="flex items-center gap-2">
             {stages.map(s => <button key={s} onClick={() => setSt(s)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black ${st === s ? "bg-white text-[#0B0F14]" : "bg-[#0B0F14] text-[#7C8A9C] border border-[#1E2A38]"}`}>{s === "SOLICITADO" ? "LO QUE PIDIÓ" : s === "APROBADO" ? "LO QUE APROBÓ EL SUPERVISOR" : "TICKET"}</button>)}

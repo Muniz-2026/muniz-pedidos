@@ -22,7 +22,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.0";
+  var VERSION = "1.1";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -121,6 +121,11 @@
         if (item.toast) {
           var no = row && row.req_no ? " · " + row.req_no : "";
           if (item.payload.dm) toast("🎓 Práctica registrada (no cuenta)" + no, "gray", 3500);
+          else if (item.stage === "SOLICITADO" && row && row.note) {
+            // el motor de reglas ya decidió: verde (aprobado solo), rojo (rechazado / detenido) o amarillo (lo ve el supervisor)
+            var lane = row.lane || "", tone = lane === "VERDE" ? "green" : lane === "ROJO" ? "red" : "amber";
+            toast(row.note + no, tone, 8000, lane !== "VERDE" ? "./bandeja.html#mis" : null);
+          }
           else if (item.stage === "SOLICITADO") toast("✓ Pedido registrado en la oficina" + no, "green", 5000);
           else if (item.stage === "APROBADO") toast("✓ Aprobación registrada" + no, "green", 5000);
           else if (item.stage === "TICKET") toast("✓ PO " + (row && row.po ? row.po : "") + " ligado al pedido" + no, "green", 5000);
@@ -153,7 +158,7 @@
 
   /* ---------- aviso en pantalla (no estorba el botón de abajo) ---------- */
   var toastEl = null, toastTimer = null;
-  function toast(msg, tone, ms) {
+  function toast(msg, tone, ms, link) {
     var colors = { green: "#1F8A3B", amber: "#B45309", red: "#C81E1E", gray: "#4B5563" };
     if (!toastEl) {
       toastEl = document.createElement("div");
@@ -161,7 +166,8 @@
       toastEl.style.cssText = "position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:9999;color:#fff;font:800 14px/1.25 system-ui,-apple-system,sans-serif;padding:12px 14px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.28);text-align:center;transform:translateY(-140%);transition:transform .25s ease;pointer-events:none;";
       document.body.appendChild(toastEl);
     }
-    toastEl.textContent = msg; toastEl.style.background = colors[tone] || colors.gray;
+    toastEl.textContent = msg + (link ? "  ›  MIS PEDIDOS" : ""); toastEl.style.background = colors[tone] || colors.gray;
+    toastEl.style.pointerEvents = link ? "auto" : "none"; toastEl.onclick = link ? function () { location.href = link; } : null;
     requestAnimationFrame(function () { toastEl.style.transform = "translateY(0)"; });
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.style.transform = "translateY(-140%)"; }, ms || 4000);
   }

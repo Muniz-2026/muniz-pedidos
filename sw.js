@@ -1,7 +1,7 @@
 /* MUÑIZ Pedidos - service worker: offline app shell + instant load (fully self-contained) */
-const CACHE = "muniz-pedidos-v44";
+const CACHE = "muniz-pedidos-v45";
 const SHELL = [
-  "./","./index.html","./app.js","./styles.css","./manifest.json","./config.js","./pedidos_db.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./mando.html","./mando.js","./mando.css",
+  "./","./index.html","./app.js","./styles.css","./manifest.json","./config.js","./pedidos_db.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./mando.html","./mando.js","./mando.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
 ];
 self.addEventListener("install",(e)=>{e.waitUntil((async()=>{
