@@ -1,5 +1,5 @@
 /* ============================================================================
-   MUÑIZ OPS · COMMAND CENTER · v2.0
+   MUÑIZ OPS · COMMAND CENTER · v2.1  (session auto-renew · Tex-Con in LEDGER/FUEL · >1,000-row paging)
    English. Office only. Field apps (pedidos / fuel / bandeja) are untouched.
    One data pull every 7 s feeds six rooms:
      SITUATION · ORDERS · FUEL · FLEET · PEOPLE · RULES
@@ -13,15 +13,39 @@ const SB = CFG.SUPABASE || {};
 const SB_URL = String(SB.URL || "").trim().replace(/\/+$/, "").replace(/\/rest\/v1$/, "").replace(/\/auth\/v1$/, "");
 const SB_KEY = String(SB.ANON_KEY || "").trim();
 const K_TOK = "muniz_office_token", K_ROOM = "muniz_ops_room";
-const tok = () => { try { const t = JSON.parse(localStorage.getItem(K_TOK) || "null"); return t && t.exp * 1000 > Date.now() ? t : null; } catch (e) { return null; } };
+/* Session: Supabase access tokens live ~1 h. We keep the refresh_token and renew silently before expiry
+   (and once more on a 401 / "JWT expired" reply). If renewal fails, the app drops to the sign-in screen
+   instead of showing red JSON in the header. */
+const TOK = { cur: null, inflight: null };
+const readTok = () => { try { return JSON.parse(localStorage.getItem(K_TOK) || "null"); } catch (e) { return null; } };
+const saveTok = j => { const t = { access_token: j.access_token, refresh_token: j.refresh_token || TOK.cur?.refresh_token || null, email: j.user?.email || j.email || TOK.cur?.email || "", exp: Math.floor(Date.now() / 1000) + (j.expires_in || 3600) }; TOK.cur = t; localStorage.setItem(K_TOK, JSON.stringify(t)); return t; };
+const signOut = () => { TOK.cur = null; localStorage.removeItem(K_TOK); window.dispatchEvent(new Event("muniz-signout")); };
+const tok = () => { const t = readTok(); if (!t) return null; if (t.exp * 1000 > Date.now() || t.refresh_token) { TOK.cur = t; return t; } localStorage.removeItem(K_TOK); return null; };
+async function refreshTok() {
+  if (TOK.inflight) return TOK.inflight;
+  const rt = TOK.cur?.refresh_token; if (!rt) { signOut(); throw new Error("Session expired — sign in again."); }
+  TOK.inflight = (async () => {
+    try { const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, { method: "POST", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: rt }) });
+      if (!r.ok) { signOut(); throw new Error("Session expired — sign in again."); } return saveTok(await r.json()); }
+    finally { TOK.inflight = null; }
+  })(); return TOK.inflight;
+}
+async function bearer(t) { const c = TOK.cur || (typeof t === "object" && t) || null; if (!c) return typeof t === "string" ? t : ""; if (c.exp * 1000 - Date.now() < 120e3 && c.refresh_token) { try { return (await refreshTok()).access_token; } catch (e) { return c.access_token; } } return c.access_token; }
 const hdr = t => ({ apikey: SB_KEY, Authorization: `Bearer ${t}` });
-async function get(path, t) { const r = await fetch(`${SB_URL}/rest/v1/${path}`, { headers: hdr(t) }); if (!r.ok) { const e = new Error(await r.text()); e.status = r.status; throw e; } return r.json(); }
-async function patch(path, body, t) { const r = await fetch(`${SB_URL}/rest/v1/${path}`, { method: "PATCH", headers: { ...hdr(t), "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(body) }); if (!r.ok) throw new Error(await r.text()); }
-async function rpc(fn, args, t) { const r = await fetch(`${SB_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { ...hdr(t), "Content-Type": "application/json" }, body: JSON.stringify(args || {}) }); if (!r.ok) throw new Error(await r.text()); const x = await r.text(); return x ? JSON.parse(x) : null; }
+const expired = (r, txt) => r.status === 401 || /PGRST30[13]|JWT expired|jwt expired/i.test(txt || "");
+async function call(url, init, t, retry = true) {
+  const a = await bearer(t); const r = await fetch(url, { ...init, headers: { ...(init.headers || {}), ...hdr(a) } });
+  if (!r.ok) { const txt = await r.text(); if (retry && expired(r, txt)) { if (!(TOK.cur && TOK.cur.access_token !== a)) await refreshTok(); return call(url, init, t, false); } const e = new Error(txt); e.status = r.status; throw e; }
+  return r;
+}
+async function get(path, t) { const r = await call(`${SB_URL}/rest/v1/${path}`, {}, t); return r.json(); }
+/* PostgREST caps a response at 1,000 rows. getAll pages with Range until a short page comes back (max `pages`). */
+async function getAll(path, t, pages = 8) { const out = []; for (let i = 0; i < pages; i++) { const r = await call(`${SB_URL}/rest/v1/${path}`, { headers: { Range: `${i * 1000}-${i * 1000 + 999}` } }, t); const x = await r.json(); if (!Array.isArray(x)) break; out.push(...x); if (x.length < 1000) break; } return out; }
+async function patch(path, body, t) { await call(`${SB_URL}/rest/v1/${path}`, { method: "PATCH", headers: { "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(body) }, t); }
+async function rpc(fn, args, t) { const r = await call(`${SB_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(args || {}) }, t); const x = await r.text(); return x ? JSON.parse(x) : null; }
 async function login(email, password) {
   const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
-  if (!r.ok) throw new Error("login"); const j = await r.json(); const t = { access_token: j.access_token, email: j.user?.email || email, exp: Math.floor(Date.now() / 1000) + (j.expires_in || 3600) };
-  localStorage.setItem(K_TOK, JSON.stringify(t)); return t;
+  if (!r.ok) throw new Error("login"); const j = await r.json(); return saveTok({ ...j, email: j.user?.email || email });
 }
 const safe = p => p.then(x => Array.isArray(x) ? x : []).catch(() => []);
 
@@ -40,7 +64,7 @@ const title = s => String(s || "").toLowerCase().replace(/\b\w/g, c => c.toUpper
 /* ---------- palette ---------- */
 const C = { bg: "#05070B", panel: "#0A0E15", line: "#1A2230", line2: "#243040", ink: "#E8ECF2", dim: "#7B8797", faint: "#3C4757",
   green: "#3DFF8F", amber: "#FFB020", red: "#FF3B3B", cyan: "#4CC9FF", violet: "#A78BFA", orange: "#FF5A00" };
-const PROV = { ACE: C.orange, CMC: "#3B82F6", RSS: C.violet, WHITECAP: C.amber };
+const PROV = { ACE: C.orange, CMC: "#3B82F6", RSS: C.violet, WHITECAP: C.amber, TEXCON: "#D9A441", LEOS: "#8FB3FF" };
 const LANE = { VERDE: C.green, AMARILLO: C.amber, ROJO: C.red, PRACTICA: C.faint };
 const ORDER_STATUS = { SOLICITADO: ["AWAITING SUPERVISOR", C.amber], APROBADO: ["APPROVED · NO PO", C.cyan], PO_ASIGNADO: ["PO ISSUED", C.green], RECHAZADO: ["REJECTED", C.red] };
 
@@ -95,7 +119,7 @@ function useOps(t) {
           get("events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1500", a),
           get("vehicles?select=*&order=id", a),
           get("people?select=name,role,active,supervisor,pm,same_as,pin,can_order,notes,phone,email", a),
-          safe(get("station_tickets?select=*&order=ticket_date.desc&limit=2000", a)),
+          safe(getAll("station_tickets?select=*&order=ticket_date.desc", a, 5)),
           safe(get("gps_fleet_now?select=*&order=last_seen.desc", a)),
           safe(get("fuel_gps_check?select=*&order=created_at.desc&limit=300", a)),
           safe(get("unit_day?select=*&order=day.desc&limit=3000", a)),
@@ -103,14 +127,14 @@ function useOps(t) {
           safe(get("notifications?select=*&order=created_at.desc&limit=200", a)),
           safe(get("rules_config?select=*", a)),
           safe(get("gps_positions?select=actsoft_id,ts,geofence,status,ignition&geofence=not.is.null&order=ts.desc&limit=600", a)),
-          safe(get("ledger_invoices?select=*&inv_date=gte.2026-01-01&order=inv_date.desc&limit=4000", a)),
-          safe(get("po_log?select=po,po_date,project,creator,vendor,description&po_date=gte.2026-01-01&order=po_date.desc&limit=6000", a)),
+          safe(getAll("ledger_invoices?select=*&inv_date=gte.2026-01-01&order=inv_date.desc", a, 6)),
+          safe(getAll("po_log?select=po,po_date,project,creator,vendor,description&po_date=gte.2026-01-01&order=po_date.desc", a, 10)),
         ]);
         rpc("verify_pending_fuel", {}, a).catch(() => {}); rpc("escalate_pending", {}, a).catch(() => {});
         if (!on) return;
         setD({ loading: false, fuel: fuel.map(p => ({ ...p, ts: new Date(p.created_at).getTime() })), orders: orders.map(o => ({ ...o, ts: new Date(o.submitted_at || o.requested_at || o.created_at).getTime() })),
           ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog, sync: Date.now(), err: "" });
-      } catch (e) { if (on) setD(x => ({ ...x, loading: false, err: String(e.message || e).slice(0, 160) })); }
+      } catch (e) { if (on) setD(x => ({ ...x, loading: false, err: /JWT|PGRST30|Session expired/i.test(String(e.message || e)) ? "SESSION EXPIRED · renewing…" : String(e.message || e).slice(0, 160) })); }
     };
     pull(); const iv = setInterval(pull, 7000); return () => { on = false; clearInterval(iv); };
   }, [t, tick]);
@@ -204,19 +228,19 @@ function Situation({ d, now, go, mapNode }) {
 /* ============================================================================
    ROOM · LEDGER  (what vendors actually billed — invoices + PO log + station statements)
    ============================================================================ */
-const VEND = { ACE: "ACE", CMC: "CMC", RSS: "RSS", WHITECAP: "White Cap" };
+const VEND = { ACE: "ACE", CMC: "CMC", RSS: "RSS", WHITECAP: "White Cap", TEXCON: "Tex-Con" };
 function Ledger({ d, q, t }) {
   const inv = d.ledger || [], po = d.poLog || [], tickets = d.tickets || [];
   const [lines, setLines] = useState([]);
   const months = useMemo(() => [...new Set(inv.map(i => i.month).filter(Boolean))].sort().reverse(), [inv]);
   const complete = months.find(m => m < dayKey(Date.now()).slice(0, 7)) || months[0];
   const [m, setM] = useState(null); const mo = m || complete; const [sel, setSel] = useState(null); const [tab, setTab] = useState("all");
-  useEffect(() => { if (!mo) return; let on = true; get(`ledger_lines?select=vendor,invoice,pos,code,descr,qty,price,amount&month=eq.${mo}&limit=1000`, t.access_token).then(r => { if (on) setLines(Array.isArray(r) ? r : []); }).catch(() => {}); return () => { on = false; }; }, [mo, d.sync]);
+  useEffect(() => { if (!mo) return; let on = true; getAll(`ledger_lines?select=vendor,invoice,pos,code,descr,qty,price,amount&month=eq.${mo}`, t.access_token, 3).then(r => { if (on) setLines(Array.isArray(r) ? r : []); }).catch(() => {}); return () => { on = false; }; }, [mo, d.sync]);
   const cur = inv.filter(i => i.month === mo && i.kind !== "CREDIT"), prevM = months[months.indexOf(mo) + 1], prev = inv.filter(i => i.month === prevM && i.kind !== "CREDIT");
   const amt = i => Number(i.subtotal ?? i.total) || 0;
   const sum = a => a.reduce((x, i) => x + amt(i), 0);
   const billed = sum(cur), billedPrev = sum(prev), trend = billedPrev ? Math.round((billed - billedPrev) / billedPrev * 100) : null;
-  const byV = ["ACE", "CMC", "RSS", "WHITECAP"].map(v => ({ v, n: cur.filter(i => i.vendor === v).length, usd: sum(cur.filter(i => i.vendor === v)) }));
+  const byV = ["ACE", "CMC", "RSS", "WHITECAP", "TEXCON"].map(v => ({ v, n: cur.filter(i => i.vendor === v).length, usd: sum(cur.filter(i => i.vendor === v)) }));
   const small = cur.filter(i => amt(i) > 0 && amt(i) < 150);
   const checks = { OK: cur.filter(i => i.po_check === "OK"), NOLOG: cur.filter(i => i.po_check === "PO NO ESTÁ EN EL LOG"), NOPO: cur.filter(i => i.po_check === "SIN PO"), WRONG: cur.filter(i => /^PO EMITIDO/.test(i.po_check)) };
   const fuelT = tickets.filter(t => t.ticket_date.slice(0, 7) === mo), fuelUsd = fuelT.reduce((a, t) => a + (+t.amount || 0), 0);
@@ -235,13 +259,13 @@ function Ledger({ d, q, t }) {
     <div className="room">
       <div className="toolbar">
         <div className="segs">{months.slice(0, 9).map(x => <button key={x} className={mo === x ? "on" : ""} onClick={() => setM(x)}>{new Date(x + "-02").toLocaleDateString("en-US", { month: "short", year: "2-digit" }).toUpperCase()}</button>)}</div>
-        <span className="dim xs">what the vendors billed · from {cur.length} invoices{fuelT.length ? ` · Leo's statement ${fuelT.length} tickets` : ""}</span>
+        <span className="dim xs">what the vendors billed · from {cur.length} invoices{fuelT.length ? ` · ${fuelT.length} station fuel tickets` : ""}</span>
         <button className="btn sm" onClick={csv}>↓ CSV</button>
       </div>
       <div className="strip">
-        <Metric label={`MATERIALS BILLED · ${label.toUpperCase()}`} value={money0(billed)} trend={trend} sub={prevM ? `vs ${new Date(prevM + "-02").toLocaleDateString("en-US", { month: "short" })} ${money0(billedPrev)}` : ""} big />
+        <Metric label={`BILLED · ${label.toUpperCase()}`} value={money0(billed)} trend={trend} sub={`materials ${money0(sum(cur.filter(i => i.vendor !== "TEXCON")))} · Tex-Con ${money0(sum(cur.filter(i => i.vendor === "TEXCON")))}${prevM ? ` · vs ${new Date(prevM + "-02").toLocaleDateString("en-US", { month: "short" })} ${money0(billedPrev)}` : ""}`} big />
         {byV.map(x => <Metric key={x.v} label={VEND[x.v].toUpperCase()} value={money0(x.usd)} tone={PROV[x.v]} sub={`${x.n} invoices · ${x.n ? money0(x.usd / x.n) : "—"} avg`} />)}
-        <Metric label="FUEL · LEO'S STATEMENT" value={fuelT.length ? money0(fuelUsd) : "—"} tone={C.amber} sub={fuelT.length ? `${fuelT.length} tickets · ${fuelPOs} fuel POs in the log` : `${fuelPOs} fuel POs in the log · Tex-Con statement not loaded`} />
+        <Metric label="FUEL · STATION TICKETS" value={fuelT.length ? money0(fuelUsd) : "—"} tone={C.amber} sub={fuelT.length ? `${fuelT.filter(x => x.station === "TEXCON").length} Tex-Con · ${fuelT.filter(x => x.station !== "TEXCON").length} Leo's · ${N(Math.round(fuelT.reduce((a, x) => a + (+x.gallons || 0), 0)))} gal · ${fuelPOs} fuel POs in the log` : `${fuelPOs} fuel POs in the log · no station tickets this month`} />
         <Metric label="SMALL ORDERS < $150" value={small.length} tone={small.length > cur.length * .3 ? C.amber : C.ink} sub={`${cur.length ? Math.round(small.length / cur.length * 100) : 0}% of invoices · ${money0(sum(small))} · each one carries the small-order penalty`} />
         <Metric label="PO CONTROL" value={`${cur.length ? Math.round(checks.OK.length / cur.length * 100) : 0}%`} tone={checks.WRONG.length + checks.NOPO.length ? C.red : C.green} sub={`${checks.NOPO.length} no PO · ${checks.NOLOG.length} not in log · ${checks.WRONG.length} wrong vendor · ${money0(sum([...checks.NOPO, ...checks.NOLOG, ...checks.WRONG]))}`} />
       </div>
@@ -254,19 +278,19 @@ function Ledger({ d, q, t }) {
         <Panel title="BILLED BY PROJECT / JOBSITE">{byP.slice(0, 10).map(([k, v], i) => <div key={k} className="row"><span className="dim mono w2">{i + 1}</span><b className="grow tr">{k}</b><span className="mono dim">{v.n}</span><div className="hbar" style={{ width: `${v.usd / (byP[0][1].usd || 1) * 100}px`, background: C.orange }} /><span className="mono r">{money0(v.usd)}</span></div>)}</Panel>
         <Panel title="TOP ITEMS BY $" right={<span className="dim">qty · invoices · price range</span>}>{items.slice(0, 10).map((x, i) => <div key={i} className="row"><Tag c={PROV[x.vendor]}>{x.vendor}</Tag><b className="grow tr" title={x.descr}>{x.descr || x.code}</b><span className="mono dim xs">{N(Math.round(x.qty))} · {x.n}×{x.prices.length > 1 && Math.max(...x.prices) > Math.min(...x.prices) * 1.05 ? ` · ${money(Math.min(...x.prices))}–${money(Math.max(...x.prices))}` : ""}</span><span className="mono r">{money0(x.usd)}</span></div>)}</Panel>
       </div>
-      <div className="toolbar"><div className="segs">{[["all", `ALL ${cur.length}`], ["issues", `PO ISSUES ${cur.length - checks.OK.length}`], ["small", `SMALL ${small.length}`], ["ACE", "ACE"], ["CMC", "CMC"], ["RSS", "RSS"], ["WHITECAP", "WHITE CAP"]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div></div>
+      <div className="toolbar"><div className="segs">{[["all", `ALL ${cur.length}`], ["issues", `PO ISSUES ${cur.length - checks.OK.length}`], ["small", `SMALL ${small.length}`], ["ACE", "ACE"], ["CMC", "CMC"], ["RSS", "RSS"], ["WHITECAP", "WHITE CAP"], ["TEXCON", "TEX-CON"]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div></div>
       <Panel flush><table className="tbl big"><Th cols={["VENDOR", "INVOICE", "DATE", "PO", "PO CHECK", "FOREMAN", "PROJECT / SHIP TO", "LINES", "$ SUBTOTAL", "$ TOTAL"]} /><tbody>
         {shown.map(i => (<tr key={i.vendor + i.invoice} onClick={() => setSel(i)}>
-          <td><Tag c={PROV[i.vendor]}>{i.vendor}</Tag></td><td className="mono"><b>{i.invoice}</b>{i.kind === "CREDIT" ? <Tag c={C.cyan} dim>CREDIT</Tag> : null}</td><td className="dim">{i.inv_date}</td><td className="mono">{i.po || <span className="red">—</span>}</td>
+          <td><Tag c={PROV[i.vendor]}>{VEND[i.vendor] || i.vendor}</Tag></td><td className="mono"><b>{i.invoice}</b>{i.kind === "CREDIT" ? <Tag c={C.cyan} dim>CREDIT</Tag> : null}</td><td className="dim">{i.inv_date}</td><td className="mono">{i.po || <span className="red">—</span>}</td>
           <td>{i.po_check === "OK" ? <Dot c={C.green} /> : <Tag c={/EMITIDO/.test(i.po_check) ? C.red : i.po_check === "SIN PO" ? C.red : C.amber} dim>{({ "SIN PO": "no PO", "PO NO ESTÁ EN EL LOG": "not in log" })[i.po_check] || i.po_check.replace("PO EMITIDO PARA", "PO issued to")}</Tag>}</td>
           <td><b>{title(i.foreman) || <span className="dim">—</span>}</b></td><td className="dim tr">{i.project || i.job || "—"}</td><td className="mono r">{i.n_lines}</td><td className="mono r">{i.subtotal != null ? money(i.subtotal) : "—"}</td><td className="mono r">{i.total != null ? money(i.total) : "—"}</td>
         </tr>))}
         {!shown.length ? <tr><td colSpan={10}><Empty>Nothing matches.</Empty></td></tr> : null}
       </tbody></table></Panel>
       {sel ? (<div className="drawer-bg" onClick={() => setSel(null)}><aside className="drawer" onClick={e => e.stopPropagation()}><Tick />
-        <header className="dh"><div><div className="ml">{VEND[sel.vendor].toUpperCase()} · INVOICE</div><div className="dn">{sel.invoice}</div></div><div className="tags"><Tag c={PROV[sel.vendor]}>{sel.vendor}</Tag>{sel.po_check !== "OK" ? <Tag c={C.red}>{sel.po_check}</Tag> : <Tag c={C.green}>PO OK</Tag>}</div></header>
+        <header className="dh"><div><div className="ml">{(VEND[sel.vendor] || sel.vendor).toUpperCase()} · INVOICE</div><div className="dn">{sel.invoice}</div></div><div className="tags"><Tag c={PROV[sel.vendor]}>{sel.vendor}</Tag>{sel.po_check !== "OK" ? <Tag c={C.red}>{sel.po_check}</Tag> : <Tag c={C.green}>PO OK</Tag>}</div></header>
         <div className="db">
-          <div className="kv">{[["Date", sel.inv_date], ["PO", sel.po || "—"], ["PO owner (log)", title(sel.foreman) || "—"], ["PO date (log)", sel.po_date || "—"], ["PO description (log)", sel.po_descr || "—"], ["Project / ship to", sel.project || sel.job || "—"], ["Ordered by (invoice)", title(sel.ordered_by) || "—"], ["Subtotal / Total", `${sel.subtotal != null ? money(sel.subtotal) : "—"} / ${sel.total != null ? money(sel.total) : "—"}`]].map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
+          <div className="kv">{[["Date", sel.inv_date], ["PO", sel.po || "—"], ["PO owner (log)", title(sel.foreman) || "—"], ["PO date (log)", sel.po_date || "—"], ["PO description (log)", sel.po_descr || "—"], ["Project / ship to", sel.project || sel.job || "—"], ["Ordered by (invoice)", title(sel.ordered_by) || "—"], ["Subtotal / Total", `${sel.subtotal != null ? money(sel.subtotal) : "—"} / ${sel.total != null ? money(sel.total) : "—"}`], ...(sel.vendor === "TEXCON" ? [["Terms / due", `${sel.terms || "—"} · ${sel.due_date || "—"}`], ["Vendor balance on invoice", sel.vendor_balance != null ? money(sel.vendor_balance) : "—"]] : [])].map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
           <table className="tbl"><Th cols={["#", "QTY", "ITEM", "CODE", "$ UNIT", "$ LINE"]} /><tbody>
             {lines.filter(l => l.vendor === sel.vendor && l.invoice === sel.invoice).sort((a, b) => a.pos - b.pos).map(l => <tr key={l.pos}><td className="dim">{l.pos}</td><td className="mono r">{l.qty ?? "—"}</td><td>{l.descr}</td><td className="mono dim">{l.code}</td><td className="mono r">{l.price != null ? money(l.price) : "—"}</td><td className="mono r">{l.amount != null ? money(l.amount) : "—"}</td></tr>)}
           </tbody></table>
@@ -374,7 +398,7 @@ function Fuel({ d, now, q, mapGo }) {
   const monthMode = typeof range === "string";
   const plateVeh = useMemo(() => Object.fromEntries(veh.filter(v => v.plate).map(v => [v.plate, v])), [veh]);
   // station statement tickets in the same shape as an app fuel PO
-  const asRow = x => { const v = plateVeh[x.plate]; return { id: "t" + x.id, po: x.po_raw || "—", ts: new Date(x.ticket_date + "T12:00:00").getTime(), who: x.creator || "(no PO owner)", vehicle_id: v?.id || null, vehicle_desc: v?.descr || x.plate || "", plate: x.plate, comb: x.fuel_type === "DIESEL" ? "DIESEL" : "GASOLINA", reading: null, jobsite: x.project || x.job_hand || "", station: x.station === "LEOS" ? "LEO'S" : x.station, gallons: x.gallons, amount: x.amount, flags: x.flags || [], statement: true }; };
+  const asRow = x => { const v = plateVeh[x.plate]; return { id: "t" + x.id, po: x.po_raw || "—", ts: new Date(x.ticket_date + "T12:00:00").getTime(), who: x.creator || "(no PO owner)", vehicle_id: v?.id || null, vehicle_desc: v?.descr || x.plate || "", plate: x.plate, comb: /DIESEL/.test(x.fuel_type || "") ? "DIESEL" : "GASOLINA", reading: null, jobsite: x.project || x.job_hand || "", station: x.station === "LEOS" ? "LEO'S" : x.station === "TEXCON" ? "TEX-CON" : x.station, gallons: x.gallons, amount: x.amount, flags: x.flags || [], statement: true }; };
   const fuel = useMemo(() => {
     if (monthMode) return tickets.filter(x => x.ticket_date.slice(0, 7) === range).map(asRow);
     const pos = (d.fuel || []).filter(p => range === 0 || p.ts >= now - range * 864e5).map(p => ({ ...p }));
@@ -382,7 +406,7 @@ function Fuel({ d, now, q, mapGo }) {
     const extra = [];
     tickets.filter(x => range === 0 || new Date(x.ticket_date + "T12:00:00").getTime() >= now - range * 864e5).forEach(x => {
       const hit = x.po_raw && byPo[String(x.po_raw).toUpperCase()];
-      if (hit) { hit.gallons = (Number(hit.gallons) || 0) + (Number(x.gallons) || 0) || hit.gallons; hit.amount = (Number(hit.amount) || 0) + (Number(x.amount) || 0) || hit.amount; hit.plate = hit.plate || x.plate; hit.reconciled = true; if (x.fuel_type && hit.comb && (x.fuel_type === "DIESEL") !== (hit.comb === "DIESEL") && (x.gallons || 0) > 12) hit.flags = [...(hit.flags || []), `Statement says ${x.fuel_type}, PO says ${hit.comb}`]; }
+      if (hit) { hit.gallons = (Number(hit.gallons) || 0) + (Number(x.gallons) || 0) || hit.gallons; hit.amount = (Number(hit.amount) || 0) + (Number(x.amount) || 0) || hit.amount; hit.plate = hit.plate || x.plate; hit.reconciled = true; if (x.fuel_type && hit.comb && (/DIESEL/.test(x.fuel_type || "")) !== (hit.comb === "DIESEL") && (x.gallons || 0) > 12) hit.flags = [...(hit.flags || []), `Statement says ${x.fuel_type}, PO says ${hit.comb}`]; }
       else extra.push(asRow(x));
     });
     return [...pos, ...extra].sort((a, b) => b.ts - a.ts);
@@ -390,7 +414,7 @@ function Fuel({ d, now, q, mapGo }) {
   const nStmt = fuel.filter(p => p.statement).length, nRec = fuel.filter(p => p.reconciled).length;
   const gal = fuel.reduce((a, p) => a + (+p.gallons || 0), 0), usd = fuel.reduce((a, p) => a + (+p.amount || 0), 0);
   const months = [...new Set(tickets.map(x => x.ticket_date.slice(0, 7)))].sort().reverse(); const m = months[0]; const tm = tickets.filter(x => x.ticket_date.slice(0, 7) === m);
-  const bad = tm.filter(x => (x.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f)));
+  const bad = tm.filter(x => (x.flags || []).some(f => /no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f)));
   const per = {}; tm.forEach(x => { const k = x.creator || "(no PO owner)"; per[k] = per[k] || { n: 0, usd: 0, gal: 0, plates: new Set() }; per[k].n++; per[k].usd += +x.amount || 0; per[k].gal += +x.gallons || 0; if (x.plate) per[k].plates.add(x.plate); });
   const perL = Object.entries(per).sort((a, b) => b[1].usd - a[1].usd);
   const chk = fuel.map(p => gps[p.id] || p).filter(p => p.gps_check);
@@ -403,15 +427,15 @@ function Fuel({ d, now, q, mapGo }) {
   return (
     <div className="room">
       <div className="strip">
-        <Metric label={monthMode ? `LEO'S TICKETS · ${new Date(range + "-02").toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase()}` : range === 0 ? "FUEL POs · ALL" : `FUEL POs · ${range}D`} value={fuel.length} sub={`${money0(usd)} · ${N(Math.round(gal))} gal${monthMode ? " · from the station statement" : nStmt || nRec ? ` · ${fuel.length - nStmt} app POs + ${nStmt} statement tickets${nRec ? ` · ${nRec} reconciled` : ""}` : ""}`} big />
+        <Metric label={monthMode ? `STATION TICKETS · ${new Date(range + "-02").toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase()}` : range === 0 ? "FUEL POs · ALL" : `FUEL POs · ${range}D`} value={fuel.length} sub={`${money0(usd)} · ${N(Math.round(gal))} gal${monthMode ? " · from the station statement" : nStmt || nRec ? ` · ${fuel.length - nStmt} app POs + ${nStmt} statement tickets${nRec ? ` · ${nRec} reconciled` : ""}` : ""}`} big />
         <Metric label="$ / GALLON" value={gal ? money(usd / gal) : "—"} sub="blended, from POs with amounts" />
-        {monthMode ? <Metric label="PO PROBLEMS" value={fuel.filter(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f))).length} tone={fuel.some(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f))) ? C.red : C.green} sub={`${money0(fuel.filter(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f))).reduce((a, p) => a + +p.amount, 0))} · PO missing, not in log, or issued to another vendor`} />
+        {monthMode ? <Metric label="PO PROBLEMS" value={fuel.filter(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f))).length} tone={fuel.some(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f))) ? C.red : C.green} sub={`${money0(fuel.filter(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f))).reduce((a, p) => a + +p.amount, 0))} · PO missing, not in log, or issued to another vendor`} />
           : <Metric label="GPS VERIFIED" value={chk.length ? Math.round(chk.filter(p => p.gps_check === "VERIFICADO").length / chk.length * 100) + "%" : "—"} tone={chk.some(p => p.gps_check === "NO_ESTABA") ? C.red : C.green} sub={`${chk.filter(p => p.gps_check === "NO_ESTABA").length} unit not at station`} />}
         <Metric label="FLAGGED" value={fuel.filter(p => (p.flags || []).length).length} tone={fuel.some(p => (p.flags || []).length) ? C.amber : C.green} sub={monthMode ? "PO, plate, gas-can notes" : "odometer, frequency, GPS"} />
-        <Metric label={`LEO'S STATEMENT · ${m ? new Date(m + "-02").toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase() : "—"}`} value={tm.length ? money0(tm.reduce((a, x) => a + +x.amount, 0)) : "—"} tone={bad.length ? C.red : C.ink} sub={tm.length ? `${tm.length} tickets · ${bad.length} with a PO that isn't Leo's · ${money0(bad.reduce((a, x) => a + +x.amount, 0))}` : "upload the monthly sheet"} />
+        <Metric label={`STATION STATEMENTS · ${m ? new Date(m + "-02").toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase() : "—"}`} value={tm.length ? money0(tm.reduce((a, x) => a + +x.amount, 0)) : "—"} tone={bad.length ? C.red : C.ink} sub={tm.length ? `${tm.filter(x => x.station === "TEXCON").length} Tex-Con · ${tm.filter(x => x.station !== "TEXCON").length} Leo's · ${bad.length} with a PO problem · ${money0(bad.reduce((a, x) => a + +x.amount, 0))}` : "upload the monthly sheet"} />
       </div>
       <div className="toolbar">
-        <div className="segs">{[["pos", "PURCHASE ORDERS"], ["gps", "GPS WITNESS"], ["leos", "LEO'S STATEMENT"], ["units", "BY UNIT"]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div>
+        <div className="segs">{[["pos", "PURCHASE ORDERS"], ["gps", "GPS WITNESS"], ["leos", "STATION STATEMENTS"], ["units", "BY UNIT"]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div>
         <div className="segs">{[[1, "24H"], [7, "7D"], [30, "30D"], [0, "ALL"]].map(([k, l]) => <button key={k} className={range === k ? "on" : ""} onClick={() => setRange(k)}>{l}</button>)}{tMonths.slice(0, 6).map(x => <button key={x} className={range === x ? "on" : ""} onClick={() => { setRange(x); if (tab === "gps") setTab("pos"); }}>{new Date(x + "-02").toLocaleDateString("en-US", { month: "short", year: "2-digit" }).toUpperCase()}</button>)}</div>
       </div>
       {tab === "pos" ? (<>
@@ -422,7 +446,7 @@ function Fuel({ d, now, q, mapGo }) {
             <td className="mono"><b>{p.po}</b></td><td className="dim">{dt(p.ts)}</td><td><b>{title(p.who)}</b></td><td className="mono">{p.vehicle_id || p.plate || "—"}<span className="dim"> {p.vehicle_desc}</span></td><td><Tag c={p.comb === "DIESEL" ? C.green : C.orange}>{p.comb}</Tag></td>
             <td className="mono r">{N(p.reading)}</td><td className="dim">{p.jobsite}</td><td>{p.station}</td><td className="mono r">{p.gallons ?? "—"}</td><td className="mono r">{p.amount ? money(p.amount) : "—"}</td>
             <td>{v ? <Tag c={v[0]}>{v[1]}</Tag> : p.statement ? <span className="dim xs">statement</span> : <span className="dim">—</span>}{p.reconciled ? <Tag c={C.green} dim>reconciled</Tag> : null}</td>
-            <td><div className="tags">{(p.flags || []).slice(0, 2).map((f, i) => <Tag key={i} c={/GPS|retroced|24 h|no existe|SIN PO|no para Leo/.test(f) ? C.red : C.amber} dim>{f}</Tag>)}</div></td>
+            <td><div className="tags">{(p.flags || []).slice(0, 2).map((f, i) => <Tag key={i} c={/GPS|retroced|24 h|no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f) ? C.red : C.amber} dim>{f}</Tag>)}</div></td>
           </tr>); })}
           {!shown.length ? <tr><td colSpan={12}><Empty>{monthMode ? "No station tickets loaded for this month." : "No fuel POs in range. Pick a month tab to see the station statement."}</Empty></td></tr> : null}
         </tbody></table></Panel></>) : null}
@@ -437,9 +461,9 @@ function Fuel({ d, now, q, mapGo }) {
         </Panel>) : null}
       {tab === "leos" ? (
         <div className="g3">
-          <Panel title="BY PERSON · WHO OWNS THE PO" right={<span className="dim">{m}</span>}>{perL.map(([k, v]) => <div key={k} className="row"><b className="grow tr">{title(k)}</b><span className="mono dim">{v.n}</span><span className="mono">{money(v.usd)}</span><span className="mono dim">{N(Math.round(v.gal))} gal</span><span className="mono faint xs">{[...v.plates].join(" ")}</span></div>)}{!perL.length ? <Empty>No station statement loaded.</Empty> : null}</Panel>
-          <Panel title={`${bad.length} TICKETS · PO DOES NOT BELONG TO LEO'S · ${money0(bad.reduce((a, x) => a + +x.amount, 0))}`} className="span2">
-            {bad.map(x => <div key={x.id} className="row"><span className="mono dim">{x.ticket_date.slice(5)}</span><span className="mono">{money(x.amount)}</span><span className="mono dim">{x.plate || "—"}</span><span className="mono">{x.po_raw || "no PO"}</span><b className="w40">{title(x.creator) || "—"}</b><span className="red grow xs">{(x.flags || []).join(" · ")}</span></div>)}
+          <Panel title="BY PERSON · WHO OWNS THE PO" right={<span className="dim">{m}</span>}>{perL.slice(0, 30).map(([k, v]) => <div key={k} className="row"><b className="grow tr">{title(k)}</b><span className="mono dim">{v.n}</span><span className="mono">{money(v.usd)}</span><span className="mono dim">{N(Math.round(v.gal))} gal</span><span className="mono faint xs">{[...v.plates].join(" ")}</span></div>)}{!perL.length ? <Empty>No station statement loaded.</Empty> : null}</Panel>
+          <Panel title={`${bad.length} TICKETS · PO MISSING, NOT IN LOG, OR ISSUED TO ANOTHER VENDOR · ${money0(bad.reduce((a, x) => a + +x.amount, 0))}`} className="span2">
+            {bad.slice(0, 120).map(x => <div key={x.id} className="row"><Tag c={PROV[x.station] || C.faint}>{x.station === "TEXCON" ? "TEX-CON" : x.station === "LEOS" ? "LEO'S" : x.station}</Tag><span className="mono dim">{x.ticket_date.slice(5)}</span><span className="mono">{money(x.amount)}</span><span className="mono dim">{x.plate || "—"}</span><span className="mono">{x.po_raw || "no PO"}</span><b className="w40">{title(x.creator) || "—"}</b><span className="red grow xs">{(x.flags || []).join(" · ")}</span></div>)}
             {tm.filter(x => (x.flags || []).length && !bad.includes(x)).length ? <div className="foot">+ {tm.filter(x => (x.flags || []).length && !bad.includes(x)).length} minor (plate misread, date drift, gas cans on a diesel truck)</div> : null}
           </Panel>
         </div>) : null}
@@ -579,12 +603,12 @@ function useMap(fleet, t) {
       const dark = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 16 });
       const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 16, pane: "overlayPane", opacity: .9 });
       const streets = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, className: "osm-dim" });
-      const aerial = L.tileLayer(`${SB_URL}/functions/v1/nearmap?z={z}&x={x}&y={y}&t=${t.access_token}`, { maxZoom: 21, minZoom: 15 });
+      const aerial = L.tileLayer(`${SB_URL}/functions/v1/nearmap?z={z}&x={x}&y={y}`, { maxZoom: 21, minZoom: 15 }); aerial.getTileUrl = c => `${SB_URL}/functions/v1/nearmap?z=${c.z}&x=${c.x}&y=${c.y}&t=${(TOK.cur || t).access_token}`;
       dark.addTo(map.current); labels.addTo(map.current);
       L.control.layers({ "DARK": dark, "STREETS (OSM)": streets, "NEARMAP AERIAL": aerial }, { "LABELS": labels }, { position: "topright", collapsed: true }).addTo(map.current);
       let idle; const back = () => { if (map.current.hasLayer(aerial)) { map.current.removeLayer(aerial); dark.addTo(map.current); } };
       map.current.on("baselayerchange moveend zoomend", () => { clearTimeout(idle); if (map.current.hasLayer(aerial)) idle = setTimeout(back, 180e3); });
-      map.current.on("baselayerchange", e => { if (/NEARMAP/.test(e.name)) { if (map.current.getZoom() < 16) map.current.setZoom(16); fetch(`${SB_URL}/functions/v1/nearmap?op=usage&t=${t.access_token}`).then(r => r.json()).then(setNm).catch(() => {}); } });
+      map.current.on("baselayerchange", e => { if (/NEARMAP/.test(e.name)) { if (map.current.getZoom() < 16) map.current.setZoom(16); fetch(`${SB_URL}/functions/v1/nearmap?op=usage&t=${(TOK.cur || t).access_token}`).then(r => r.json()).then(setNm).catch(() => {}); } });
       layer.current = L.layerGroup().addTo(map.current);
       const fix = () => { try { map.current.invalidateSize(); } catch (e) {} }; setTimeout(fix, 60); setTimeout(fix, 500); if (window.ResizeObserver) new ResizeObserver(fix).observe(ref.current);
     }
@@ -652,5 +676,5 @@ function Gate({ onIn }) {
     {err ? <div className="err">{err}</div> : null}<button className="btn green big" disabled={busy || !e || !p} onClick={go}>ENTER</button>
     <div className="dim xs">Every order, fuel PO and truck movement in one place.</div></div></div>);
 }
-function App() { const [t, setT] = useState(() => tok()); if (!SB_URL || !SB_KEY) return <div className="gate"><div className="err">SUPABASE.URL / ANON_KEY missing in config.js</div></div>; return t ? <Ops t={t} onOut={() => { localStorage.removeItem(K_TOK); setT(null); }} /> : <Gate onIn={setT} />; }
+function App() { const [t, setT] = useState(() => tok()); useEffect(() => { const h = () => setT(null); window.addEventListener("muniz-signout", h); return () => window.removeEventListener("muniz-signout", h); }, []); if (!SB_URL || !SB_KEY) return <div className="gate"><div className="err">SUPABASE.URL / ANON_KEY missing in config.js</div></div>; return t ? <Ops t={t} onOut={() => { signOut(); setT(null); }} /> : <Gate onIn={setT} />; }
 createRoot(document.getElementById("root")).render(<App />);
