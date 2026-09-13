@@ -427,7 +427,7 @@ function OrderDetail({ o, onClose, onChanged }) {
 /* ===================================================================== FLOTA (GPS Actsoft) */
 function Flota({ fleet, fuelGps, now, q, setQ }) {
   const mapRef = useRef(null); const mapObj = useRef(null); const layer = useRef(null);
-  const [sel, setSel] = useState(null); const [tileErr, setTileErr] = useState(0);
+  const [sel, setSel] = useState(null); const [tileErr, setTileErr] = useState(0); const [usage, setUsage] = useState(null);
   const linked = fleet.filter(u => u.vehicle_id), unlinked = fleet.filter(u => !u.vehicle_id);
   const fresh = fleet.filter(u => u.secs_since_seen != null && u.secs_since_seen < 3 * 3600);
   const moving = fresh.filter(u => (u.last_speed || 0) > 3);
@@ -454,6 +454,10 @@ function Flota({ fleet, fuelGps, now, q, setQ }) {
       window.addEventListener("resize", fix);
       if (window.ResizeObserver) new ResizeObserver(fix).observe(mapRef.current);
       nearmap.on("tileerror", () => { setTileErr(e => e + 1); });
+      // se apaga sola al salir de FLOTA (el componente se desmonta) y al quedar 3 min sin tocar el mapa
+      let idle = null; const backToStreets = () => { if (mapObj.current.hasLayer(nearmap)) { mapObj.current.removeLayer(nearmap); dark.addTo(mapObj.current); } };
+      mapObj.current.on("baselayerchange moveend zoomend", () => { clearTimeout(idle); if (mapObj.current.hasLayer(nearmap)) idle = setTimeout(backToStreets, 3 * 60e3); });
+      mapObj.current.on("baselayerchange", e => { if (/Nearmap/.test(e.name)) fetch(`${SB_URL}/functions/v1/nearmap?op=usage&t=${t0 ? t0.access_token : ""}`).then(r => r.json()).then(setUsage).catch(() => {}); });
     }
     layer.current.clearLayers(); const pts = [];
     fleet.filter(u => u.last_lat && u.last_lon).forEach(u => {
@@ -480,6 +484,7 @@ function Flota({ fleet, fuelGps, now, q, setQ }) {
         <Card title="MAPA · DÓNDE ESTÁ CADA UNIDAD" className="xl:col-span-2" right={<span className="text-[10px] text-[#5E6B7D]">🟢 moviéndose · 🟡 encendida parada · 🔵 apagada · ⚫ sin señal · toca un ✗ de combustible para verlo en aérea</span>}>
           <div ref={mapRef} style={{ height: 420, borderRadius: 12, overflow: "hidden", background: "#0B0F14" }} />
           {!window.L ? <div className="text-[12px] text-[#F87171] mt-2">No cargó el mapa (Leaflet). Revisa mando.html.</div> : null}
+          {usage ? <div className={`text-[11px] mt-2 ${usage.allowed ? "text-[#7C8A9C]" : "text-[#F87171] font-bold"}`}>Nearmap este mes: {usage.mb} MB de {usage.cap_mb} MB{usage.allowed ? " · la capa aérea vuelve a Calles sola tras 3 min sin uso" : " · TOPE ALCANZADO: capa aérea apagada hasta el mes que entra"}</div> : null}
           {tileErr > 3 ? <div className="text-[12px] text-[#FDE68A] mt-2">La capa Nearmap no responde: revisa que la función <span className="mono">nearmap</span> esté desplegada con NEARMAP_KEY y "Verify JWT" apagado (Edge Functions → nearmap → Logs).</div> : null}
         </Card>
         <Card title="COMBUSTIBLE CON TESTIGO GPS" right={<span className="text-[10px] text-[#5E6B7D]">últimos POs</span>}>
