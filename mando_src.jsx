@@ -57,8 +57,8 @@ function Metric({ label, value, unit, sub, tone, big, trend }) {
   return (
     <div className="metric"><Tick />
       <div className="ml">{label}</div>
-      <div className={`mv ${big ? "big" : ""}`} style={{ color: tone || C.ink }}>{value}<span className="mu">{unit || ""}</span>{trend != null ? <span className={`mtr ${trend >= 0 ? "up" : "down"}`}>{trend >= 0 ? "▲" : "▼"}{Math.abs(trend)}%</span> : null}</div>
-      {sub ? <div className="ms">{sub}</div> : null}
+      <div className={`mv ${big ? "big" : ""}`} style={{ color: tone || C.ink }}>{value}<span className="mu">{unit || ""}</span></div>
+      {sub || trend != null ? <div className="ms">{trend != null ? <span className={`mtr ${trend >= 0 ? "up" : "down"}`}>{trend >= 0 ? "▲" : "▼"} {Math.abs(trend)}% </span> : null}{sub}</div> : null}
     </div>);
 }
 function Bars({ data, color, h = 90 }) {
@@ -89,7 +89,7 @@ function useOps(t) {
     const pull = async () => {
       try {
         const a = t.access_token;
-        const [fuel, orders, ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, ledgerLines, poLog] = await Promise.all([
+        const [fuel, orders, ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog] = await Promise.all([
           get("fuel_pos_flagged?select=*&order=created_at.desc&limit=3000", a),
           safe(get("material_orders_full?select=*&order=created_at.desc&limit=2000", a)),
           get("events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1500", a),
@@ -104,13 +104,12 @@ function useOps(t) {
           safe(get("rules_config?select=*", a)),
           safe(get("gps_positions?select=actsoft_id,ts,geofence,status,ignition&geofence=not.is.null&order=ts.desc&limit=600", a)),
           safe(get("ledger_invoices?select=*&inv_date=gte.2026-01-01&order=inv_date.desc&limit=4000", a)),
-          safe(get("vendor_invoice_lines?select=vendor,invoice,pos,code,descr,qty,price,amount&limit=8000", a)),
           safe(get("po_log?select=po,po_date,project,creator,vendor,description&po_date=gte.2026-01-01&order=po_date.desc&limit=6000", a)),
         ]);
         rpc("verify_pending_fuel", {}, a).catch(() => {}); rpc("escalate_pending", {}, a).catch(() => {});
         if (!on) return;
         setD({ loading: false, fuel: fuel.map(p => ({ ...p, ts: new Date(p.created_at).getTime() })), orders: orders.map(o => ({ ...o, ts: new Date(o.submitted_at || o.requested_at || o.created_at).getTime() })),
-          ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, ledgerLines, poLog, sync: Date.now(), err: "" });
+          ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog, sync: Date.now(), err: "" });
       } catch (e) { if (on) setD(x => ({ ...x, loading: false, err: String(e.message || e).slice(0, 160) })); }
     };
     pull(); const iv = setInterval(pull, 7000); return () => { on = false; clearInterval(iv); };
@@ -206,11 +205,13 @@ function Situation({ d, now, go, mapNode }) {
    ROOM · LEDGER  (what vendors actually billed — invoices + PO log + station statements)
    ============================================================================ */
 const VEND = { ACE: "ACE", CMC: "CMC", RSS: "RSS", WHITECAP: "White Cap" };
-function Ledger({ d, q }) {
-  const inv = d.ledger || [], lines = d.ledgerLines || [], po = d.poLog || [], tickets = d.tickets || [];
+function Ledger({ d, q, t }) {
+  const inv = d.ledger || [], po = d.poLog || [], tickets = d.tickets || [];
+  const [lines, setLines] = useState([]);
   const months = useMemo(() => [...new Set(inv.map(i => i.month).filter(Boolean))].sort().reverse(), [inv]);
   const complete = months.find(m => m < dayKey(Date.now()).slice(0, 7)) || months[0];
   const [m, setM] = useState(null); const mo = m || complete; const [sel, setSel] = useState(null); const [tab, setTab] = useState("all");
+  useEffect(() => { if (!mo) return; let on = true; get(`ledger_lines?select=vendor,invoice,pos,code,descr,qty,price,amount&month=eq.${mo}&limit=1000`, t.access_token).then(r => { if (on) setLines(Array.isArray(r) ? r : []); }).catch(() => {}); return () => { on = false; }; }, [mo, d.sync]);
   const cur = inv.filter(i => i.month === mo && i.kind !== "CREDIT"), prevM = months[months.indexOf(mo) + 1], prev = inv.filter(i => i.month === prevM && i.kind !== "CREDIT");
   const amt = i => Number(i.subtotal ?? i.total) || 0;
   const sum = a => a.reduce((x, i) => x + amt(i), 0);
@@ -613,7 +614,7 @@ function Ops({ t, onOut }) {
           <div className="who mono dim">{t.email}</div><button className="btn sm" onClick={onOut}>SIGN OUT</button>
         </header>
         {room === "situation" ? <Situation d={d} now={now} go={go} mapNode={mapNode} /> : null}
-        {room === "ledger" ? <Ledger d={d} q={q} /> : null}
+        {room === "ledger" ? <Ledger d={d} q={q} t={t} /> : null}
         {room === "orders" ? <Orders d={d} now={now} t={t} q={q} focus={focus} clearFocus={() => setFocus(null)} onChanged={refresh} /> : null}
         {room === "fuel" ? <Fuel d={d} now={now} q={q} mapGo={(a, b, c) => { setRoom("fleet"); setTimeout(() => mapGo(a, b, c), 250); }} /> : null}
         {room === "fleet" ? <Fleet d={d} now={now} q={q} mapNode={mapNode} mapGo={mapGo} /> : null}
