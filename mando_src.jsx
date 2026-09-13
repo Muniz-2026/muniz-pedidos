@@ -64,7 +64,7 @@ function Metric({ label, value, unit, sub, tone, big, trend }) {
 function Bars({ data, color, h = 90 }) {
   const max = Math.max(...data.map(d => d.v), 1);
   return (<div className="bars" style={{ height: h }}>
-    {data.map((d, i) => <div key={i} className="bar" title={`${d.label}: ${d.v}`}><div className="bv" style={{ height: `${d.v / max * 100}%`, background: color }} />{d.v ? <span className="bnum">{d.v}</span> : null}<span className="bl">{d.label}</span></div>)}
+    {data.map((d, i) => <div key={i} className="bar" title={`${d.label}: ${d.v}`}><div className="bv" style={{ height: `${d.v / max * 100}%`, background: color }} />{d.v && data.length <= 16 ? <span className="bnum">{d.v}</span> : null}<span className="bl">{d.label}</span></div>)}
   </div>);
 }
 function Ring({ pct, color, size = 64 }) {
@@ -89,7 +89,7 @@ function useOps(t) {
     const pull = async () => {
       try {
         const a = t.access_token;
-        const [fuel, orders, ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits] = await Promise.all([
+        const [fuel, orders, ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, ledgerLines, poLog] = await Promise.all([
           get("fuel_pos_flagged?select=*&order=created_at.desc&limit=3000", a),
           safe(get("material_orders_full?select=*&order=created_at.desc&limit=2000", a)),
           get("events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1500", a),
@@ -103,11 +103,14 @@ function useOps(t) {
           safe(get("notifications?select=*&order=created_at.desc&limit=200", a)),
           safe(get("rules_config?select=*", a)),
           safe(get("gps_positions?select=actsoft_id,ts,geofence,status,ignition&geofence=not.is.null&order=ts.desc&limit=600", a)),
+          safe(get("ledger_invoices?select=*&inv_date=gte.2026-01-01&order=inv_date.desc&limit=4000", a)),
+          safe(get("vendor_invoice_lines?select=vendor,invoice,pos,code,descr,qty,price,amount&limit=8000", a)),
+          safe(get("po_log?select=po,po_date,project,creator,vendor,description&po_date=gte.2026-01-01&order=po_date.desc&limit=6000", a)),
         ]);
         rpc("verify_pending_fuel", {}, a).catch(() => {}); rpc("escalate_pending", {}, a).catch(() => {});
         if (!on) return;
         setD({ loading: false, fuel: fuel.map(p => ({ ...p, ts: new Date(p.created_at).getTime() })), orders: orders.map(o => ({ ...o, ts: new Date(o.submitted_at || o.requested_at || o.created_at).getTime() })),
-          ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, sync: Date.now(), err: "" });
+          ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, ledgerLines, poLog, sync: Date.now(), err: "" });
       } catch (e) { if (on) setD(x => ({ ...x, loading: false, err: String(e.message || e).slice(0, 160) })); }
     };
     pull(); const iv = setInterval(pull, 7000); return () => { on = false; clearInterval(iv); };
@@ -195,6 +198,81 @@ function Situation({ d, now, go, mapNode }) {
           {notFound.length ? <div className="foot">Catalog gaps this week: {notFound.map(([k, v]) => `“${k}” ×${v}`).join(" · ")}</div> : null}
         </Panel>
       </div>
+    </div>);
+}
+
+
+/* ============================================================================
+   ROOM · LEDGER  (what vendors actually billed — invoices + PO log + station statements)
+   ============================================================================ */
+const VEND = { ACE: "ACE", CMC: "CMC", RSS: "RSS", WHITECAP: "White Cap" };
+function Ledger({ d, q }) {
+  const inv = d.ledger || [], lines = d.ledgerLines || [], po = d.poLog || [], tickets = d.tickets || [];
+  const months = useMemo(() => [...new Set(inv.map(i => i.month).filter(Boolean))].sort().reverse(), [inv]);
+  const complete = months.find(m => m < dayKey(Date.now()).slice(0, 7)) || months[0];
+  const [m, setM] = useState(null); const mo = m || complete; const [sel, setSel] = useState(null); const [tab, setTab] = useState("all");
+  const cur = inv.filter(i => i.month === mo && i.kind !== "CREDIT"), prevM = months[months.indexOf(mo) + 1], prev = inv.filter(i => i.month === prevM && i.kind !== "CREDIT");
+  const amt = i => Number(i.subtotal ?? i.total) || 0;
+  const sum = a => a.reduce((x, i) => x + amt(i), 0);
+  const billed = sum(cur), billedPrev = sum(prev), trend = billedPrev ? Math.round((billed - billedPrev) / billedPrev * 100) : null;
+  const byV = ["ACE", "CMC", "RSS", "WHITECAP"].map(v => ({ v, n: cur.filter(i => i.vendor === v).length, usd: sum(cur.filter(i => i.vendor === v)) }));
+  const small = cur.filter(i => amt(i) > 0 && amt(i) < 150);
+  const checks = { OK: cur.filter(i => i.po_check === "OK"), NOLOG: cur.filter(i => i.po_check === "PO NO ESTÁ EN EL LOG"), NOPO: cur.filter(i => i.po_check === "SIN PO"), WRONG: cur.filter(i => /^PO EMITIDO/.test(i.po_check)) };
+  const fuelT = tickets.filter(t => t.ticket_date.slice(0, 7) === mo), fuelUsd = fuelT.reduce((a, t) => a + (+t.amount || 0), 0);
+  const posM = po.filter(p => p.po_date && p.po_date.slice(0, 7) === mo), fuelPOs = posM.filter(p => /fuel|leo|tex|gas|diesel/i.test(`${p.vendor} ${p.description}`)).length;
+  const top = (f, arr = cur) => { const mm = {}; arr.forEach(i => { const k = f(i) || "—"; mm[k] = mm[k] || { n: 0, usd: 0 }; mm[k].n++; mm[k].usd += amt(i); }); return Object.entries(mm).sort((a, b) => b[1].usd - a[1].usd); };
+  const byF = top(i => i.foreman), byP = top(i => i.project);
+  const keyset = new Set(cur.map(i => i.vendor + "|" + i.invoice));
+  const items = useMemo(() => { const mm = {}; lines.filter(l => keyset.has(l.vendor + "|" + l.invoice)).forEach(l => { const k = l.vendor + "|" + (l.code || l.descr); const x = mm[k] = mm[k] || { vendor: l.vendor, code: l.code, descr: l.descr, qty: 0, n: 0, usd: 0, prices: [] }; x.qty += +l.qty || 0; x.n++; x.usd += +l.amount || 0; if (l.price) x.prices.push(+l.price); }); return Object.values(mm).sort((a, b) => b.usd - a.usd).slice(0, 15); }, [lines, mo, inv]);
+  const days = useMemo(() => { if (!mo) return []; const y = +mo.slice(0, 4), mth = +mo.slice(5, 7); const n = new Date(y, mth, 0).getDate(); return Array.from({ length: n }, (_, i) => { const k = `${mo}-${String(i + 1).padStart(2, "0")}`; return { label: String(i + 1), v: Math.round(sum(cur.filter(x => x.inv_date === k))) }; }); }, [cur, mo]);
+  const shown = cur.filter(i => (tab === "all" || (tab === "issues" ? i.po_check !== "OK" : tab === "small" ? amt(i) < 150 : i.vendor === tab)) && (!q || `${i.invoice} ${i.po} ${i.foreman} ${i.project} ${i.job} ${i.ordered_by}`.toLowerCase().includes(q.toLowerCase()))).sort((a, b) => (a.inv_date < b.inv_date ? 1 : -1));
+  const label = mo ? new Date(mo + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "";
+  const csv = () => { const cl = s => `"${String(s ?? "").replace(/"/g, '""')}"`; const H = ["vendor", "invoice", "date", "po", "po_check", "foreman", "project", "lines", "subtotal", "total"];
+    const R = shown.map(i => [i.vendor, i.invoice, i.inv_date, i.po, i.po_check, i.foreman, i.project, i.n_lines, i.subtotal, i.total].map(cl).join(",")); const b = new Blob(["\uFEFF" + [H.join(","), ...R].join("\n")], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `muniz_ledger_${mo}.csv`; a.click(); };
+  if (!inv.length) return <div className="room"><Empty>No invoices loaded yet. Run supabase_fase6_ledger.sql.</Empty></div>;
+  return (
+    <div className="room">
+      <div className="toolbar">
+        <div className="segs">{months.slice(0, 9).map(x => <button key={x} className={mo === x ? "on" : ""} onClick={() => setM(x)}>{new Date(x + "-02").toLocaleDateString("en-US", { month: "short", year: "2-digit" }).toUpperCase()}</button>)}</div>
+        <span className="dim xs">what the vendors billed · from {cur.length} invoices{fuelT.length ? ` · Leo's statement ${fuelT.length} tickets` : ""}</span>
+        <button className="btn sm" onClick={csv}>↓ CSV</button>
+      </div>
+      <div className="strip">
+        <Metric label={`MATERIALS BILLED · ${label.toUpperCase()}`} value={money0(billed)} trend={trend} sub={prevM ? `vs ${new Date(prevM + "-02").toLocaleDateString("en-US", { month: "short" })} ${money0(billedPrev)}` : ""} big />
+        {byV.map(x => <Metric key={x.v} label={VEND[x.v].toUpperCase()} value={money0(x.usd)} tone={PROV[x.v]} sub={`${x.n} invoices · ${x.n ? money0(x.usd / x.n) : "—"} avg`} />)}
+        <Metric label="FUEL · LEO'S STATEMENT" value={fuelT.length ? money0(fuelUsd) : "—"} tone={C.amber} sub={fuelT.length ? `${fuelT.length} tickets · ${fuelPOs} fuel POs in the log` : `${fuelPOs} fuel POs in the log · Tex-Con statement not loaded`} />
+        <Metric label="SMALL ORDERS < $150" value={small.length} tone={small.length > cur.length * .3 ? C.amber : C.ink} sub={`${cur.length ? Math.round(small.length / cur.length * 100) : 0}% of invoices · ${money0(sum(small))} · each one carries the small-order penalty`} />
+        <Metric label="PO CONTROL" value={`${cur.length ? Math.round(checks.OK.length / cur.length * 100) : 0}%`} tone={checks.WRONG.length + checks.NOPO.length ? C.red : C.green} sub={`${checks.NOPO.length} no PO · ${checks.NOLOG.length} not in log · ${checks.WRONG.length} wrong vendor · ${money0(sum([...checks.NOPO, ...checks.NOLOG, ...checks.WRONG]))}`} />
+      </div>
+      <div className="g3">
+        <Panel title={`BILLED PER DAY · ${label.toUpperCase()}`} className="span2"><Bars data={days} color={C.orange} h={110} /></Panel>
+        <Panel title="VENDOR MIX"><Split parts={byV.map(x => ({ label: VEND[x.v], v: Math.round(x.usd), c: PROV[x.v] }))} /><div className="sp" /><Split parts={[{ label: "PO ok", v: checks.OK.length, c: C.green }, { label: "Not in log", v: checks.NOLOG.length, c: C.amber }, { label: "Wrong vendor", v: checks.WRONG.length, c: C.red }, { label: "No PO", v: checks.NOPO.length, c: C.faint }]} /></Panel>
+      </div>
+      <div className="g3">
+        <Panel title="BILLED BY FOREMAN" right={<span className="dim">from the PO owner in the log</span>}>{byF.slice(0, 10).map(([k, v], i) => <div key={k} className="row"><span className="dim mono w2">{i + 1}</span><b className="grow tr">{title(k)}</b><span className="mono dim">{v.n}</span><div className="hbar" style={{ width: `${v.usd / (byF[0][1].usd || 1) * 100}px`, background: C.cyan }} /><span className="mono r">{money0(v.usd)}</span></div>)}</Panel>
+        <Panel title="BILLED BY PROJECT / JOBSITE">{byP.slice(0, 10).map(([k, v], i) => <div key={k} className="row"><span className="dim mono w2">{i + 1}</span><b className="grow tr">{k}</b><span className="mono dim">{v.n}</span><div className="hbar" style={{ width: `${v.usd / (byP[0][1].usd || 1) * 100}px`, background: C.orange }} /><span className="mono r">{money0(v.usd)}</span></div>)}</Panel>
+        <Panel title="TOP ITEMS BY $" right={<span className="dim">qty · invoices · price range</span>}>{items.slice(0, 10).map((x, i) => <div key={i} className="row"><Tag c={PROV[x.vendor]}>{x.vendor}</Tag><b className="grow tr" title={x.descr}>{x.descr || x.code}</b><span className="mono dim xs">{N(Math.round(x.qty))} · {x.n}×{x.prices.length > 1 && Math.max(...x.prices) > Math.min(...x.prices) * 1.05 ? ` · ${money(Math.min(...x.prices))}–${money(Math.max(...x.prices))}` : ""}</span><span className="mono r">{money0(x.usd)}</span></div>)}</Panel>
+      </div>
+      <div className="toolbar"><div className="segs">{[["all", `ALL ${cur.length}`], ["issues", `PO ISSUES ${cur.length - checks.OK.length}`], ["small", `SMALL ${small.length}`], ["ACE", "ACE"], ["CMC", "CMC"], ["RSS", "RSS"], ["WHITECAP", "WHITE CAP"]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div></div>
+      <Panel flush><table className="tbl big"><Th cols={["VENDOR", "INVOICE", "DATE", "PO", "PO CHECK", "FOREMAN", "PROJECT / SHIP TO", "LINES", "$ SUBTOTAL", "$ TOTAL"]} /><tbody>
+        {shown.map(i => (<tr key={i.vendor + i.invoice} onClick={() => setSel(i)}>
+          <td><Tag c={PROV[i.vendor]}>{i.vendor}</Tag></td><td className="mono"><b>{i.invoice}</b>{i.kind === "CREDIT" ? <Tag c={C.cyan} dim>CREDIT</Tag> : null}</td><td className="dim">{i.inv_date}</td><td className="mono">{i.po || <span className="red">—</span>}</td>
+          <td>{i.po_check === "OK" ? <Dot c={C.green} /> : <Tag c={/EMITIDO/.test(i.po_check) ? C.red : i.po_check === "SIN PO" ? C.red : C.amber} dim>{({ "SIN PO": "no PO", "PO NO ESTÁ EN EL LOG": "not in log" })[i.po_check] || i.po_check.replace("PO EMITIDO PARA", "PO issued to")}</Tag>}</td>
+          <td><b>{title(i.foreman) || <span className="dim">—</span>}</b></td><td className="dim tr">{i.project || i.job || "—"}</td><td className="mono r">{i.n_lines}</td><td className="mono r">{i.subtotal != null ? money(i.subtotal) : "—"}</td><td className="mono r">{i.total != null ? money(i.total) : "—"}</td>
+        </tr>))}
+        {!shown.length ? <tr><td colSpan={10}><Empty>Nothing matches.</Empty></td></tr> : null}
+      </tbody></table></Panel>
+      {sel ? (<div className="drawer-bg" onClick={() => setSel(null)}><aside className="drawer" onClick={e => e.stopPropagation()}><Tick />
+        <header className="dh"><div><div className="ml">{VEND[sel.vendor].toUpperCase()} · INVOICE</div><div className="dn">{sel.invoice}</div></div><div className="tags"><Tag c={PROV[sel.vendor]}>{sel.vendor}</Tag>{sel.po_check !== "OK" ? <Tag c={C.red}>{sel.po_check}</Tag> : <Tag c={C.green}>PO OK</Tag>}</div></header>
+        <div className="db">
+          <div className="kv">{[["Date", sel.inv_date], ["PO", sel.po || "—"], ["PO owner (log)", title(sel.foreman) || "—"], ["PO date (log)", sel.po_date || "—"], ["PO description (log)", sel.po_descr || "—"], ["Project / ship to", sel.project || sel.job || "—"], ["Ordered by (invoice)", title(sel.ordered_by) || "—"], ["Subtotal / Total", `${sel.subtotal != null ? money(sel.subtotal) : "—"} / ${sel.total != null ? money(sel.total) : "—"}`]].map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
+          <table className="tbl"><Th cols={["#", "QTY", "ITEM", "CODE", "$ UNIT", "$ LINE"]} /><tbody>
+            {lines.filter(l => l.vendor === sel.vendor && l.invoice === sel.invoice).sort((a, b) => a.pos - b.pos).map(l => <tr key={l.pos}><td className="dim">{l.pos}</td><td className="mono r">{l.qty ?? "—"}</td><td>{l.descr}</td><td className="mono dim">{l.code}</td><td className="mono r">{l.price != null ? money(l.price) : "—"}</td><td className="mono r">{l.amount != null ? money(l.amount) : "—"}</td></tr>)}
+          </tbody></table>
+          <div className="dim xs">File: {sel.file}</div>
+        </div>
+        <footer className="df"><button className="btn" onClick={() => setSel(null)}>CLOSE</button></footer>
+      </aside></div>) : null}
     </div>);
 }
 
@@ -507,7 +585,7 @@ function useMap(fleet, t) {
 /* ============================================================================
    SHELL
    ============================================================================ */
-const ROOMS = [["situation", "SITUATION", "◉"], ["orders", "ORDERS", "▤"], ["fuel", "FUEL", "◈"], ["fleet", "FLEET", "◬"], ["people", "PEOPLE", "◭"], ["rules", "RULES", "◫"]];
+const ROOMS = [["situation", "SITUATION", "◉"], ["ledger", "LEDGER", "≡"], ["orders", "ORDERS", "▤"], ["fuel", "FUEL", "◈"], ["fleet", "FLEET", "◬"], ["people", "PEOPLE", "◭"], ["rules", "RULES", "◫"]];
 function Ops({ t, onOut }) {
   const [d, refresh] = useOps(t);
   const [room, setRoom] = useState(() => localStorage.getItem(K_ROOM) || "situation");
@@ -535,6 +613,7 @@ function Ops({ t, onOut }) {
           <div className="who mono dim">{t.email}</div><button className="btn sm" onClick={onOut}>SIGN OUT</button>
         </header>
         {room === "situation" ? <Situation d={d} now={now} go={go} mapNode={mapNode} /> : null}
+        {room === "ledger" ? <Ledger d={d} q={q} /> : null}
         {room === "orders" ? <Orders d={d} now={now} t={t} q={q} focus={focus} clearFocus={() => setFocus(null)} onChanged={refresh} /> : null}
         {room === "fuel" ? <Fuel d={d} now={now} q={q} mapGo={(a, b, c) => { setRoom("fleet"); setTimeout(() => mapGo(a, b, c), 250); }} /> : null}
         {room === "fleet" ? <Fleet d={d} now={now} q={q} mapNode={mapNode} mapGo={mapGo} /> : null}
