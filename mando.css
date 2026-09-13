@@ -105,3 +105,5 @@ b{font-weight:600}.mono{font-family:var(--mono)}.dim{color:var(--dim)}.faint{col
 .gate{min-height:100vh;display:grid;place-items:center;padding:20px}
 .gcard{position:relative;width:min(380px,100%);background:var(--panel);border:1px solid var(--line2);padding:36px 30px 28px;display:grid;gap:10px;text-align:center}
 .gcard .bn{font-size:26px}.gcard .bs{margin-bottom:14px}.gcard .inp{text-align:center}
+
+.osm-dim{filter:brightness(.55) contrast(1.1) saturate(.6)}

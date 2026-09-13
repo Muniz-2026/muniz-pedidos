@@ -136,7 +136,7 @@ function buildSignals(d) {
   (d.stationVisits || []).forEach(p => { const k = `${p.actsoft_id}|${p.geofence}|${Math.floor(new Date(p.ts).getTime() / 1800e3)}`; if (seen.has(k) || p.status !== 1) return; seen.add(k);
     const u = (d.fleet || []).find(f => f.actsoft_id === p.actsoft_id); const g = p.geofence;
     if (/Leos|Texcon|Chevron/i.test(g)) s.push({ ts: new Date(p.ts).getTime(), kind: "gps", c: C.cyan, text: `${title(u?.person || u?.assigned_to || (u?.name || "Unit").replace(/\s*VIN.*$/i, ""))} stopped at ${g}`, ref: { room: "fleet", id: p.actsoft_id } }); });
-  (d.ev || []).filter(e => e.event === "error").slice(0, 20).forEach(e => s.push({ ts: new Date(e.ts).getTime(), kind: "sys", c: C.red, text: `App error · ${e.who || "unknown"} · ${e.meta?.err || ""}`.slice(0, 120) }));
+  (d.ev || []).filter(e => e.event === "error").slice(0, 20).forEach(e => s.push({ ts: new Date(e.ts).getTime(), kind: "sys", c: C.red, text: `App error · ${e.who || "unknown"} · ${[e.meta?.stage, e.meta?.status && "HTTP " + e.meta.status, e.meta?.err, e.meta?.msg, e.meta?.error].filter(Boolean).join(" · ") || JSON.stringify(e.meta || {}).slice(0, 80)}`.slice(0, 140) }));
   return s.sort((a, b) => b.ts - a.ts).slice(0, 120);
 }
 
@@ -556,11 +556,12 @@ function useMap(fleet, t) {
     if (!map.current) {
       map.current = L.map(ref.current, { zoomControl: false, attributionControl: false }).setView([30.27, -97.74], 10);
       L.control.zoom({ position: "bottomright" }).addTo(map.current);
-      const dark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png", { maxZoom: 21, maxNativeZoom: 19 });
-      const labels = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", { maxZoom: 21, maxNativeZoom: 19, pane: "overlayPane", opacity: .85 });
+      const dark = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 16 });
+      const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 16, pane: "overlayPane", opacity: .9 });
+      const streets = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, className: "osm-dim" });
       const aerial = L.tileLayer(`${SB_URL}/functions/v1/nearmap?z={z}&x={x}&y={y}&t=${t.access_token}`, { maxZoom: 21, minZoom: 15 });
       dark.addTo(map.current); labels.addTo(map.current);
-      L.control.layers({ "STREETS": dark, "NEARMAP AERIAL": aerial }, { "LABELS": labels }, { position: "topright", collapsed: true }).addTo(map.current);
+      L.control.layers({ "DARK": dark, "STREETS (OSM)": streets, "NEARMAP AERIAL": aerial }, { "LABELS": labels }, { position: "topright", collapsed: true }).addTo(map.current);
       let idle; const back = () => { if (map.current.hasLayer(aerial)) { map.current.removeLayer(aerial); dark.addTo(map.current); } };
       map.current.on("baselayerchange moveend zoomend", () => { clearTimeout(idle); if (map.current.hasLayer(aerial)) idle = setTimeout(back, 180e3); });
       map.current.on("baselayerchange", e => { if (/NEARMAP/.test(e.name)) { if (map.current.getZoom() < 16) map.current.setZoom(16); fetch(`${SB_URL}/functions/v1/nearmap?op=usage&t=${t.access_token}`).then(r => r.json()).then(setNm).catch(() => {}); } });
