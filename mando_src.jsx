@@ -423,6 +423,94 @@ function OrderDetail({ o, onClose, onChanged }) {
     </div>);
 }
 
+
+/* ===================================================================== FLOTA (GPS Actsoft) */
+function Flota({ fleet, fuelGps, now, q, setQ }) {
+  const mapRef = useRef(null); const mapObj = useRef(null); const layer = useRef(null);
+  const [sel, setSel] = useState(null);
+  const linked = fleet.filter(u => u.vehicle_id), unlinked = fleet.filter(u => !u.vehicle_id);
+  const fresh = fleet.filter(u => u.secs_since_seen != null && u.secs_since_seen < 3 * 3600);
+  const moving = fresh.filter(u => (u.last_speed || 0) > 3);
+  const idling = fresh.filter(u => u.last_ignition && (u.last_speed || 0) <= 3 && u.secs_in_status > 45 * 60);
+  const dark = fleet.filter(u => u.secs_since_seen == null || u.secs_since_seen > 24 * 3600);
+  const chk = fuelGps.filter(f => f.gps_check); const ver = chk.filter(f => f.gps_check === "VERIFICADO"); const bad = chk.filter(f => f.gps_check === "NO_ESTABA");
+  const shown = fleet.filter(u => !q || `${u.name} ${u.person || ""} ${u.assigned_to || ""} ${u.plate || ""} ${u.vin || ""} ${u.last_geofence || ""}`.toLowerCase().includes(q.toLowerCase()));
+  const label = u => (u.person || u.assigned_to || (u.name || "").replace(/\s*VIN.*$/i, "")).toString();
+  useEffect(() => {
+    const L = window.L; if (!L || !mapRef.current) return;
+    if (!mapObj.current) {
+      mapObj.current = L.map(mapRef.current, { zoomControl: true, attributionControl: false }).setView([30.27, -97.74], 10);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(mapObj.current);
+      layer.current = L.layerGroup().addTo(mapObj.current);
+    }
+    layer.current.clearLayers(); const pts = [];
+    fleet.filter(u => u.last_lat && u.last_lon).forEach(u => {
+      const col = u.secs_since_seen > 24 * 3600 ? "#5E6B7D" : (u.last_speed || 0) > 3 ? "#4ADE80" : u.last_ignition ? "#F5B800" : "#38BDF8";
+      const m = window.L.circleMarker([u.last_lat, u.last_lon], { radius: 7, color: "#0B0F14", weight: 1, fillColor: col, fillOpacity: 0.95 }).addTo(layer.current);
+      m.bindTooltip(`<b>${label(u)}</b><br>${u.last_geofence || ""} ${u.last_speed > 3 ? Math.round(u.last_speed) + " mph" : u.last_ignition ? "encendida, parada" : "apagada"}<br>${ago((u.secs_since_seen || 0) * 1000)}`, { className: "gps-tip" });
+      m.on("click", () => setSel(u)); pts.push([u.last_lat, u.last_lon]);
+    });
+    if (pts.length && !mapObj.current._fitted) { mapObj.current.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); mapObj.current._fitted = true; }
+  }, [fleet]);
+  const Dot = ({ u }) => <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle" style={{ background: u.secs_since_seen > 24 * 3600 ? "#5E6B7D" : (u.last_speed || 0) > 3 ? "#4ADE80" : u.last_ignition ? "#F5B800" : "#38BDF8" }} />;
+  return (
+    <div className="px-5 py-4 space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
+        <Kpi label="UNIDADES CON GPS" value={fleet.length} sub={`${linked.length} ligadas a la flota · ${unlinked.length} sin ligar`} tone={unlinked.length ? "#F5B800" : undefined} />
+        <Kpi label="EN MOVIMIENTO" value={moving.length} tone="#4ADE80" sub="ahora" />
+        <Kpi label="ENCENDIDAS PARADAS 45+ MIN" value={idling.length} tone={idling.length ? "#F5B800" : undefined} sub={idling.slice(0, 2).map(u => label(u).split(" ")[0]).join(", ") || "ninguna"} />
+        <Kpi label="SIN SEÑAL 24 H+" value={dark.length} tone={dark.length ? "#F87171" : undefined} sub="revisar equipo GPS" />
+        <Kpi label="COMBUSTIBLE VERIFICADO" value={chk.length ? Math.round(ver.length / chk.length * 100) + "%" : "—"} tone={bad.length ? "#F87171" : "#4ADE80"} sub={chk.length ? `${ver.length} de ${chk.length} POs con la unidad en la estación` : "sin POs verificables aún"} />
+        <Kpi label="NO ESTABA EN LA ESTACIÓN" value={bad.length} tone={bad.length ? "#F87171" : undefined} sub="POs de combustible" />
+        <Kpi label="ÚLTIMA POSICIÓN" value={fleet.length ? ago(Math.min(...fleet.map(u => (u.secs_since_seen || 1e9) * 1000))) : "—"} sub="hace" />
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <Card title="MAPA · DÓNDE ESTÁ CADA UNIDAD" className="xl:col-span-2" right={<span className="text-[10px] text-[#5E6B7D]">🟢 moviéndose · 🟡 encendida parada · 🔵 apagada · ⚫ sin señal</span>}>
+          <div ref={mapRef} style={{ height: 420, borderRadius: 12, overflow: "hidden", background: "#0B0F14" }} />
+          {!window.L ? <div className="text-[12px] text-[#F87171] mt-2">No cargó el mapa (Leaflet). Revisa mando.html.</div> : null}
+        </Card>
+        <Card title="COMBUSTIBLE CON TESTIGO GPS" right={<span className="text-[10px] text-[#5E6B7D]">últimos POs</span>}>
+          {!chk.length ? <div className="text-[12px] text-[#5E6B7D] py-6 text-center">Cuando se genere un PO de combustible con GPS en la unidad, aparece aquí con ✓ o ✗.</div> : null}
+          <div className="space-y-1.5 max-h-[420px] overflow-auto">
+            {chk.slice(0, 40).map(f => (
+              <div key={f.id} className="flex items-start gap-2 text-[12px] rounded-lg px-2.5 py-2 border" style={{ borderColor: (f.gps_check === "VERIFICADO" ? "#22C55E" : f.gps_check === "NO_ESTABA" ? "#EF4444" : "#5E6B7D") + "55" }}>
+                <span className="text-[14px]">{f.gps_check === "VERIFICADO" ? "✓" : f.gps_check === "NO_ESTABA" ? "✗" : "?"}</span>
+                <div className="flex-1 min-w-0"><div className="font-bold truncate">{f.po} · {f.who} · {f.vehicle_id || f.plate || "—"} · {f.station}</div><div className="text-[#7C8A9C] truncate">{dt(new Date(f.created_at).getTime())} · {f.gps_note}</div></div>
+              </div>))}
+          </div>
+        </Card>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="text-[12px] font-black text-[#B6C0CE]">UNIDADES · {shown.length}</div>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar nombre, placa, VIN, geocerca…" className="ml-auto w-80 h-9 rounded-lg bg-[#111823] border border-[#1E2A38] px-3 text-[13px] outline-none focus:border-[#38BDF8]" />
+      </div>
+      <Card>
+        <div className="overflow-auto -mx-1">
+          <table className="w-full text-[12px]">
+            <thead><tr className="text-[10px] font-black tracking-wider text-[#7C8A9C] border-b border-[#1E2A38]">{["", "UNIDAD (Actsoft)", "QUIÉN", "FLOTA", "PLACA", "GRUPO", "DÓNDE", "ESTADO", "HACE", "VIN"].map(h => <th key={h} className="text-left px-2 py-2 whitespace-nowrap">{h}</th>)}</tr></thead>
+            <tbody>
+              {shown.map(u => (
+                <tr key={u.actsoft_id} onClick={() => { setSel(u); if (mapObj.current && u.last_lat) mapObj.current.setView([u.last_lat, u.last_lon], 15); }} className="border-b border-[#1E2A38]/60 hover:bg-[#141C28] cursor-pointer">
+                  <td className="px-2 py-2"><Dot u={u} /></td>
+                  <td className="px-2 py-2 font-bold whitespace-nowrap">{(u.name || "").replace(/\s+/g, " ")}</td>
+                  <td className="px-2 py-2 whitespace-nowrap">{u.person || u.assigned_to || <span className="text-[#5E6B7D]">—</span>}</td>
+                  <td className="px-2 py-2 mono">{u.vehicle_id || <span className="text-[#FDE68A]">sin ligar</span>}</td>
+                  <td className="px-2 py-2 mono">{u.plate || "—"}</td>
+                  <td className="px-2 py-2 text-[#7C8A9C]">{u.group_name}</td>
+                  <td className="px-2 py-2 max-w-[200px] truncate">{u.last_geofence || u.at_jobsite || <span className="text-[#5E6B7D]">{u.last_lat ? u.last_lat.toFixed(4) + ", " + u.last_lon.toFixed(4) : "—"}</span>}</td>
+                  <td className="px-2 py-2 whitespace-nowrap">{(u.last_speed || 0) > 3 ? `${Math.round(u.last_speed)} mph` : u.last_ignition ? `encendida · ${ago((u.secs_in_status || 0) * 1000)}` : `apagada · ${ago((u.secs_in_status || 0) * 1000)}`}</td>
+                  <td className="px-2 py-2 mono text-[#7C8A9C] whitespace-nowrap">{u.secs_since_seen != null ? ago(u.secs_since_seen * 1000) : "—"}</td>
+                  <td className="px-2 py-2 mono text-[10px] text-[#5E6B7D]">{u.vin || "—"}</td>
+                </tr>))}
+              {!shown.length ? <tr><td colSpan={10} className="text-center text-[#5E6B7D] py-8">Sin unidades todavía. Corre el backfill de la función actsoft-gps (SETUP_FASE5_GPS_EN.txt).</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      <div className="text-[10px] text-[#3E4A5A] text-center pt-2 pb-6">Muñiz Centro de Mando · GPS Actsoft en vivo · cada PO de combustible se cruza con la posición de la unidad</div>
+    </div>);
+}
+
 /* ===================================================================== DASHBOARD */
 function Mando({ t, onOut }) {
   const [pos, setPos] = useState([]);
@@ -438,6 +526,7 @@ function Mando({ t, onOut }) {
   const [mode, setMode] = useState(() => { try { return localStorage.getItem("muniz_mando_mode") || "pedidos"; } catch (e) { return "pedidos"; } });
   const [orders, setOrders] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [gpsFleet, setGpsFleet] = useState([]); const [fuelGps, setFuelGps] = useState([]);
   const pedCsv = useRef(null);
   const [tick, setTick] = useState(0);
   const first = useRef(true);
@@ -446,10 +535,12 @@ function Mando({ t, onOut }) {
     let on = true;
     const pull = async () => {
       try {
-        const [p, mo, st, e, v, pe] = await Promise.all([
+        const [p, mo, st, fl, fg, e, v, pe] = await Promise.all([
           get("fuel_pos?select=*&order=created_at.desc&limit=3000", t.access_token),
           get("material_orders_full?select=*&order=created_at.desc&limit=2000", t.access_token).catch(x => { if (x.status === 404 || /material_orders_full/.test(String(x.message))) return "__nofase2__"; throw x; }),
           get("station_tickets?select=*&order=ticket_date.desc&limit=2000", t.access_token).catch(() => []),
+          get("gps_fleet_now?select=*&order=last_seen.desc", t.access_token).catch(() => []),
+          get("fuel_gps_check?select=*&order=created_at.desc&limit=300", t.access_token).catch(() => []),
           get("events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1200", t.access_token),
           get("vehicles?select=*&order=id", t.access_token),
           get("people?select=name,role,active", t.access_token)]);
@@ -460,7 +551,8 @@ function Mando({ t, onOut }) {
           lectura: r.reading, obra: r.jobsite, obraOtra: r.jobsite_other, obraSemana: r.jobsite_week || "",
           est: r.station, plateTyped: r.plate_typed, secs: r.seconds_to_po, srvFlags: r.flags || [],
           gal: r.gallons, amt: r.amount, dev: r.device_id })));
-        setTickets(Array.isArray(st) ? st : []);
+        setTickets(Array.isArray(st) ? st : []); setGpsFleet(Array.isArray(fl) ? fl : []); setFuelGps(Array.isArray(fg) ? fg : []);
+        fetch(`${SB_URL}/rest/v1/rpc/verify_pending_fuel`, { method: "POST", headers: { ...hdr(t.access_token), "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
         setOrders(mo === "__nofase2__" ? [] : mo.map(r => ({ ...r, ts: new Date(r.submitted_at || r.requested_at || r.created_at).getTime() })));
         setEv(e); setVeh(v); setPpl(pe); setErr(mo === "__nofase2__" ? "Falta correr supabase_fase2.sql (pedidos)" : ""); setSync(Date.now()); first.current = false;
       } catch (x) { if (on) setErr(x.status === 401 ? "Sesión expirada — vuelve a entrar" : String(x.message || x).slice(0, 160)); }
@@ -551,13 +643,13 @@ function Mando({ t, onOut }) {
       {/* top bar */}
       <div className="sticky top-0 z-20 bg-[#0B0F14]/95 backdrop-blur border-b border-[#1E2A38] px-5 py-3">
         <div className="flex items-center gap-4 flex-wrap">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 ${mode === "pedidos" ? "bg-[#FF5A00]" : "bg-[#F5B800]"}`}>{mode === "pedidos" ? "🧱" : "⛽"}</div>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 ${mode === "pedidos" ? "bg-[#FF5A00]" : mode === "flota" ? "bg-[#38BDF8]" : "bg-[#F5B800]"}`}>{mode === "pedidos" ? "🧱" : mode === "flota" ? "🛰" : "⛽"}</div>
           <div className="mr-auto">
             <div className="text-[9px] font-black tracking-[0.2em] text-[#7C8A9C]">MUÑIZ CONCRETE &amp; CONTRACTING</div>
-            <div className="display text-[19px] leading-tight">Centro de mando · {mode === "pedidos" ? "Pedidos de material" : "Combustible"}</div>
+            <div className="display text-[19px] leading-tight">Centro de mando · {mode === "pedidos" ? "Pedidos de material" : mode === "flota" ? "Flota en vivo" : "Combustible"}</div>
           </div>
           <div className="flex items-center gap-1 bg-[#111823] border border-[#1E2A38] rounded-lg p-0.5">
-            {[["pedidos", "🧱 PEDIDOS"], ["fuel", "⛽ COMBUSTIBLE"]].map(([k, l]) => (
+            {[["pedidos", "🧱 PEDIDOS"], ["fuel", "⛽ COMBUSTIBLE"], ["flota", "🛰 FLOTA"]].map(([k, l]) => (
               <button key={k} onClick={() => { setMode(k); try { localStorage.setItem("muniz_mando_mode", k); } catch (e) {} }} className={`px-3 py-1.5 rounded-md text-[11px] font-black ${mode === k ? "bg-white text-[#0B0F14]" : "text-[#7C8A9C]"}`}>{l}</button>))}
           </div>
           <div className="flex items-center gap-1.5">
@@ -571,6 +663,7 @@ function Mando({ t, onOut }) {
         </div>
       </div>
 
+      {mode === "flota" ? <Flota fleet={gpsFleet} fuelGps={fuelGps} now={now} q={q} setQ={setQ} /> : null}
       {mode === "pedidos" ? <Pedidos orders={orders} range={range} q={q} setQ={setQ} live={live} now={now} onCsvRef={pedCsv} onChanged={() => setTick(x => x + 1)} /> : null}
 
       {mode === "fuel" ? <><div className="px-5 py-4 space-y-4">
