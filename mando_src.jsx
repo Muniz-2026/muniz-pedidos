@@ -20,6 +20,10 @@ async function get(path, t) {
   if (!r.ok) { const e = new Error(await r.text()); e.status = r.status; throw e; }
   return r.json();
 }
+async function patch(path, body, t) {
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, { method: "PATCH", headers: { ...hdr(t), "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+}
 async function login(email, password) {
   const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
   if (!r.ok) throw new Error("login");
@@ -149,7 +153,7 @@ function orderFlags(o) {
   const u = {}; return f.filter(x => u[x.t] ? false : (u[x.t] = 1));
 }
 
-function Pedidos({ orders, range, q, setQ, live, now, onCsvRef }) {
+function Pedidos({ orders, range, q, setQ, live, now, onCsvRef, onChanged }) {
   const [sel, setSel] = useState(null);
   const [tab, setTab] = useState("todos");
   const real = useMemo(() => orders.filter(o => !o.is_practice), [orders]);
@@ -342,11 +346,19 @@ function Pedidos({ orders, range, q, setQ, live, now, onCsvRef }) {
       </div>
     </div>
 
-    {sel ? <OrderDetail o={sel} onClose={() => setSel(null)} /> : null}
+    {sel ? <OrderDetail o={sel} onClose={() => setSel(null)} onChanged={onChanged} /> : null}
   </>);
 }
 
-function OrderDetail({ o, onClose }) {
+function OrderDetail({ o, onClose, onChanged }) {
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
+  const t0 = tok();
+  const mark = async (body, label) => {
+    if (!t0 || !window.confirm(label + " · " + o.req_no + " · " + o.foreman + "?")) return;
+    setBusy(true); setErr("");
+    try { await patch(`material_orders?id=eq.${o.id}`, body, t0.access_token); onChanged && onChanged(); onClose(); }
+    catch (e) { setErr(String(e.message || e).slice(0, 200)); } finally { setBusy(false); }
+  };
   const stages = ["SOLICITADO", "APROBADO", "TICKET"].filter(s => (o.lines || []).some(l => l.stage === s));
   const [st, setSt] = useState(stages[stages.length - 1] || "SOLICITADO");
   const lines = (o.lines || []).filter(l => l.stage === st);
@@ -398,7 +410,15 @@ function OrderDetail({ o, onClose }) {
           {o.flags && o.flags.length ? <div className="pt-1 flex flex-wrap gap-1.5">{o.flags.map((f, i) => <span key={i} className={`text-[10px] font-black px-1.5 py-0.5 rounded ${f.lvl === "red" ? "bg-[#DC2626] text-white" : "bg-[#78350F] text-[#FDE68A]"}`}>{f.t}</span>)}</div> : <div className="pt-1 text-[12px] text-[#4ADE80] font-bold">Sin alertas.</div>}
           {o.notes ? <div className="text-[12px] text-[#7C8A9C]">{o.notes}</div> : null}
         </div>
-        <div className="px-5 pb-4 pt-2"><button onClick={onClose} className="w-full py-2.5 rounded-xl bg-[#1A2230] font-black text-[13px]">CERRAR</button></div>
+        {err ? <div className="mx-5 mb-2 text-[12px] text-[#FCA5A5] font-bold">{err}</div> : null}
+        <div className="px-5 pb-4 pt-2 flex gap-2 flex-wrap">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl bg-[#1A2230] font-black text-[13px]">CERRAR</button>
+          {o.is_practice
+            ? <button disabled={busy} onClick={() => mark({ is_practice: false }, "Volver a contar como real")} className="py-2.5 px-3 rounded-xl bg-[#263242] text-[#B6C0CE] font-black text-[12px]">↩ ES REAL</button>
+            : <button disabled={busy} onClick={() => mark({ is_practice: true, notes: ((o.notes || "") + " · marcado como PRUEBA desde el mando").trim() }, "Marcar como PRUEBA (no cuenta en nada)")} className="py-2.5 px-3 rounded-xl bg-[#3B2A08] text-[#FDE68A] font-black text-[12px]">🎓 ES PRUEBA</button>}
+          {o.status === "SOLICITADO" || o.status === "APROBADO"
+            ? <button disabled={busy} onClick={() => mark({ status: "RECHAZADO", rejected_at: new Date().toISOString(), decided_by: "TITO CUETO", decided_via: "MANDO" }, "Rechazar desde la oficina")} className="py-2.5 px-3 rounded-xl bg-[#3B0D0D] text-[#FCA5A5] font-black text-[12px]">✗ RECHAZAR</button> : null}
+        </div>
       </div>
     </div>);
 }
@@ -418,6 +438,7 @@ function Mando({ t, onOut }) {
   const [mode, setMode] = useState(() => { try { return localStorage.getItem("muniz_mando_mode") || "pedidos"; } catch (e) { return "pedidos"; } });
   const [orders, setOrders] = useState([]);
   const pedCsv = useRef(null);
+  const [tick, setTick] = useState(0);
   const first = useRef(true);
 
   useEffect(() => {
@@ -443,7 +464,7 @@ function Mando({ t, onOut }) {
     };
     pull(); const iv = setInterval(pull, 7000);
     return () => { on = false; clearInterval(iv); };
-  }, [t]);
+  }, [t, tick]);
 
   const now = Date.now();
   const cut = range === 0 ? 0 : now - range * 864e5;
@@ -547,7 +568,7 @@ function Mando({ t, onOut }) {
         </div>
       </div>
 
-      {mode === "pedidos" ? <Pedidos orders={orders} range={range} q={q} setQ={setQ} live={live} now={now} onCsvRef={pedCsv} /> : null}
+      {mode === "pedidos" ? <Pedidos orders={orders} range={range} q={q} setQ={setQ} live={live} now={now} onCsvRef={pedCsv} onChanged={() => setTick(x => x + 1)} /> : null}
 
       {mode === "fuel" ? <><div className="px-5 py-4 space-y-4">
         {/* KPIs */}
