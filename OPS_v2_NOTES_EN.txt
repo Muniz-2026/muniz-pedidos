@@ -1,0 +1,36 @@
+MUÑIZ OPS · COMMAND CENTER v2 · what changed
+=============================================
+Upload (5 files, replace): mando.html · mando.js · mando.css · mando_src.jsx · sw.js
+Nothing changes for the field. index.html, bandeja.html and fuel.html are untouched and stay in Spanish.
+No SQL needed. It reads the same tables and views you already have.
+
+THE SIX ROOMS (left rail; ⌘K / Ctrl+K jumps to search from anywhere)
+  SITUATION  Money committed this week vs last, today's spend, decisions outstanding with
+             age, rules-vs-humans ratio, GPS-verified fuel %, fleet moving/idling/dark.
+             Live map. SIGNAL FEED: every order, decision, PO, escalation, fuel PO with
+             its GPS verdict, and every truck stop at a fuel station — newest first,
+             click any line to jump to it. Decisions queue. 14-day spend (materials +
+             fuel stacked). Supervisor response times with open counts.
+  ORDERS     Filters (all/open/rules/PO/rejected × 24h/7d/30d/all), spend by jobsite,
+             by foreman, top items by value, full table. Click a row → drawer with the
+             three-stage line view, lane reasons, justification, timeline, and the
+             office actions: MARK TEST · COUNT AS REAL · REJECT. CSV export.
+  FUEL       POs, $/gal, GPS-verified %, flags, Leo's statement headline.
+             Tabs: PURCHASE ORDERS (with GPS verdict per row) · GPS WITNESS ·
+             LEO'S STATEMENT (by person + the tickets whose PO isn't Leo's) · BY UNIT.
+             Click a row with a GPS fix → the map jumps to where the truck really was.
+  FLEET      Tracked / moving / idling / dark, truck idle hours this week converted to
+             gallons and dollars, live map with STREETS / NEARMAP AERIAL / LABELS,
+             idle leaderboard with rings, full unit table.
+  PEOPLE     THE ROUTING TABLE. Change any foreman's supervisor or PM from a dropdown,
+             flip CAN ORDER on/off. Takes effect on the next order. No SQL.
+  RULES      The knobs (ceiling, escalation minutes, backup, Nearmap cap) editable
+             inline, plus the decision ladder written out.
+
+DESIGN
+  Hand-written stylesheet (no Tailwind). Barlow Condensed for labels, IBM Plex Mono for
+  every number, Inter for text. Four signal colors only: green / amber / red / cyan.
+  Sharp panels with corner ticks. Orange is reserved for Muñiz identity and materials.
+
+ARCHIVED
+  mando_src_v1_backup.jsx / mando_v1.css — the previous console, for reference only.
