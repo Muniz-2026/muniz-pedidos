@@ -440,7 +440,13 @@ function Flota({ fleet, fuelGps, now, q, setQ }) {
     const L = window.L; if (!L || !mapRef.current) return;
     if (!mapObj.current) {
       mapObj.current = L.map(mapRef.current, { zoomControl: true, attributionControl: false }).setView([30.27, -97.74], 10);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(mapObj.current);
+      const dark = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 21, maxNativeZoom: 19 });
+      const t0 = tok();
+      const nearmap = L.tileLayer(`${SB_URL}/functions/v1/nearmap?z={z}&x={x}&y={y}&t=${t0 ? t0.access_token : ""}`, { maxZoom: 21, maxNativeZoom: 21, minZoom: 12, errorTileUrl: "" });
+      const fences = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png", { maxZoom: 21, maxNativeZoom: 19, pane: "overlayPane", opacity: 0.9 });
+      dark.addTo(mapObj.current);
+      L.control.layers({ "🌑 Calles": dark, "🛩 Nearmap (aérea)": nearmap }, { "Nombres de calles": fences }, { position: "topright", collapsed: false }).addTo(mapObj.current);
+      mapObj.current.on("baselayerchange", e => { if (/Nearmap/.test(e.name) && mapObj.current.getZoom() < 15) mapObj.current.setZoom(16); });
       layer.current = L.layerGroup().addTo(mapObj.current);
     }
     layer.current.clearLayers(); const pts = [];
@@ -465,7 +471,7 @@ function Flota({ fleet, fuelGps, now, q, setQ }) {
         <Kpi label="ÚLTIMA POSICIÓN" value={fleet.length ? ago(Math.min(...fleet.map(u => (u.secs_since_seen || 1e9) * 1000))) : "—"} sub="hace" />
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <Card title="MAPA · DÓNDE ESTÁ CADA UNIDAD" className="xl:col-span-2" right={<span className="text-[10px] text-[#5E6B7D]">🟢 moviéndose · 🟡 encendida parada · 🔵 apagada · ⚫ sin señal</span>}>
+        <Card title="MAPA · DÓNDE ESTÁ CADA UNIDAD" className="xl:col-span-2" right={<span className="text-[10px] text-[#5E6B7D]">🟢 moviéndose · 🟡 encendida parada · 🔵 apagada · ⚫ sin señal · toca un ✗ de combustible para verlo en aérea</span>}>
           <div ref={mapRef} style={{ height: 420, borderRadius: 12, overflow: "hidden", background: "#0B0F14" }} />
           {!window.L ? <div className="text-[12px] text-[#F87171] mt-2">No cargó el mapa (Leaflet). Revisa mando.html.</div> : null}
         </Card>
@@ -473,7 +479,7 @@ function Flota({ fleet, fuelGps, now, q, setQ }) {
           {!chk.length ? <div className="text-[12px] text-[#5E6B7D] py-6 text-center">Cuando se genere un PO de combustible con GPS en la unidad, aparece aquí con ✓ o ✗.</div> : null}
           <div className="space-y-1.5 max-h-[420px] overflow-auto">
             {chk.slice(0, 40).map(f => (
-              <div key={f.id} className="flex items-start gap-2 text-[12px] rounded-lg px-2.5 py-2 border" style={{ borderColor: (f.gps_check === "VERIFICADO" ? "#22C55E" : f.gps_check === "NO_ESTABA" ? "#EF4444" : "#5E6B7D") + "55" }}>
+              <div key={f.id} onClick={() => { if (mapObj.current && f.gps_lat) { mapObj.current.setView([f.gps_lat, f.gps_lon], 19); window.L.circleMarker([f.gps_lat, f.gps_lon], { radius: 10, color: f.gps_check === "VERIFICADO" ? "#22C55E" : "#EF4444", weight: 3, fillOpacity: 0.2 }).bindTooltip(`${f.po} · ${f.who}<br>${f.gps_note || ""}`, { permanent: true, className: "gps-tip" }).addTo(layer.current); mapRef.current.scrollIntoView({ behavior: "smooth", block: "center" }); } }} className="flex items-start gap-2 text-[12px] rounded-lg px-2.5 py-2 border cursor-pointer hover:bg-[#141C28]" style={{ borderColor: (f.gps_check === "VERIFICADO" ? "#22C55E" : f.gps_check === "NO_ESTABA" ? "#EF4444" : "#5E6B7D") + "55" }}>
                 <span className="text-[14px]">{f.gps_check === "VERIFICADO" ? "✓" : f.gps_check === "NO_ESTABA" ? "✗" : "?"}</span>
                 <div className="flex-1 min-w-0"><div className="font-bold truncate">{f.po} · {f.who} · {f.vehicle_id || f.plate || "—"} · {f.station}</div><div className="text-[#7C8A9C] truncate">{dt(new Date(f.created_at).getTime())} · {f.gps_note}</div></div>
               </div>))}
