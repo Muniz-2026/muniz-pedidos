@@ -22,7 +22,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.1";
+  var VERSION = "1.2";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -118,6 +118,7 @@
       if (res.ok) {
         var row = null; try { var j = JSON.parse(res.txt); row = Array.isArray(j) ? j[0] : j; } catch (e) { }
         cur = cur.filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur);
+        setTimeout(refreshMine, 1500);
         if (item.toast) {
           var no = row && row.req_no ? " · " + row.req_no : "";
           if (item.payload.dm) toast("🎓 Práctica registrada (no cuenta)" + no, "gray", 3500);
@@ -205,11 +206,45 @@
     logEvent(stage === "SOLICITADO" ? "sent" : stage.toLowerCase(), { meta: { prov: tok.p, lines: (tok.o || []).length } });
   }, true);
 
+  /* ---------- puerta permanente a MIS PEDIDOS (el app no tiene esta pantalla) ---------- */
+  var misBtn = null;
+  function misPedidosButton() {
+    try {
+      var pend = ls(K_OUT, []).length;
+      var badge = 0;
+      try { var lst = ls("muniz_db_mine_cache", null); if (lst && lst.t > Date.now() - 6e5) badge = lst.n; } catch (e) { }
+      if (!misBtn) {
+        misBtn = document.createElement("a");
+        misBtn.href = "./bandeja.html#mis";
+        misBtn.setAttribute("aria-label", "Mis pedidos");
+        misBtn.style.cssText = "position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:9998;background:#1F2937;color:#fff;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:8px 10px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.35);text-decoration:none;letter-spacing:.04em;display:flex;align-items:center;gap:6px;opacity:.92";
+        document.body.appendChild(misBtn);
+      }
+      misBtn.innerHTML = "📋 MIS PEDIDOS" + (badge ? '<span style="background:#F5B800;color:#111;border-radius:999px;padding:2px 6px;font-size:10px">' + badge + "</span>" : "") + (pend ? '<span style="background:#B45309;border-radius:999px;padding:2px 6px;font-size:10px">⏳' + pend + "</span>" : "");
+      // se esconde cuando hay un modal del app abierto (para no tapar sus botones)
+      var hash = location.hash || "";
+      misBtn.style.display = (/^#[rtp]=/.test(hash)) ? "none" : "flex";
+    } catch (e) { }
+  }
+  // cuántos pedidos míos siguen esperando (para el numerito). Solo lectura, por teléfono.
+  function refreshMine() {
+    try {
+      fetch(URL_ + "/rest/v1/rpc/my_orders", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_device: deviceId(), p_name: whoAmI() || null }) })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (rows) { var n = (rows || []).filter(function (o) { return o.status === "SOLICITADO" || o.needs_justification; }).length; lsSet("muniz_db_mine_cache", { n: n, t: Date.now() }); misPedidosButton(); })
+        .catch(function () { });
+    } catch (e) { }
+  }
+  document.addEventListener("DOMContentLoaded", misPedidosButton);
+  window.addEventListener("hashchange", misPedidosButton);
+  setInterval(misPedidosButton, 3000);
+
   /* ---------- reintentos y presencia ---------- */
   window.addEventListener("online", flush);
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { flush(); logEvent("open"); } });
   setInterval(flush, 60e3);
-  setTimeout(function () { flush(); logEvent("open"); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
+  setTimeout(function () { flush(); logEvent("open"); refreshMine(); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
+  setInterval(refreshMine, 120e3);
 
   window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; } };
 })();
