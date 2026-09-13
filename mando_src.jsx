@@ -368,9 +368,15 @@ function Orders({ d, now, t, q, focus, clearFocus, onChanged }) {
    ============================================================================ */
 function Fuel({ d, now, q, mapGo }) {
   const [range, setRange] = useState(7); const [tab, setTab] = useState("pos");
-  const fuel = (d.fuel || []).filter(p => range === 0 || p.ts >= now - range * 864e5);
   const gps = Object.fromEntries((d.fuelGps || []).map(f => [f.id, f]));
   const veh = d.veh || [], tickets = d.tickets || [];
+  const tMonths = useMemo(() => [...new Set(tickets.map(x => x.ticket_date.slice(0, 7)))].sort().reverse(), [tickets]);
+  const monthMode = typeof range === "string";
+  const plateVeh = useMemo(() => Object.fromEntries(veh.filter(v => v.plate).map(v => [v.plate, v])), [veh]);
+  // a station statement month becomes the fuel dataset, in the same shape as an app fuel PO
+  const fuel = monthMode
+    ? tickets.filter(x => x.ticket_date.slice(0, 7) === range).map(x => { const v = plateVeh[x.plate]; return { id: "t" + x.id, po: x.po_raw || "—", ts: new Date(x.ticket_date + "T12:00:00").getTime(), who: x.creator || "(no PO owner)", vehicle_id: v?.id || null, vehicle_desc: v?.descr || x.plate || "", plate: x.plate, comb: x.fuel_type === "DIESEL" ? "DIESEL" : "GASOLINA", reading: null, jobsite: x.project || x.job_hand || "", station: x.station === "LEOS" ? "LEO'S" : x.station, gallons: x.gallons, amount: x.amount, flags: x.flags || [], statement: true }; })
+    : (d.fuel || []).filter(p => range === 0 || p.ts >= now - range * 864e5);
   const gal = fuel.reduce((a, p) => a + (+p.gallons || 0), 0), usd = fuel.reduce((a, p) => a + (+p.amount || 0), 0);
   const months = [...new Set(tickets.map(x => x.ticket_date.slice(0, 7)))].sort().reverse(); const m = months[0]; const tm = tickets.filter(x => x.ticket_date.slice(0, 7) === m);
   const bad = tm.filter(x => (x.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f)));
@@ -379,20 +385,23 @@ function Fuel({ d, now, q, mapGo }) {
   const chk = fuel.map(p => gps[p.id] || p).filter(p => p.gps_check);
   const shown = fuel.filter(p => !q || `${p.po} ${p.who} ${p.plate} ${p.jobsite} ${p.vehicle_desc} ${p.station}`.toLowerCase().includes(q.toLowerCase()));
   const byUnit = useMemo(() => { const mm = {}; fuel.forEach(p => { const k = p.vehicle_id || p.plate || "?"; mm[k] = mm[k] || { n: 0, gal: 0, usd: 0, who: p.who, desc: p.vehicle_desc }; mm[k].n++; mm[k].gal += +p.gallons || 0; mm[k].usd += +p.amount || 0; }); return Object.entries(mm).sort((a, b) => b[1].usd - a[1].usd).slice(0, 10); }, [fuel]);
-  const days = useMemo(() => { const out = []; const n = range === 0 ? 30 : Math.min(range, 30); for (let i = n - 1; i >= 0; i--) { const k = dayKey(now - i * 864e5); out.push({ label: k.slice(5), v: (d.fuel || []).filter(p => dayKey(p.ts) === k).length }); } return out; }, [d.fuel, range, now]);
+  const days = useMemo(() => { const out = [];
+    if (monthMode) { const y = +range.slice(0, 4), mth = +range.slice(5, 7), n = new Date(y, mth, 0).getDate(); for (let i = 1; i <= n; i++) { const k = `${range}-${String(i).padStart(2, "0")}`; out.push({ label: String(i), v: fuel.filter(p => dayKey(p.ts) === k).length }); } return out; }
+    const n = range === 0 ? 30 : Math.min(range, 30); for (let i = n - 1; i >= 0; i--) { const k = dayKey(now - i * 864e5); out.push({ label: k.slice(5), v: (d.fuel || []).filter(p => dayKey(p.ts) === k).length }); } return out; }, [d.fuel, fuel, range, now]);
   const verdict = { VERIFICADO: [C.green, "✓ AT STATION"], NO_ESTABA: [C.red, "✗ NOT THERE"], REVISAR: [C.amber, "? OUTSIDE FENCES"], SIN_GPS: [C.faint, "NO FIX"], SIN_UNIDAD: [C.faint, "NO TRACKER"] };
   return (
     <div className="room">
       <div className="strip">
-        <Metric label={range === 0 ? "FUEL POs · ALL" : `FUEL POs · ${range}D`} value={fuel.length} sub={`${money0(usd)} · ${N(Math.round(gal))} gal`} big />
+        <Metric label={monthMode ? `LEO'S TICKETS · ${new Date(range + "-02").toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase()}` : range === 0 ? "FUEL POs · ALL" : `FUEL POs · ${range}D`} value={fuel.length} sub={`${money0(usd)} · ${N(Math.round(gal))} gal${monthMode ? " · from the station statement" : ""}`} big />
         <Metric label="$ / GALLON" value={gal ? money(usd / gal) : "—"} sub="blended, from POs with amounts" />
-        <Metric label="GPS VERIFIED" value={chk.length ? Math.round(chk.filter(p => p.gps_check === "VERIFICADO").length / chk.length * 100) + "%" : "—"} tone={chk.some(p => p.gps_check === "NO_ESTABA") ? C.red : C.green} sub={`${chk.filter(p => p.gps_check === "NO_ESTABA").length} unit not at station`} />
-        <Metric label="FLAGGED" value={fuel.filter(p => (p.flags || []).length).length} tone={fuel.some(p => (p.flags || []).length) ? C.amber : C.green} sub="odometer, frequency, GPS" />
+        {monthMode ? <Metric label="PO PROBLEMS" value={fuel.filter(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f))).length} tone={fuel.some(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f))) ? C.red : C.green} sub={`${money0(fuel.filter(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f))).reduce((a, p) => a + +p.amount, 0))} · PO missing, not in log, or issued to another vendor`} />
+          : <Metric label="GPS VERIFIED" value={chk.length ? Math.round(chk.filter(p => p.gps_check === "VERIFICADO").length / chk.length * 100) + "%" : "—"} tone={chk.some(p => p.gps_check === "NO_ESTABA") ? C.red : C.green} sub={`${chk.filter(p => p.gps_check === "NO_ESTABA").length} unit not at station`} />}
+        <Metric label="FLAGGED" value={fuel.filter(p => (p.flags || []).length).length} tone={fuel.some(p => (p.flags || []).length) ? C.amber : C.green} sub={monthMode ? "PO, plate, gas-can notes" : "odometer, frequency, GPS"} />
         <Metric label={`LEO'S STATEMENT · ${m ? new Date(m + "-02").toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase() : "—"}`} value={tm.length ? money0(tm.reduce((a, x) => a + +x.amount, 0)) : "—"} tone={bad.length ? C.red : C.ink} sub={tm.length ? `${tm.length} tickets · ${bad.length} with a PO that isn't Leo's · ${money0(bad.reduce((a, x) => a + +x.amount, 0))}` : "upload the monthly sheet"} />
       </div>
       <div className="toolbar">
         <div className="segs">{[["pos", "PURCHASE ORDERS"], ["gps", "GPS WITNESS"], ["leos", "LEO'S STATEMENT"], ["units", "BY UNIT"]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div>
-        <div className="segs">{[[1, "24H"], [7, "7D"], [30, "30D"], [0, "ALL"]].map(([k, l]) => <button key={k} className={range === k ? "on" : ""} onClick={() => setRange(k)}>{l}</button>)}</div>
+        <div className="segs">{[[1, "24H"], [7, "7D"], [30, "30D"], [0, "ALL"]].map(([k, l]) => <button key={k} className={range === k ? "on" : ""} onClick={() => setRange(k)}>{l}</button>)}{tMonths.slice(0, 6).map(x => <button key={x} className={range === x ? "on" : ""} onClick={() => { setRange(x); if (tab === "gps") setTab("pos"); }}>{new Date(x + "-02").toLocaleDateString("en-US", { month: "short", year: "2-digit" }).toUpperCase()}</button>)}</div>
       </div>
       {tab === "pos" ? (<>
         <div className="g3"><Panel title="FUEL POs PER DAY" className="span2"><Bars data={days} color={C.amber} /></Panel>
@@ -401,10 +410,10 @@ function Fuel({ d, now, q, mapGo }) {
           {shown.map(p => { const g = gps[p.id]; const v = g?.gps_check ? verdict[g.gps_check] : null; return (<tr key={p.id} onClick={() => g?.gps_lat && mapGo(g.gps_lat, g.gps_lon, `${p.po} · ${title(p.who)}`)}>
             <td className="mono"><b>{p.po}</b></td><td className="dim">{dt(p.ts)}</td><td><b>{title(p.who)}</b></td><td className="mono">{p.vehicle_id || p.plate || "—"}<span className="dim"> {p.vehicle_desc}</span></td><td><Tag c={p.comb === "DIESEL" ? C.green : C.orange}>{p.comb}</Tag></td>
             <td className="mono r">{N(p.reading)}</td><td className="dim">{p.jobsite}</td><td>{p.station}</td><td className="mono r">{p.gallons ?? "—"}</td><td className="mono r">{p.amount ? money(p.amount) : "—"}</td>
-            <td>{v ? <Tag c={v[0]}>{v[1]}</Tag> : <span className="dim">—</span>}</td>
-            <td><div className="tags">{(p.flags || []).slice(0, 2).map((f, i) => <Tag key={i} c={/GPS|retroced|24 h/.test(f) ? C.red : C.amber} dim>{f}</Tag>)}</div></td>
+            <td>{v ? <Tag c={v[0]}>{v[1]}</Tag> : p.statement ? <span className="dim xs">statement</span> : <span className="dim">—</span>}</td>
+            <td><div className="tags">{(p.flags || []).slice(0, 2).map((f, i) => <Tag key={i} c={/GPS|retroced|24 h|no existe|SIN PO|no para Leo/.test(f) ? C.red : C.amber} dim>{f}</Tag>)}</div></td>
           </tr>); })}
-          {!shown.length ? <tr><td colSpan={12}><Empty>No fuel POs in range.</Empty></td></tr> : null}
+          {!shown.length ? <tr><td colSpan={12}><Empty>{monthMode ? "No station tickets loaded for this month." : "No fuel POs in range. Pick a month tab to see the station statement."}</Empty></td></tr> : null}
         </tbody></table></Panel></>) : null}
       {tab === "gps" ? (
         <Panel title="EVERY FUEL PO AGAINST THE TRUCK'S POSITION ±20 MIN" right={<span className="dim">click a row to see it on the map</span>} flush>
