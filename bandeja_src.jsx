@@ -11,7 +11,7 @@ const CFG = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
 const SB = CFG.SUPABASE || {};
 const SB_URL = String(SB.URL || "").trim().replace(/\/+$/, "").replace(/\/rest\/v1$/, "").replace(/\/auth\/v1$/, "");
 const SB_KEY = String(SB.ANON_KEY || "").trim();
-const BASE = location.href.replace(/bandeja\.html.*$/, "");
+const BASE = location.href.replace(/bandeja\.html.*$/, "").replace(/([^:])\/{2,}/g, "$1/");
 const K_WHO = "muniz_bandeja_who", K_DEV = "muniz_device_id", K_PED = "muniz_pedido";
 const ls = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
