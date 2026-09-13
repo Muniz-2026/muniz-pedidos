@@ -141,11 +141,15 @@ function useOps(t) {
   return [d, () => setTick(x => x + 1)];
 }
 
+/* ---------- derived: who decided an order (falls back to the approval/rejection event) ---------- */
+function deciderMap(oev) { const m = {}; (oev || []).forEach(e => { if ((e.stage === "APROBADO" || e.stage === "RECHAZADO") && e.actor && !m[e.order_id]) m[e.order_id] = e.actor; }); return m; }
+const decidedBy = (o, dm) => o.decided_by || (dm && dm[o.id]) || null;
+
 /* ---------- derived: the signal feed ---------- */
 function buildSignals(d) {
   const s = [];
   const ordersById = Object.fromEntries((d.orders || []).map(o => [o.id, o]));
-  (d.oev || []).forEach(e => { const o = ordersById[e.order_id]; if (!o) return;
+  (d.oev || []).forEach(e => { const o = ordersById[e.order_id]; if (!o || o.is_practice) return;
     const m = { SOLICITADO: ["order", C.amber, `${title(o.foreman)} requested ${o.requested_lines} line${o.requested_lines === 1 ? "" : "s"} · ${o.provider}${o.est_total ? " · " + money(o.est_total) : ""}`],
       APROBADO: ["order", e.actor === "REGLAS" ? C.green : C.cyan, e.actor === "REGLAS" ? `Rules auto-approved ${o.req_no} · ${title(o.foreman)} · ${money(o.est_total)}` : `${title(e.actor)} approved ${o.req_no} · ${title(o.foreman)}${e.meta?.removed?.length ? ` · cut ${e.meta.removed.length}` : ""}`],
       RECHAZADO: ["order", C.red, e.actor === "REGLAS" ? `Rules rejected ${o.req_no} · ${title(o.foreman)}` : `${title(e.actor)} rejected ${o.req_no} · ${title(o.foreman)}`],
@@ -180,23 +184,24 @@ function Situation({ d, now, go, mapNode }) {
   const oldest = queue[0] ? now - queue[0].ts : 0;
   const chk = (d.fuelGps || []).filter(f => f.gps_check && f.gps_check !== "SIN_UNIDAD"), ver = chk.filter(f => f.gps_check === "VERIFICADO"), bad = chk.filter(f => f.gps_check === "NO_ESTABA");
   const fresh = fleet.filter(u => u.secs_since_seen != null && u.secs_since_seen < 3 * 3600), moving = fresh.filter(u => (u.last_speed || 0) > 3), idling = fresh.filter(u => u.last_ignition && (u.last_speed || 0) <= 3 && u.secs_in_status > 45 * 60);
-  const auto = wkO.filter(o => o.decided_by === "REGLAS" && o.status !== "RECHAZADO").length, human = wkO.filter(o => o.decided_by && o.decided_by !== "REGLAS").length;
+  const dm = useMemo(() => deciderMap(d.oev), [d.oev]);
+  const auto = wkO.filter(o => decidedBy(o, dm) === "REGLAS" && o.status !== "RECHAZADO").length, human = wkO.filter(o => { const w = decidedBy(o, dm); return w && w !== "REGLAS"; }).length;
   const tApr = wkO.map(o => o.secs_to_approve).filter(x => x > 0);
   const days = useMemo(() => { const out = []; for (let i = 13; i >= 0; i--) { const k = dayKey(now - i * 864e5); out.push({ k, o: live(orders).filter(o => dayKey(o.ts) === k).reduce((a, o) => a + (Number(o.est_total) || 0), 0), f: fuel.filter(p => dayKey(p.ts) === k).reduce((a, p) => a + (Number(p.amount) || 0), 0) }); } return out; }, [orders, fuel, now]);
   const signals = useMemo(() => buildSignals(d), [d]);
-  const sup = useMemo(() => { const m = {}; wkO.forEach(o => { if (!o.supervisor || o.supervisor === "REGLAS (AUTO)") return; const k = o.supervisor; m[k] = m[k] || { n: 0, t: [], open: 0 }; m[k].n++; if (o.secs_to_approve > 0) m[k].t.push(o.secs_to_approve); if (o.status === "SOLICITADO") m[k].open++; }); return Object.entries(m).map(([k, v]) => ({ k, ...v, med: median(v.t) })).sort((a, b) => (b.open - a.open) || ((b.med || 0) - (a.med || 0))); }, [wkO]);
+  const sup = useMemo(() => { const m = {}; wkO.forEach(o => { if (!o.supervisor || o.supervisor === "REGLAS (AUTO)") return; const k = decidedBy(o, dm) && decidedBy(o, dm) !== "REGLAS" ? decidedBy(o, dm) : o.supervisor; m[k] = m[k] || { n: 0, t: [], open: 0 }; m[k].n++; if (o.secs_to_approve > 0) m[k].t.push(o.secs_to_approve); if (o.status === "SOLICITADO") m[k].open++; }); return Object.entries(m).map(([k, v]) => ({ k, ...v, med: median(v.t) })).sort((a, b) => (b.open - a.open) || ((b.med || 0) - (a.med || 0))); }, [wkO, dm]);
   const notFound = useMemo(() => { const m = {}; wkO.forEach(o => (o.not_found || []).forEach(x => { const k = String(x).toLowerCase().trim(); if (k) m[k] = (m[k] || 0) + 1; })); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 6); }, [wkO]);
   const dmax = Math.max(...days.map(y => y.o + y.f), 1);
   return (
     <div className="room">
       <div className="strip">
-        <Metric label="COMMITTED · 7 DAYS" value={money0(spendWk)} sub={`materials ${money0(sum(live(wkO), "est_total"))} · fuel ${money0(sum(wkF, "amount"))}`} trend={trend} big />
-        <Metric label="TODAY" value={money0(sum(live(todayO), "est_total") + sum(todayF, "amount"))} sub={`${todayO.length} orders · ${todayF.length} fuel POs`} />
+        <Metric label="COMMITTED · 7 DAYS" value={money0(spendWk)} sub={`materials ${money0(sum(live(wkO), "est_total"))} · fuel ${sum(wkF, "amount") ? money0(sum(wkF, "amount")) : wkF.length ? `${wkF.length} PO${wkF.length === 1 ? "" : "s"} · $ on the statement` : "$0"}`} trend={trend} big />
+        <Metric label="TODAY" value={money0(sum(live(todayO), "est_total") + sum(todayF, "amount"))} sub={`${todayO.length} order${todayO.length === 1 ? "" : "s"} · ${todayF.length} fuel PO${todayF.length === 1 ? "" : "s"}`} />
         <Metric label="AWAITING DECISION" value={queue.length} tone={oldest > 2 * 36e5 ? C.red : queue.length ? C.amber : C.green} sub={queue.length ? `oldest ${ago(oldest / 1000)} · ${title(first(queue[0].supervisor)) || "unassigned"}` : "queue clear"} />
         <Metric label="APPROVED · NO PO" value={noPo.length} tone={noPo.length ? C.cyan : C.ink} sub="waiting on the office" />
-        <Metric label="RULES vs HUMANS" value={`${auto}/${human}`} sub={`${auto + human ? Math.round(auto / (auto + human) * 100) : 0}% by rules · median human ${tApr.length ? ago(median(tApr)) : "—"}`} />
+        <Metric label="RULES vs HUMANS" value={`${auto}/${human}`} sub={auto + human ? `${Math.round(auto / (auto + human) * 100)}% by rules · median human ${tApr.length ? ago(median(tApr)) : "—"}` : "no decisions this week"} />
         <Metric label="FUEL VERIFIED BY GPS" value={chk.length ? Math.round(ver.length / chk.length * 100) + "%" : "—"} tone={bad.length ? C.red : C.green} sub={chk.length ? `${bad.length} not at station · ${chk.length} checked` : "awaiting fuel POs with GPS"} />
-        <Metric label="FLEET" value={moving.length} unit=" moving" tone={C.green} sub={`${idling.length} idling 45m+ · ${fleet.filter(u => (u.secs_since_seen ?? 1e9) > 86400).length} dark 24h+`} />
+        <Metric label="FLEET" value={moving.length} unit=" moving" tone={moving.length ? C.green : C.ink} sub={`${idling.length} idling 45m+ · ${fleet.filter(u => (u.secs_since_seen ?? 1e9) > 86400).length} dark 24h+ · ${fleet.length} tracked`} />
       </div>
       <div className="g3">
         <Panel title="LIVE · FLEET" right={<span className="legend"><Dot c={C.green} /> moving <Dot c={C.amber} /> idling <Dot c={C.cyan} /> parked <Dot c={C.faint} /> dark</span>} className="span2" flush>{mapNode}</Panel>
@@ -348,20 +353,21 @@ function OrderDrawer({ o, t, onClose, onChanged }) {
 }
 function Orders({ d, now, t, q, focus, clearFocus, onChanged }) {
   const [tab, setTab] = useState("all"); const [sel, setSel] = useState(null); const [range, setRange] = useState(7);
+  const dm = useMemo(() => deciderMap(d.oev), [d.oev]);
   useEffect(() => { if (focus) { const o = (d.orders || []).find(x => x.id === focus); if (o) setSel(o); clearFocus(); } }, [focus, d.orders]);
   const all = (d.orders || []).filter(o => !o.is_practice && (range === 0 || o.ts >= now - range * 864e5));
-  const shown = all.filter(o => (tab === "all" || (tab === "open" ? (o.status === "SOLICITADO" || o.status === "APROBADO") : tab === "auto" ? o.decided_by === "REGLAS" : o.status === tab))
+  const shown = all.filter(o => (tab === "all" || (tab === "open" ? (o.status === "SOLICITADO" || o.status === "APROBADO") : tab === "auto" ? decidedBy(o, dm) === "REGLAS" : o.status === tab))
     && (!q || `${o.req_no} ${o.po || ""} ${o.foreman} ${o.jobsite || ""} ${o.supervisor || ""} ${o.provider} ${(o.lines || []).map(l => (l.code || "") + " " + (l.descr || "")).join(" ")}`.toLowerCase().includes(q.toLowerCase())));
   const top = (f, val) => { const m = {}; all.forEach(o => { if (o.status === "RECHAZADO") return; const k = f(o) || "—"; m[k] = (m[k] || 0) + val(o); }); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
   const byJob = top(o => o.jobsite, o => Number(o.est_total) || 0), byWho = top(o => o.foreman, o => Number(o.est_total) || 0);
   const items = useMemo(() => { const m = {}; all.forEach(o => (o.lines || []).filter(l => l.stage === (o.approved_at ? "APROBADO" : "SOLICITADO") && !l.removed && l.qty > 0).forEach(l => { const k = (l.code || "") + "|" + (l.descr || ""); const x = m[k] = m[k] || { code: l.code, descr: l.descr, qty: 0, n: 0, usd: 0 }; x.qty += +l.qty || 0; x.n++; x.usd += +l.line_total || 0; })); return Object.values(m).sort((a, b) => b.usd - a.usd).slice(0, 10); }, [all]);
   const csv = () => { const cl = s => `"${String(s ?? "").replace(/"/g, '""')}"`; const H = ["req_no", "date", "foreman", "role", "provider", "jobsite", "rostered", "supervisor", "status", "lane", "decided_by", "po", "lines_requested", "lines_approved", "value_usd", "min_to_decision", "flags", "lines"];
-    const R = shown.map(o => [o.req_no, new Date(o.ts).toLocaleString("en-US"), o.foreman, o.foreman_role, o.provider, o.jobsite, o.jobsite_week, o.supervisor, o.status, o.lane, o.decided_by, o.po, o.requested_lines, o.approved_lines, o.est_total, o.secs_to_approve ? Math.round(o.secs_to_approve / 60) : "", (o.server_flags || []).join(" | "), (o.lines || []).filter(l => l.stage === (o.approved_at ? "APROBADO" : "SOLICITADO")).map(l => `${l.qty}x ${l.descr || l.code}${l.removed ? " (CUT)" : ""}`).join(" | ")].map(cl).join(","));
+    const R = shown.map(o => [o.req_no, new Date(o.ts).toLocaleString("en-US"), o.foreman, o.foreman_role, o.provider, o.jobsite, o.jobsite_week, o.supervisor, o.status, o.lane, decidedBy(o, dm), o.po, o.requested_lines, o.approved_lines, o.est_total, o.secs_to_approve ? Math.round(o.secs_to_approve / 60) : "", (o.server_flags || []).join(" | "), (o.lines || []).filter(l => l.stage === (o.approved_at ? "APROBADO" : "SOLICITADO")).map(l => `${l.qty}x ${l.descr || l.code}${l.removed ? " (CUT)" : ""}`).join(" | ")].map(cl).join(","));
     const b = new Blob(["\uFEFF" + [H.join(","), ...R].join("\n")], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `muniz_orders_${dayKey(now)}.csv`; a.click(); };
   return (
     <div className="room">
       <div className="toolbar">
-        <div className="segs">{[["all", `ALL ${all.length}`], ["open", `OPEN ${all.filter(o => o.status === "SOLICITADO" || o.status === "APROBADO").length}`], ["auto", `RULES ${all.filter(o => o.decided_by === "REGLAS").length}`], ["PO_ASIGNADO", `PO ${all.filter(o => o.status === "PO_ASIGNADO").length}`], ["RECHAZADO", `REJECTED ${all.filter(o => o.status === "RECHAZADO").length}`]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div>
+        <div className="segs">{[["all", `ALL ${all.length}`], ["open", `OPEN ${all.filter(o => o.status === "SOLICITADO" || o.status === "APROBADO").length}`], ["auto", `RULES ${all.filter(o => decidedBy(o, dm) === "REGLAS").length}`], ["PO_ASIGNADO", `PO ${all.filter(o => o.status === "PO_ASIGNADO").length}`], ["RECHAZADO", `REJECTED ${all.filter(o => o.status === "RECHAZADO").length}`]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div>
         <div className="segs">{[[1, "24H"], [7, "7D"], [30, "30D"], [0, "ALL"]].map(([k, l]) => <button key={k} className={range === k ? "on" : ""} onClick={() => setRange(k)}>{l}</button>)}</div>
         <button className="btn sm" onClick={csv}>↓ CSV</button>
       </div>
@@ -376,9 +382,9 @@ function Orders({ d, now, t, q, focus, clearFocus, onChanged }) {
             <tr key={o.id} onClick={() => setSel(o)}>
               <td className="mono"><b>{o.req_no}</b>{o.is_addon ? <Tag c={C.amber} dim>+ADD</Tag> : null}</td><td className="dim">{dt(o.ts)}</td><td><b>{title(o.foreman)}</b></td><td><Tag c={PROV[o.provider]}>{o.provider}</Tag></td>
               <td className={o.jobsite_known ? "" : "amber"}>{o.jobsite || <span className="red">none</span>}</td><td className="dim">{o.supervisor === "REGLAS (AUTO)" ? "rules" : title(o.supervisor) || "—"}</td>
-              <td className="mono r">{o.approved_lines != null ? <>{o.requested_lines}<span className="dim">→</span>{o.approved_lines}{o.removed_lines ? <span className="red"> −{o.removed_lines}</span> : null}</> : o.requested_lines}</td>
+              <td className="mono r">{o.approved_lines != null ? <>{o.requested_lines}<span className="dim">→</span>{o.approved_lines}{o.removed_lines && o.removed_lines === o.requested_lines - o.approved_lines ? <span className="red"> −{o.removed_lines}</span> : null}</> : o.requested_lines}</td>
               <td className="mono r">{o.est_total ? money(o.est_total) : "—"}</td><td><Tag c={c}>{lbl}</Tag></td><td>{o.lane ? <Dot c={LANE[o.lane]} /> : null}</td>
-              <td className="dim">{o.decided_by === "REGLAS" ? <span style={{ color: C.green }}>rules</span> : title(first(o.decided_by)) || "—"}{o.secs_to_approve ? <span className="mono"> · {ago(o.secs_to_approve)}</span> : null}</td><td className="mono"><b>{o.po || "—"}</b></td>
+              <td className="dim">{decidedBy(o, dm) === "REGLAS" ? <span style={{ color: C.green }}>rules</span> : title(decidedBy(o, dm)) || "—"}{o.secs_to_approve ? <span className="mono"> · {ago(o.secs_to_approve)}</span> : null}</td><td className="mono"><b>{o.po || "—"}</b></td>
             </tr>); })}
           {!shown.length ? <tr><td colSpan={12}><Empty>Nothing matches.</Empty></td></tr> : null}
         </tbody></table>
@@ -419,10 +425,11 @@ function Fuel({ d, now, q, mapGo }) {
   const perL = Object.entries(per).sort((a, b) => b[1].usd - a[1].usd);
   const chk = fuel.map(p => gps[p.id] || p).filter(p => p.gps_check);
   const shown = fuel.filter(p => !q || `${p.po} ${p.who} ${p.plate} ${p.jobsite} ${p.vehicle_desc} ${p.station}`.toLowerCase().includes(q.toLowerCase()));
-  const byUnit = useMemo(() => { const mm = {}; fuel.forEach(p => { const k = p.vehicle_id || p.plate || "?"; mm[k] = mm[k] || { n: 0, gal: 0, usd: 0, who: p.who, desc: p.vehicle_desc }; mm[k].n++; mm[k].gal += +p.gallons || 0; mm[k].usd += +p.amount || 0; }); return Object.entries(mm).sort((a, b) => b[1].usd - a[1].usd).slice(0, 10); }, [fuel]);
+  const byUnit = useMemo(() => { const mm = {}; fuel.forEach(p => { const k = p.vehicle_id || p.plate || "?"; mm[k] = mm[k] || { n: 0, gal: 0, usd: 0, who: k === "?" ? null : p.who, desc: k === "?" ? "no unit or plate on the PO" : p.vehicle_desc }; mm[k].n++; mm[k].gal += +p.gallons || 0; mm[k].usd += +p.amount || 0; }); return Object.entries(mm).sort((a, b) => b[1].usd - a[1].usd).slice(0, 10); }, [fuel]);
   const days = useMemo(() => { const out = [];
     if (monthMode) { const y = +range.slice(0, 4), mth = +range.slice(5, 7), n = new Date(y, mth, 0).getDate(); for (let i = 1; i <= n; i++) { const k = `${range}-${String(i).padStart(2, "0")}`; out.push({ label: String(i), v: fuel.filter(p => dayKey(p.ts) === k).length }); } return out; }
     const n = range === 0 ? 30 : Math.min(range, 30); for (let i = n - 1; i >= 0; i--) { const k = dayKey(now - i * 864e5); out.push({ label: k.slice(5), v: (d.fuel || []).filter(p => dayKey(p.ts) === k).length }); } return out; }, [d.fuel, fuel, range, now]);
+  const INFO_FLAG = /^(MIXTO_GAS_Y_DIESEL|SABADO|PO_PROVEEDOR_VARIANTE|TERMINOS_NET15)$/; const realFlags = p => (p.flags || []).filter(f => !INFO_FLAG.test(f));
   const verdict = { VERIFICADO: [C.green, "✓ AT STATION"], NO_ESTABA: [C.red, "✗ NOT THERE"], REVISAR: [C.amber, "? OUTSIDE FENCES"], SIN_GPS: [C.faint, "NO FIX"], SIN_UNIDAD: [C.faint, "NO TRACKER"] };
   return (
     <div className="room">
@@ -431,8 +438,8 @@ function Fuel({ d, now, q, mapGo }) {
         <Metric label="$ / GALLON" value={gal ? money(usd / gal) : "—"} sub="blended, from POs with amounts" />
         {monthMode ? <Metric label="PO PROBLEMS" value={fuel.filter(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f))).length} tone={fuel.some(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f))) ? C.red : C.green} sub={`${money0(fuel.filter(p => (p.flags || []).some(f => /no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f))).reduce((a, p) => a + +p.amount, 0))} · PO missing, not in log, or issued to another vendor`} />
           : <Metric label="GPS VERIFIED" value={chk.length ? Math.round(chk.filter(p => p.gps_check === "VERIFICADO").length / chk.length * 100) + "%" : "—"} tone={chk.some(p => p.gps_check === "NO_ESTABA") ? C.red : C.green} sub={`${chk.filter(p => p.gps_check === "NO_ESTABA").length} unit not at station`} />}
-        <Metric label="FLAGGED" value={fuel.filter(p => (p.flags || []).length).length} tone={fuel.some(p => (p.flags || []).length) ? C.amber : C.green} sub={monthMode ? "PO, plate, gas-can notes" : "odometer, frequency, GPS"} />
-        <Metric label={`STATION STATEMENTS · ${m ? new Date(m + "-02").toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase() : "—"}`} value={tm.length ? money0(tm.reduce((a, x) => a + +x.amount, 0)) : "—"} tone={bad.length ? C.red : C.ink} sub={tm.length ? `${tm.filter(x => x.station === "TEXCON").length} Tex-Con · ${tm.filter(x => x.station !== "TEXCON").length} Leo's · ${bad.length} with a PO problem · ${money0(bad.reduce((a, x) => a + +x.amount, 0))}` : "upload the monthly sheet"} />
+        <Metric label="FLAGGED" value={fuel.filter(p => realFlags(p).length).length} tone={fuel.some(p => realFlags(p).length) ? C.amber : C.green} sub={monthMode ? "PO, plate, big fills, tools on fuel POs" : "odometer, frequency, GPS, statement flags"} />
+        <Metric label={`STATION STATEMENTS · ${m ? new Date(m + "-02").toLocaleDateString("en-US", { month: "short", year: "numeric" }).toUpperCase() : "—"}`} value={tm.length ? money0(tm.reduce((a, x) => a + +x.amount, 0)) : "—"} tone={bad.length ? C.red : C.ink} sub={tm.length ? `${tm.filter(x => x.station === "TEXCON").length} Tex-Con lines · ${tm.filter(x => x.station !== "TEXCON").length} Leo's · ${N(Math.round(tm.reduce((a, x) => a + (+x.gallons || 0), 0)))} gal · ${bad.length} with a PO problem · ${money0(bad.reduce((a, x) => a + +x.amount, 0))}` : "upload the monthly sheet"} />
       </div>
       <div className="toolbar">
         <div className="segs">{[["pos", "PURCHASE ORDERS"], ["gps", "GPS WITNESS"], ["leos", "STATION STATEMENTS"], ["units", "BY UNIT"]].map(([k, l]) => <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>)}</div>
@@ -469,7 +476,7 @@ function Fuel({ d, now, q, mapGo }) {
         </div>) : null}
       {tab === "units" ? (
         <Panel title="FUEL BY UNIT" right={<span className="dim">POs in range</span>} flush><table className="tbl big"><Th cols={["UNIT", "DESCRIPTION", "DRIVER", "POs", "GAL", "$", "$ / FILL"]} /><tbody>
-          {byUnit.map(([k, v]) => { const vv = veh.find(x => x.id === k); return (<tr key={k}><td className="mono"><b>{k}</b>{vv?.plate ? <span className="dim"> {vv.plate}</span> : null}</td><td className="dim">{v.desc || vv?.descr}</td><td>{title(vv?.assigned_to || v.who)}</td><td className="mono r">{v.n}</td><td className="mono r">{N(Math.round(v.gal))}</td><td className="mono r">{money0(v.usd)}</td><td className="mono r">{money0(v.usd / v.n)}</td></tr>); })}
+          {byUnit.map(([k, v]) => { const vv = veh.find(x => x.id === k); return (<tr key={k}><td className="mono"><b>{k}</b>{vv?.plate ? <span className="dim"> {vv.plate}</span> : null}</td><td className="dim">{v.desc || vv?.descr}</td><td>{k === "?" ? <span className="dim">— {v.n} POs with no unit</span> : title(vv?.assigned_to || v.who)}</td><td className="mono r">{v.n}</td><td className="mono r">{N(Math.round(v.gal))}</td><td className="mono r">{money0(v.usd)}</td><td className="mono r">{money0(v.usd / v.n)}</td></tr>); })}
           {!byUnit.length ? <tr><td colSpan={7}><Empty>No fuel POs in range.</Empty></td></tr> : null}
         </tbody></table></Panel>) : null}
     </div>);
@@ -484,6 +491,7 @@ function Fleet({ d, now, q, mapNode, mapGo }) {
   const agg = useMemo(() => { const m = {}; wk.forEach(u => { const k = u.who; m[k] = m[k] || { who: k, unit: u.vehicle_id, mi: 0, idle: 0, drive: 0 }; m[k].mi += +u.miles || 0; m[k].idle += +u.idle_min || 0; m[k].drive += +u.drive_min || 0; }); return Object.values(m).map(x => ({ ...x, pct: x.drive ? Math.round(x.idle / x.drive * 100) : 0 })).sort((a, b) => b.idle - a.idle); }, [wk]);
   const trucks = agg.filter(a => /^V-|^P-/.test(a.unit || ""));
   const idleH = trucks.reduce((a, x) => a + x.idle, 0) / 60, gal = idleH * 0.7;
+  const dsl = (d.tickets || []).filter(x => /^DIESEL$/.test(x.fuel_type || "") && new Date(x.ticket_date + "T12:00:00").getTime() >= now - 60 * 864e5); const dslG = dsl.reduce((a, x) => a + (+x.gallons || 0), 0); const dslPrice = dslG ? dsl.reduce((a, x) => a + (+x.amount || 0), 0) / dslG : 3.4;
   const shown = fleet.filter(u => !q || `${u.name} ${u.person || ""} ${u.assigned_to || ""} ${u.plate || ""} ${u.vin || ""} ${u.last_geofence || ""}`.toLowerCase().includes(q.toLowerCase()));
   const label = u => title(u.person || u.assigned_to || (u.name || "").replace(/\s*VIN.*$/i, ""));
   const state = u => (u.secs_since_seen ?? 1e9) > 86400 ? [C.faint, "dark"] : (u.last_speed || 0) > 3 ? [C.green, `${Math.round(u.last_speed)} mph`] : u.last_ignition ? [C.amber, `idling ${ago(u.secs_in_status || 0)}`] : [C.cyan, `parked ${ago(u.secs_in_status || 0)}`];
@@ -495,7 +503,7 @@ function Fleet({ d, now, q, mapNode, mapGo }) {
         <Metric label="MOVING NOW" value={fleet.filter(u => seen(u) < 10800 && (u.last_speed || 0) > 3).length} tone={C.green} />
         <Metric label="IDLING 45M+" value={fleet.filter(u => seen(u) < 10800 && u.last_ignition && (u.last_speed || 0) <= 3 && u.secs_in_status > 2700).length} tone={C.amber} />
         <Metric label="DARK 24H+" value={fleet.filter(u => seen(u) > 86400).length} tone={fleet.some(u => seen(u) > 86400) ? C.red : C.green} sub="check the tracker" />
-        <Metric label="TRUCK IDLE · 7 DAYS" value={Math.round(idleH)} unit=" h" tone={C.amber} sub={`≈ ${Math.round(gal)} gal burned standing still · ≈ ${money0(gal * 3.4)}`} big />
+        <Metric label="TRUCK IDLE · 7 DAYS" value={Math.round(idleH)} unit=" h" tone={C.amber} sub={`≈ ${Math.round(gal)} gal burned standing still · ≈ ${money0(gal * dslPrice)} at ${money(dslPrice)}/gal`} big />
         <Metric label="TRUCK MILES · 7 DAYS" value={N(Math.round(trucks.reduce((a, x) => a + x.mi, 0)))} sub={`${trucks.length} trucks with trips`} />
       </div>
       <div className="g3">
@@ -593,12 +601,17 @@ function Rules({ d, t, onChanged }) {
    MAP (shared)
    ============================================================================ */
 function useMap(fleet, t) {
-  const ref = useRef(null), map = useRef(null), layer = useRef(null), pin = useRef(null);
+  // The Leaflet map lives on a DOM node WE own. React destroys and recreates the panel every time the
+  // room changes; we just re-append our node into the new panel, so the map (tiles, markers, zoom) survives.
+  const holder = useRef(null); if (!holder.current) { const el = document.createElement("div"); el.className = "map"; holder.current = el; }
+  const map = useRef(null), layer = useRef(null), pin = useRef(null);
   const [nm, setNm] = useState(null);
+  const fix = () => { try { if (map.current) map.current.invalidateSize(); } catch (e) {} };
+  const attach = el => { if (!el) return; if (holder.current.parentNode !== el) el.appendChild(holder.current); setTimeout(fix, 60); setTimeout(fix, 400); };
   useEffect(() => {
-    const L = window.L; if (!L || !ref.current) return;
+    const L = window.L; if (!L || !holder.current.isConnected) return;
     if (!map.current) {
-      map.current = L.map(ref.current, { zoomControl: false, attributionControl: false }).setView([30.27, -97.74], 10);
+      map.current = L.map(holder.current, { zoomControl: false, attributionControl: false }).setView([30.27, -97.74], 10);
       L.control.zoom({ position: "bottomright" }).addTo(map.current);
       const dark = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 16 });
       const labels = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 16, pane: "overlayPane", opacity: .9 });
@@ -610,7 +623,7 @@ function useMap(fleet, t) {
       map.current.on("baselayerchange moveend zoomend", () => { clearTimeout(idle); if (map.current.hasLayer(aerial)) idle = setTimeout(back, 180e3); });
       map.current.on("baselayerchange", e => { if (/NEARMAP/.test(e.name)) { if (map.current.getZoom() < 16) map.current.setZoom(16); fetch(`${SB_URL}/functions/v1/nearmap?op=usage&t=${(TOK.cur || t).access_token}`).then(r => r.json()).then(setNm).catch(() => {}); } });
       layer.current = L.layerGroup().addTo(map.current);
-      const fix = () => { try { map.current.invalidateSize(); } catch (e) {} }; setTimeout(fix, 60); setTimeout(fix, 500); if (window.ResizeObserver) new ResizeObserver(fix).observe(ref.current);
+      setTimeout(fix, 60); setTimeout(fix, 500); if (window.ResizeObserver) new ResizeObserver(fix).observe(holder.current);
     }
     layer.current.clearLayers(); const pts = [];
     fleet.filter(u => u.last_lat && u.last_lon).forEach(u => {
@@ -623,8 +636,8 @@ function useMap(fleet, t) {
     if (pin.current) pin.current.addTo(layer.current);
     if (pts.length && !map.current._fit) { map.current._fit = true; setTimeout(() => { try { map.current.invalidateSize(); map.current.fitBounds(pts, { padding: [24, 24], maxZoom: 12 }); } catch (e) {} }, 120); }
   }, [fleet]);
-  const go = (lat, lon, text) => { if (!map.current) return; map.current.setView([lat, lon], 18); if (pin.current) layer.current.removeLayer(pin.current); pin.current = window.L.circleMarker([lat, lon], { radius: 12, color: C.red, weight: 2, fillOpacity: .15 }).bindTooltip(text, { permanent: true, className: "tip" }); pin.current.addTo(layer.current); ref.current?.scrollIntoView({ behavior: "smooth", block: "center" }); };
-  const node = <div className="mapwrap"><div ref={ref} className="map" />{nm ? <div className={`nmu ${nm.allowed ? "" : "red"}`}>NEARMAP {nm.mb} / {nm.cap_mb} MB THIS MONTH{nm.allowed ? "" : " · CAP REACHED"}</div> : null}</div>;
+  const go = (lat, lon, text) => { if (!map.current) return; map.current.setView([lat, lon], 18); if (pin.current) layer.current.removeLayer(pin.current); pin.current = window.L.circleMarker([lat, lon], { radius: 12, color: C.red, weight: 2, fillOpacity: .15 }).bindTooltip(text, { permanent: true, className: "tip" }); pin.current.addTo(layer.current); holder.current?.scrollIntoView({ behavior: "smooth", block: "center" }); };
+  const node = <div className="mapwrap" ref={attach}>{nm ? <div className={`nmu ${nm.allowed ? "" : "red"}`}>NEARMAP {nm.mb} / {nm.cap_mb} MB THIS MONTH{nm.allowed ? "" : " · CAP REACHED"}</div> : null}</div>;
   return [node, go];
 }
 
