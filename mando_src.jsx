@@ -427,7 +427,7 @@ function OrderDetail({ o, onClose, onChanged }) {
 /* ===================================================================== FLOTA (GPS Actsoft) */
 function Flota({ fleet, fuelGps, now, q, setQ }) {
   const mapRef = useRef(null); const mapObj = useRef(null); const layer = useRef(null);
-  const [sel, setSel] = useState(null);
+  const [sel, setSel] = useState(null); const [tileErr, setTileErr] = useState(0);
   const linked = fleet.filter(u => u.vehicle_id), unlinked = fleet.filter(u => !u.vehicle_id);
   const fresh = fleet.filter(u => u.secs_since_seen != null && u.secs_since_seen < 3 * 3600);
   const moving = fresh.filter(u => (u.last_speed || 0) > 3);
@@ -448,6 +448,12 @@ function Flota({ fleet, fuelGps, now, q, setQ }) {
       L.control.layers({ "🌑 Calles": dark, "🛩 Nearmap (aérea)": nearmap }, { "Nombres de calles": fences }, { position: "topright", collapsed: false }).addTo(mapObj.current);
       mapObj.current.on("baselayerchange", e => { if (/Nearmap/.test(e.name) && mapObj.current.getZoom() < 15) mapObj.current.setZoom(16); });
       layer.current = L.layerGroup().addTo(mapObj.current);
+      // el contenedor nace sin altura: Leaflet necesita que le avisen cuando ya la tiene
+      const fix = () => { try { mapObj.current.invalidateSize(); } catch (e) {} };
+      setTimeout(fix, 50); setTimeout(fix, 400); setTimeout(fix, 1500);
+      window.addEventListener("resize", fix);
+      if (window.ResizeObserver) new ResizeObserver(fix).observe(mapRef.current);
+      nearmap.on("tileerror", () => { setTileErr(e => e + 1); });
     }
     layer.current.clearLayers(); const pts = [];
     fleet.filter(u => u.last_lat && u.last_lon).forEach(u => {
@@ -456,7 +462,7 @@ function Flota({ fleet, fuelGps, now, q, setQ }) {
       m.bindTooltip(`<b>${label(u)}</b><br>${u.last_geofence || ""} ${u.last_speed > 3 ? Math.round(u.last_speed) + " mph" : u.last_ignition ? "encendida, parada" : "apagada"}<br>${ago((u.secs_since_seen || 0) * 1000)}`, { className: "gps-tip" });
       m.on("click", () => setSel(u)); pts.push([u.last_lat, u.last_lon]);
     });
-    if (pts.length && !mapObj.current._fitted) { mapObj.current.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); mapObj.current._fitted = true; }
+    if (pts.length && !mapObj.current._fitted) { setTimeout(() => { try { mapObj.current.invalidateSize(); mapObj.current.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); } catch (e) {} }, 100); mapObj.current._fitted = true; }
   }, [fleet]);
   const Dot = ({ u }) => <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle" style={{ background: u.secs_since_seen > 24 * 3600 ? "#5E6B7D" : (u.last_speed || 0) > 3 ? "#4ADE80" : u.last_ignition ? "#F5B800" : "#38BDF8" }} />;
   return (
@@ -474,6 +480,7 @@ function Flota({ fleet, fuelGps, now, q, setQ }) {
         <Card title="MAPA · DÓNDE ESTÁ CADA UNIDAD" className="xl:col-span-2" right={<span className="text-[10px] text-[#5E6B7D]">🟢 moviéndose · 🟡 encendida parada · 🔵 apagada · ⚫ sin señal · toca un ✗ de combustible para verlo en aérea</span>}>
           <div ref={mapRef} style={{ height: 420, borderRadius: 12, overflow: "hidden", background: "#0B0F14" }} />
           {!window.L ? <div className="text-[12px] text-[#F87171] mt-2">No cargó el mapa (Leaflet). Revisa mando.html.</div> : null}
+          {tileErr > 3 ? <div className="text-[12px] text-[#FDE68A] mt-2">La capa Nearmap no responde: revisa que la función <span className="mono">nearmap</span> esté desplegada con NEARMAP_KEY y "Verify JWT" apagado (Edge Functions → nearmap → Logs).</div> : null}
         </Card>
         <Card title="COMBUSTIBLE CON TESTIGO GPS" right={<span className="text-[10px] text-[#5E6B7D]">últimos POs</span>}>
           {!chk.length ? <div className="text-[12px] text-[#5E6B7D] py-6 text-center">Cuando se genere un PO de combustible con GPS en la unidad, aparece aquí con ✓ o ✗.</div> : null}
