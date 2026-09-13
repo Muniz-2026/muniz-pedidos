@@ -437,6 +437,7 @@ function Mando({ t, onOut }) {
   const [sel, setSel] = useState(null);
   const [mode, setMode] = useState(() => { try { return localStorage.getItem("muniz_mando_mode") || "pedidos"; } catch (e) { return "pedidos"; } });
   const [orders, setOrders] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const pedCsv = useRef(null);
   const [tick, setTick] = useState(0);
   const first = useRef(true);
@@ -445,9 +446,10 @@ function Mando({ t, onOut }) {
     let on = true;
     const pull = async () => {
       try {
-        const [p, mo, e, v, pe] = await Promise.all([
+        const [p, mo, st, e, v, pe] = await Promise.all([
           get("fuel_pos?select=*&order=created_at.desc&limit=3000", t.access_token),
           get("material_orders_full?select=*&order=created_at.desc&limit=2000", t.access_token).catch(x => { if (x.status === 404 || /material_orders_full/.test(String(x.message))) return "__nofase2__"; throw x; }),
+          get("station_tickets?select=*&order=ticket_date.desc&limit=2000", t.access_token).catch(() => []),
           get("events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1200", t.access_token),
           get("vehicles?select=*&order=id", t.access_token),
           get("people?select=name,role,active", t.access_token)]);
@@ -458,6 +460,7 @@ function Mando({ t, onOut }) {
           lectura: r.reading, obra: r.jobsite, obraOtra: r.jobsite_other, obraSemana: r.jobsite_week || "",
           est: r.station, plateTyped: r.plate_typed, secs: r.seconds_to_po, srvFlags: r.flags || [],
           gal: r.gallons, amt: r.amount, dev: r.device_id })));
+        setTickets(Array.isArray(st) ? st : []);
         setOrders(mo === "__nofase2__" ? [] : mo.map(r => ({ ...r, ts: new Date(r.submitted_at || r.requested_at || r.created_at).getTime() })));
         setEv(e); setVeh(v); setPpl(pe); setErr(mo === "__nofase2__" ? "Falta correr supabase_fase2.sql (pedidos)" : ""); setSync(Date.now()); first.current = false;
       } catch (x) { if (on) setErr(x.status === 401 ? "Sesión expirada — vuelve a entrar" : String(x.message || x).slice(0, 160)); }
@@ -657,6 +660,44 @@ function Mando({ t, onOut }) {
                 </div>))}
             </div>
           </Card>) : null}
+
+        {tickets.length ? (() => {
+          const months = [...new Set(tickets.map(x => x.ticket_date.slice(0, 7)))].sort().reverse();
+          const m = months[0]; const tm = tickets.filter(x => x.ticket_date.slice(0, 7) === m);
+          const bad = tm.filter(x => (x.flags || []).some(f => /no existe|SIN PO|no para Leo/.test(f)));
+          const amb = tm.filter(x => (x.flags || []).length && !bad.includes(x));
+          const per = {}; tm.forEach(x => { const k = x.creator || "(PO sin dueño)"; per[k] = per[k] || { n: 0, usd: 0, gal: 0, plates: new Set() }; per[k].n++; per[k].usd += Number(x.amount) || 0; per[k].gal += Number(x.gallons) || 0; if (x.plate) per[k].plates.add(x.plate); });
+          const perL = Object.entries(per).sort((a, b) => b[1].usd - a[1].usd);
+          const label = new Date(m + "-02").toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+          return (
+            <Card title={`LEO'S · TICKETS DE ${label.toUpperCase()}`} right={<span className="text-[10px] text-[#5E6B7D]">hoja mensual de la estación · {tm.length} tickets · {money(tm.reduce((a, x) => a + Number(x.amount), 0))} · {N(tm.reduce((a, x) => a + Number(x.gallons || 0), 0))} gal</span>}>
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+                <div>
+                  <div className="text-[10px] font-black tracking-wider text-[#7C8A9C] mb-1">POR PERSONA (quien pidió el PO)</div>
+                  {perL.slice(0, 12).map(([k, v]) => (
+                    <div key={k} className="flex items-center gap-2 py-1 text-[12px] border-b border-[#1E2A38]/50">
+                      <span className="font-bold flex-1 truncate">{k}</span><span className="text-[#7C8A9C] w-8 text-right">{v.n}</span>
+                      <span className="mono w-20 text-right">{money(v.usd)}</span><span className="mono text-[#7C8A9C] w-16 text-right">{N(Math.round(v.gal))} gal</span>
+                      <span className="mono text-[10px] text-[#5E6B7D] w-24 truncate">{[...v.plates].join(" ")}</span>
+                    </div>))}
+                </div>
+                <div className="xl:col-span-2">
+                  <div className="text-[10px] font-black tracking-wider text-[#F87171] mb-1">{bad.length} TICKET{bad.length === 1 ? "" : "S"} CON PO QUE NO CUADRA · {money(bad.reduce((a, x) => a + Number(x.amount), 0))}</div>
+                  {bad.map(x => (
+                    <div key={x.id} className="flex items-start gap-2 py-1 text-[12px] border-b border-[#3B0D0D]">
+                      <span className="mono text-[#7C8A9C] w-16">{x.ticket_date.slice(5)}</span><span className="mono w-16">{money(x.amount)}</span><span className="mono w-16 text-[#7C8A9C]">{x.plate || "—"}</span>
+                      <span className="mono w-14">{x.po_raw || "sin PO"}</span><span className="text-[#B6C0CE] w-36 truncate">{x.creator || "—"}</span><span className="text-[#FCA5A5] flex-1">{(x.flags || []).join(" · ")}</span>
+                    </div>))}
+                  {amb.length ? <div className="text-[10px] font-black tracking-wider text-[#FDE68A] mt-3 mb-1">{amb.length} CON DETALLE MENOR (placa mal leída, fecha)</div> : null}
+                  {amb.map(x => (
+                    <div key={x.id} className="flex items-start gap-2 py-1 text-[12px] border-b border-[#1E2A38]/50">
+                      <span className="mono text-[#7C8A9C] w-16">{x.ticket_date.slice(5)}</span><span className="mono w-16">{money(x.amount)}</span><span className="mono w-16 text-[#7C8A9C]">{x.plate_raw || "—"}</span>
+                      <span className="mono w-14">{x.po_raw}</span><span className="text-[#B6C0CE] w-36 truncate">{x.creator || "—"}</span><span className="text-[#FDE68A] flex-1">{(x.flags || []).join(" · ")}</span>
+                    </div>))}
+                </div>
+              </div>
+            </Card>);
+        })() : null}
 
         {/* tabs */}
         <div className="flex items-center gap-2 flex-wrap">
