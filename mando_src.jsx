@@ -113,8 +113,9 @@ function useOps(t) {
     const pull = async () => {
       try {
         const a = t.access_token;
-        const [fuel, orders, ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog] = await Promise.all([
+        const [fuel, fuelTest, orders, ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog] = await Promise.all([
           get("fuel_pos_flagged?select=*&order=created_at.desc&limit=3000", a),
+          safe(get("fuel_pos?select=id,po,created_at,who,role,vehicle_id,vehicle_desc,plate,comb,reading,jobsite,station,gallons,amount,is_practice,notes&is_practice=eq.true&order=created_at.desc&limit=500", a)),
           safe(get("material_orders_full?select=*&order=created_at.desc&limit=2000", a)),
           get("events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1500", a),
           get("vehicles?select=*&order=id", a),
@@ -133,7 +134,7 @@ function useOps(t) {
         rpc("verify_pending_fuel", {}, a).catch(() => {}); rpc("escalate_pending", {}, a).catch(() => {});
         if (!on) return;
         setD({ loading: false, fuel: fuel.map(p => ({ ...p, ts: new Date(p.created_at).getTime() })), orders: orders.map(o => ({ ...o, ts: new Date(o.submitted_at || o.requested_at || o.created_at).getTime() })),
-          ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog, sync: Date.now(), err: "" });
+          fuelTest: fuelTest || [], ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog, sync: Date.now(), err: "" });
       } catch (e) { if (on) setD(x => ({ ...x, loading: false, err: /JWT|PGRST30|Session expired/i.test(String(e.message || e)) ? "SESSION EXPIRED · renewing…" : String(e.message || e).slice(0, 160) })); }
     };
     pull(); const iv = setInterval(pull, 7000); return () => { on = false; clearInterval(iv); };
@@ -396,7 +397,14 @@ function Orders({ d, now, t, q, focus, clearFocus, onChanged }) {
 /* ============================================================================
    ROOM · FUEL
    ============================================================================ */
-function Fuel({ d, now, q, mapGo }) {
+function Fuel({ d, now, q, mapGo, t, onChanged }) {
+  const [busy, setBusy] = useState("");
+  const markTest = async (p, test) => {
+    if (p.statement) return;  // statement tickets aren't app POs
+    const id = String(p.id).replace(/^t/, "");
+    if (!window.confirm(`${test ? "Mark as TEST" : "Count as real"} · ${p.po} · ${title(p.who)}?\n${test ? "It stops counting toward any total, flag, or the truck's odometer check." : ""}`)) return;
+    setBusy(p.id); try { await patch(`fuel_pos?id=eq.${id}`, { is_practice: test, notes: test ? ((p.notes || "") + " · TEST from Ops").trim() : (p.notes || null) }, t.access_token); onChanged(); } catch (e) { window.alert(String(e.message || e).slice(0, 200)); } finally { setBusy(""); }
+  };
   const [range, setRange] = useState(7); const [tab, setTab] = useState("pos");
   const gps = Object.fromEntries((d.fuelGps || []).map(f => [f.id, f]));
   const veh = d.veh || [], tickets = d.tickets || [];
@@ -415,8 +423,9 @@ function Fuel({ d, now, q, mapGo }) {
       if (hit) { hit.gallons = (Number(hit.gallons) || 0) + (Number(x.gallons) || 0) || hit.gallons; hit.amount = (Number(hit.amount) || 0) + (Number(x.amount) || 0) || hit.amount; hit.plate = hit.plate || x.plate; hit.reconciled = true; if (x.fuel_type && hit.comb && (/DIESEL/.test(x.fuel_type || "")) !== (hit.comb === "DIESEL") && (x.gallons || 0) > 12) hit.flags = [...(hit.flags || []), `Statement says ${x.fuel_type}, PO says ${hit.comb}`]; }
       else extra.push(asRow(x));
     });
-    return [...pos, ...extra].sort((a, b) => b.ts - a.ts);
-  }, [d.fuel, tickets, range, now, plateVeh]);
+    const test = (d.fuelTest || []).filter(x => range === 0 || new Date(x.created_at).getTime() >= now - range * 864e5).map(x => ({ id: x.id, po: x.po, ts: new Date(x.created_at).getTime(), who: x.who, role: x.role, vehicle_id: x.vehicle_id, vehicle_desc: x.vehicle_desc, plate: x.plate, comb: x.comb, reading: x.reading, jobsite: x.jobsite, station: x.station, gallons: x.gallons, amount: x.amount, flags: [], is_practice: true, notes: x.notes }));
+    return [...pos, ...extra, ...(monthMode ? [] : test)].sort((a, b) => b.ts - a.ts);
+  }, [d.fuel, d.fuelTest, tickets, range, now, plateVeh, monthMode]);
   const nStmt = fuel.filter(p => p.statement).length, nRec = fuel.filter(p => p.reconciled).length;
   const gal = fuel.reduce((a, p) => a + (+p.gallons || 0), 0), usd = fuel.reduce((a, p) => a + (+p.amount || 0), 0);
   const months = [...new Set(tickets.map(x => x.ticket_date.slice(0, 7)))].sort().reverse(); const m = months[0]; const tm = tickets.filter(x => x.ticket_date.slice(0, 7) === m);
@@ -449,11 +458,11 @@ function Fuel({ d, now, q, mapGo }) {
         <div className="g3"><Panel title="FUEL POs PER DAY" className="span2"><Bars data={days} color={C.amber} /></Panel>
           <Panel title="MIX"><Split parts={[{ label: "Diesel", v: fuel.filter(p => p.comb === "DIESEL").length, c: C.green }, { label: "Gasoline", v: fuel.filter(p => p.comb !== "DIESEL").length, c: C.orange }]} /><div className="sp" /><Split parts={[{ label: "Tex-Con", v: fuel.filter(p => /TEX/i.test(p.station)).length, c: "#3B82F6" }, { label: "Leo's", v: fuel.filter(p => /LEO/i.test(p.station)).length, c: C.amber }, { label: "Other", v: fuel.filter(p => !/TEX|LEO/i.test(p.station)).length, c: C.faint }]} /></Panel></div>
         <Panel flush><table className="tbl big"><Th cols={["PO", "WHEN", "WHO", "UNIT", "FUEL", "READING", "JOBSITE", "STATION", "GAL", "$", "GPS", "FLAGS"]} /><tbody>
-          {shown.map(p => { const g = gps[p.id]; const v = g?.gps_check ? verdict[g.gps_check] : null; return (<tr key={p.id} onClick={() => g?.gps_lat && mapGo(g.gps_lat, g.gps_lon, `${p.po} · ${title(p.who)}`)}>
-            <td className="mono"><b>{p.po}</b></td><td className="dim">{dt(p.ts)}</td><td><b>{title(p.who)}</b></td><td className="mono">{p.vehicle_id || p.plate || "—"}<span className="dim"> {p.vehicle_desc}</span></td><td><Tag c={p.comb === "DIESEL" ? C.green : C.orange}>{p.comb}</Tag></td>
+          {shown.map(p => { const g = gps[p.id]; const v = g?.gps_check ? verdict[g.gps_check] : null; return (<tr key={p.id} style={p.is_practice ? { opacity: .5 } : null} onClick={() => g?.gps_lat && mapGo(g.gps_lat, g.gps_lon, `${p.po} · ${title(p.who)}`)}>
+            <td className="mono"><b>{p.po}</b>{p.is_practice ? <Tag c={C.faint}>TEST</Tag> : null}</td><td className="dim">{dt(p.ts)}</td><td><b>{title(p.who)}</b></td><td className="mono">{p.vehicle_id || p.plate || "—"}<span className="dim"> {p.vehicle_desc}</span></td><td><Tag c={p.comb === "DIESEL" ? C.green : C.orange}>{p.comb}</Tag></td>
             <td className="mono r">{N(p.reading)}</td><td className="dim">{p.jobsite}</td><td>{p.station}</td><td className="mono r">{p.gallons ?? "—"}</td><td className="mono r">{p.amount ? money(p.amount) : "—"}</td>
             <td>{v ? <Tag c={v[0]}>{v[1]}</Tag> : p.statement ? <span className="dim xs">statement</span> : <span className="dim">—</span>}{p.reconciled ? <Tag c={C.green} dim>reconciled</Tag> : null}</td>
-            <td><div className="tags">{(p.flags || []).slice(0, 2).map((f, i) => <Tag key={i} c={/GPS|retroced|24 h|no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f) ? C.red : C.amber} dim>{f}</Tag>)}</div></td>
+            <td onClick={e => e.stopPropagation()}><div className="tags">{(p.flags || []).slice(0, 2).map((f, i) => <Tag key={i} c={/GPS|retroced|24 h|no existe|SIN PO|no para Leo|SIN_PO|PO_NO_ESTA_EN_LOG|PO_SERIE_93XX|PO_ES_NOMBRE|PO_EMITIDO_A_OTRO/.test(f) ? C.red : C.amber} dim>{f}</Tag>)}{!p.statement ? <button disabled={busy === p.id} onClick={() => markTest(p, !p.is_practice)} style={{ fontSize: 10, padding: "0 6px", cursor: "pointer", borderColor: p.is_practice ? C.green : C.faint, color: p.is_practice ? C.green : C.dim }}>{busy === p.id ? "…" : p.is_practice ? "count as real" : "mark test"}</button> : null}</div></td>
           </tr>); })}
           {!shown.length ? <tr><td colSpan={12}><Empty>{monthMode ? "No station tickets loaded for this month." : "No fuel POs in range. Pick a month tab to see the station statement."}</Empty></td></tr> : null}
         </tbody></table></Panel></>) : null}
@@ -674,7 +683,7 @@ function Ops({ t, onOut }) {
         {room === "situation" ? <Situation d={d} now={now} go={go} mapNode={mapNode} /> : null}
         {room === "ledger" ? <Ledger d={d} q={q} t={t} /> : null}
         {room === "orders" ? <Orders d={d} now={now} t={t} q={q} focus={focus} clearFocus={() => setFocus(null)} onChanged={refresh} /> : null}
-        {room === "fuel" ? <Fuel d={d} now={now} q={q} mapGo={(a, b, c) => { setRoom("fleet"); setTimeout(() => mapGo(a, b, c), 250); }} /> : null}
+        {room === "fuel" ? <Fuel d={d} now={now} q={q} t={t} onChanged={refresh} mapGo={(a, b, c) => { setRoom("fleet"); setTimeout(() => mapGo(a, b, c), 250); }} /> : null}
         {room === "fleet" ? <Fleet d={d} now={now} q={q} mapNode={mapNode} mapGo={mapGo} /> : null}
         {room === "people" ? <People d={d} t={t} onChanged={refresh} /> : null}
         {room === "rules" ? <Rules d={d} t={t} onChanged={refresh} /> : null}
