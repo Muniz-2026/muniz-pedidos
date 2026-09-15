@@ -2,9 +2,15 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE
-   One question per screen. The registry decides the fuel type, not the
-   person. Every PO lands in the office log automatically. No supervisor.
+   MUÑIZ COMBUSTIBLE · v3.0
+   Lives INSIDE the orders app (index.html loads fuel.js; pedidos_menu.js
+   calls window.MunizFuel.mount). Same design system as app.js. One header,
+   one back arrow. The registry decides the fuel type, not the person.
+   Every PO is registered by the server (create_fuel_po) the instant it is
+   generated. No supervisor, no messages.
+   Flow: ¿Qué vas a cargar? VEHÍCULO (placa + odómetro) · MAQUINARIA
+   (número + horas · diésel rojo) · LOS DOS → obra → estación + ¿gasolina?
+   fuel.html still works on its own (office console at fuel.html#oficina).
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -15,9 +21,6 @@ const SB = CFG.SUPABASE || {};
 const SB_URL = String(SB.URL || "").trim().replace(/\/+$/, "").replace(/\/rest\/v1$/, "").replace(/\/auth\/v1$/, "");
 const SB_KEY = String(SB.ANON_KEY || "");
 const HAS_BACKEND = !!(SB_URL && SB_KEY);
-/* embebido dentro del app de pedidos (pedidos_menu.js lo abre en un panel): el nombre ya viene puesto y "atrás" regresa al menú */
-const EMBED = (() => { try { return window.parent !== window || /embed/.test(window.location.hash); } catch (e) { return false; } })();
-const closeEmbed = () => { try { window.parent.postMessage({ type: "muniz-fuel-close" }, "*"); } catch (e) {} };
 const K_TOKEN = "muniz_office_token", K_DEV = "muniz_device_id";
 const deviceId = () => { try { let d = localStorage.getItem(K_DEV); if (!d) { d = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2); localStorage.setItem(K_DEV, d); } return d; } catch (e) { return "nodev"; } };
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -62,7 +65,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "2.3";
+const VERSION = "3.0";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -114,9 +117,6 @@ async function refreshRef() {
   applyRef(ref); return true;
 }
 const AL = Object.assign({ HORAS_MIN_ENTRE_CARGAS: 6, CARGAS_MAX_7DIAS: 4, MILLAS_MIN_ENTRE_CARGAS: 40 }, FUEL.ALERTAS || {});
-const FUEL_COLOR = { DIESEL: "#16A34A", GASOLINA: "#EA580C" };
-const TIPO_LABEL = { CAMIONETA: "Camioneta", MAQUINARIA: "Maquinaria", TAMBO: "Tambo / tanque", PIPA: "Camión de combustible" };
-
 /* ---------- storage ---------- */
 const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
@@ -125,27 +125,7 @@ const LS = {
 const K_ME = "muniz_fuel_me", K_HIST = "muniz_fuel_hist", K_LOG = "muniz_fuel_log", K_PLATES = "muniz_fuel_plates", K_OF = "muniz_oficina";
 const K_PEND = "muniz_fuel_pend";     /* POs generated but not yet registered */
 const WEBHOOK = String(FUEL.WEBHOOK || "");
-
-/* Fire-and-forget server log. An image beacon needs no CORS and no keys, so it
-   works from a static page. If it fails we keep the PO pending and the SMS
-   backlog picks it up. */
-function beacon(e) {
-  if (!WEBHOOK) return false;
-  try {
-    const q = new URLSearchParams({ po: e.po, ts: String(e.ts), who: e.who, vid: e.vid, veh: e.veh,
-      tipo: e.tipo, comb: e.comb, placa: e.placa || "", equipo: e.equipo || "",
-      lectura: String(e.lectura ?? ""), obra: e.obra, obraSemana: e.obraSemana || "",
-      est: e.est, flags: (e.autoFlags || []).join("|") }).toString();
-    const img = new Image(); img.src = WEBHOOK + (WEBHOOK.indexOf("?") >= 0 ? "&" : "?") + q;
-    try { fetch(WEBHOOK, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(e) }); } catch (x) {}
-    return true;
-  } catch (x) { return false; }
-}
-const pendList = () => LS.get(K_PEND, []);
-const pendAdd  = e => { const p = pendList(); if (!p.some(x => x.po === e.po)) { p.push(e); LS.set(K_PEND, p.slice(-40)); } };
-const pendClear = pos => { LS.set(K_PEND, pendList().filter(x => pos.indexOf(x.po) < 0)); };
 const officeUnlocked = () => { try { return localStorage.getItem(K_OF) === "1"; } catch (e) { return false; } };
-
 /* ---------- encoding (same as the orders app) ---------- */
 const b64e = o => { const s = JSON.stringify(o); const b = btoa(unescape(encodeURIComponent(s))); return b.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
 const b64d = t => { try { let s = t.replace(/-/g, "+").replace(/_/g, "/"); s += "=".repeat((4 - s.length % 4) % 4); return JSON.parse(decodeURIComponent(escape(atob(s)))); } catch (e) { return null; } };
@@ -161,22 +141,6 @@ function makePO(d) {
 const fmtNum = n => (n === "" || n == null) ? "—" : Number(n).toLocaleString("en-US");
 const fmtDT = ts => { const d = new Date(ts); return d.toLocaleDateString("es-MX", { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }); };
 const hoursBetween = (a, b) => Math.abs(a - b) / 36e5;
-
-/* One SMS can register several POs: any that never got sent ride along. */
-function pendBody(list) {
-  const L = list.slice(0, 8);
-  const head = L.length > 1 ? [`⛽ ${L.length} POs DE COMBUSTIBLE`, ""] : [];
-  const blocks = L.map(e => {
-    const s = (FUEL.ESTACIONES || {})[e.est] || {};
-    return [`PO ${e.po} · ${e.comb}`, e.who,
-      `${e.veh}${e.placa ? " · Placa " + e.placa : ""}${e.equipo ? " · Equipo " + e.equipo : ""}`,
-      e.lectura !== "" && e.lectura != null ? `${e.tipo === "MAQUINARIA" ? "Horas" : "Odómetro"}: ${Number(e.lectura).toLocaleString("en-US")}` : null,
-      `Obra: ${e.obra}`, `${s.nombre || e.est}`].filter(x => x !== null).join("\n");
-  });
-  const link = APP_URL + "fuel.html#f=" + b64e(L.length === 1 ? L[0] : { multi: L });
-  return [...head, blocks.join("\n\n"), "", "REGISTRO:", link].join("\n");
-}
-
 /* ---------- red flags: one function, used live and in the office ---------- */
 function flagsFor(e, history) {
   const f = [];
@@ -206,9 +170,7 @@ function flagsFor(e, history) {
   if (sameDayVeh.size >= 2) f.push({ lvl: "amber", t: `${e.who.split(" ")[0]} cargó ${sameDayVeh.size + 1} vehículos distintos hoy` });
   return f;
 }
-
-/* ===================================================================== UI atoms */
-const Shell = ({ children, dark = true }) => (
+const OShell = ({ children, dark = true }) => (
   <div className={`min-h-screen ${dark ? "bg-[#0B0F14] text-white" : "bg-[#F4F1EA] text-[#141414]"}`}
        style={{ fontFamily: "system-ui,-apple-system,'Segoe UI',Roboto,sans-serif" }}>
     <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@700&display=swap');
@@ -227,7 +189,7 @@ const Shell = ({ children, dark = true }) => (
   </div>
 );
 
-const Top = ({ step, total, onBack, title, sub }) => (
+const OTop = ({ step, total, onBack, title, sub }) => (
   <div className="px-4 pt-4 pb-2">
     <div className="flex items-center gap-3">
       {onBack ? <button onClick={onBack} aria-label="Atrás" className="w-11 h-11 rounded-2xl bg-[#1A2230] text-white text-xl font-black">←</button>
@@ -243,31 +205,17 @@ const Top = ({ step, total, onBack, title, sub }) => (
   </div>
 );
 
-const Big = ({ children, onClick, color = "#F5B800", text = "#0B0F14", disabled }) => (
+const OBig = ({ children, onClick, color = "#F5B800", text = "#0B0F14", disabled }) => (
   <button onClick={disabled ? undefined : onClick} disabled={disabled}
     className={`btn w-full py-4 text-[18px] ${disabled ? "opacity-40" : ""}`} style={{ background: color, color: text }}>{children}</button>
 );
 
-const FuelBadge = ({ comb, big }) => (
+const OFuelBadge = ({ comb, big }) => (
   <span className={`inline-flex items-center gap-1.5 rounded-full font-black ${big ? "px-4 py-2 text-[16px]" : "px-2.5 py-1 text-[11px]"}`}
         style={{ background: FUEL_COLOR[comb] || "#374151", color: "#fff" }}>
     {comb === "DIESEL" ? "🟢" : "🟠"} {comb}
   </span>
 );
-
-/* ===================================================================== keypad */
-function Keypad({ value, onChange, maxLen = 7 }) {
-  const tap = d => { if (value.length >= maxLen) return; onChange((value === "0" ? "" : value) + d); };
-  return (
-    <div className="grid grid-cols-3 gap-2 mt-4">
-      {["1","2","3","4","5","6","7","8","9"].map(d => (
-        <button key={d} onClick={() => tap(d)} className="btn h-16 rounded-2xl bg-[#1A2230] text-white text-3xl">{d}</button>))}
-      <button onClick={() => onChange(value.slice(0, -1))} className="btn h-16 rounded-2xl bg-[#1A2230] text-[#8B95A5] text-[14px]">BORRAR</button>
-      <button onClick={() => tap("0")} className="btn h-16 rounded-2xl bg-[#1A2230] text-white text-3xl">0</button>
-      <button onClick={() => onChange("")} className="btn h-16 rounded-2xl bg-[#1A2230] text-[#8B95A5] text-[14px]">LIMPIAR</button>
-    </div>);
-}
-
 /* ===================================================================== PIN */
 function PinGate({ onOk, onCancel }) {
   const [pin, setPin] = useState(""); const [bad, setBad] = useState(false);
@@ -286,459 +234,23 @@ function PinGate({ onOk, onCancel }) {
       </div>
     </div>);
 }
-
-/* ===================================================================== THE WIZARD */
-const numOr0 = v => { const n = Number(String(v).replace(/[^\d.]/g, "")); return isFinite(n) && n > 0 ? Math.round(n * 10) / 10 : 0; };
-const extrasText = (g, d) => [g ? `+ Gasolina ${g} gal (garrafas/equipo)` : null, d ? `+ Diésel rojo ${d} gal (equipo)` : null].filter(Boolean);
-function ExtraRow({ label, hint, color, value, onChange, presets }) {
-  return (
-    <div className="flex items-center justify-between gap-2 py-2 border-b border-[#1E2733] last:border-0">
-      <div className="min-w-0">
-        <div className="text-[13px] font-black" style={{ color }}>{label}</div>
-        <div className="text-[11px] text-[#8B95A5] leading-tight">{hint}</div>
-      </div>
-      <div className="flex items-center gap-1 shrink-0">
-        {presets.map(n => <button key={n} onClick={() => onChange(String(n))} className={`btn h-9 px-2 rounded-lg text-[12px] font-black ${String(value) === String(n) ? "bg-white text-[#0B0F14]" : "bg-[#1A2230] text-white"}`}>{n}</button>)}
-        <input inputMode="decimal" value={value} onChange={e => onChange(e.target.value.replace(/[^\d.]/g, "").slice(0, 5))} placeholder="gal"
-          className="w-16 h-9 rounded-lg bg-[#0B0F14] border border-[#1E2733] px-2 text-[14px] text-white text-right outline-none" />
-        {value ? <button onClick={() => onChange("")} className="btn h-9 w-9 rounded-lg bg-[#1A2230] text-[#8B95A5] text-[14px]">×</button> : null}
-      </div>
-    </div>);
-}
-
-function Wizard({ initialWho, onDone, onOffice }) {
-  const [step, setStep] = useState(initialWho ? 2 : 1);
-  const [who, setWho] = useState(initialWho || "");
-  const [q, setQ] = useState("");
-  const [veh, setVeh] = useState(null);
-  const [showAll, setShowAll] = useState(false);
-  const [plate, setPlate] = useState("");
-  const [equipNo, setEquipNo] = useState("");
-  const [lectura, setLectura] = useState("");
-  const [obra, setObra] = useState("");
-  const [obraOtra, setObraOtra] = useState("");
-  const [station, setStation] = useState("");
-  const [xGas, setXGas] = useState("");    // gal de gasolina para garrafas / equipo (además del vehículo)
-  const [xDyed, setXDyed] = useState("");  // gal de diésel rojo para equipo
-  const [ticket, setTicket] = useState(null);
-  const [sent, setSent] = useState(false);
-  const [asked, setAsked] = useState(false);
-  const [askedP, setAskedP] = useState(false);
-  const [tick, setTick] = useState(0);
-  const [srvLast, setSrvLast] = useState(null);      // what the server knows about this vehicle
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(null);
-  const t0 = useRef(Date.now());
-  useEffect(() => { logEvent("open", { who: initialWho || null }); }, []);
-  useEffect(() => { logEvent("step", { who: who || null, step }); }, [step]);
-  const [warn, setWarn] = useState(null);
-  const hist = LS.get(K_HIST, []);
-  const plates = LS.get(K_PLATES, {});
-  const TOTAL = 6;
-
-  const mine = useMemo(() => FLOTA.filter(v => v.de === who), [who]);
-  const shared = useMemo(() => FLOTA.filter(v => !v.de), []);
-  const others = useMemo(() => FLOTA.filter(v => v.de && v.de !== who), [who]);
-  const lastFor = vid => hist.filter(h => h.vid === vid).sort((a, b) => b.ts - a.ts)[0];
-
-  const needsPlate = veh && (veh.tipo === "CAMIONETA" || veh.tipo === "PIPA") && !veh.placa && !plates[veh.id];
-  const needsEquip = veh && veh.tipo === "MAQUINARIA";
-  const needsLectura = veh && (veh.tipo === "CAMIONETA" || veh.tipo === "MAQUINARIA" || veh.tipo === "PIPA");
-  const effPlate = veh ? (veh.placa || plates[veh.id] || plate) : "";
-  const localLast = veh ? lastFor(veh.id) : null;
-  const last = (srvLast && srvLast.last_at) ? { lectura: srvLast.last_reading == null ? "" : String(srvLast.last_reading), ts: new Date(srvLast.last_at).getTime(), po: srvLast.last_po } : localLast;
-  const obraSemana = OBRA_SEMANA[who] || "";
-
-  /* live validation on the reading */
-  const lecturaProblem = (() => {
-    if (!needsLectura || lectura === "") return null;
-    if (last && last.lectura !== "" && Number(lectura) < Number(last.lectura))
-      return { block: true, t: `${veh.tipo === "MAQUINARIA" ? "Las horas no pueden bajar" : "El odómetro no puede bajar"}. Última lectura: ${fmtNum(last.lectura)}` };
-    if (veh.tipo === "CAMIONETA" && last && last.lectura !== "" && Number(lectura) - Number(last.lectura) > 3000)
-      return { block: false, t: `Son ${fmtNum(Number(lectura) - Number(last.lectura))} millas desde la última carga. ¿Seguro?` };
-    return null;
-  })();
-
-  const go = n => { setWarn(null); setStep(n); window.scrollTo(0, 0); };
-
-  const generate = () => {
-    if (HAS_BACKEND) return generateServer();
-    const now = new Date();
-    const e = { po: makePO(now), ts: now.getTime(), who, role: roleOf(who),
-      vid: veh.id, veh: veh.desc, tipo: veh.tipo, comb: veh.comb,
-      placa: effPlate || "", equipo: equipNo || "", lectura: needsLectura ? lectura : "",
-      obra: obraOtra || obra, obraOtra: !!obraOtra, obraSemana,
-      est: station, plateTyped: !!(veh && !veh.placa && (plates[veh.id] || plate) && (veh.tipo === "CAMIONETA" || veh.tipo === "PIPA")), manualVeh: false, v: 1, xGas: numOr0(xGas), xDyed: numOr0(xDyed) };
-    e.autoFlags = flagsFor(e, LS.get(K_HIST, [])).map(f => f.t);
-    const h = LS.get(K_HIST, []); h.push(e); LS.set(K_HIST, h.slice(-400));
-    if (veh && !veh.placa && plate) { const p = LS.get(K_PLATES, {}); p[veh.id] = up(plate); LS.set(K_PLATES, p); }
-    pendAdd(e);
-    e.srv = beacon(e);          /* server log attempted */
-    setTicket(e); setSent(false); go(7);
-  };
-
-  const buildRow = () => ({
-    client_ref: uuid(), device_id: deviceId(), who, role: roleOf(who),
-    vehicle_id: veh.id, vehicle_desc: veh.desc, tipo: veh.tipo, comb: veh.comb,
-    plate: effPlate || null, plate_typed: !!(veh && !veh.placa && (plates[veh.id] || plate) && (veh.tipo === "CAMIONETA" || veh.tipo === "PIPA")),
-    equipo: equipNo || null, reading: needsLectura && lectura !== "" ? Number(lectura) : null,
-    jobsite: obraOtra || obra, jobsite_other: !!obraOtra, jobsite_week: obraSemana || null,
-    station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
-    extra_gas_gal: numOr0(xGas) || null, extra_dyed_gal: numOr0(xDyed) || null,
-    flags: flagsFor({ vid: veh.id, tipo: veh.tipo, ts: Date.now(), lectura: needsLectura ? lectura : "", who, obra: obraOtra || obra, obraOtra: !!obraOtra, obraSemana, plateTyped: false, manualVeh: false }, LS.get(K_HIST, [])).map(f => f.t),
-  });
-  const generateServer = async () => {
-    setBusy(true); setFailed(null);
-    const row = buildRow();
-    try {
-      const res = await sbRpc("create_fuel_po", { payload: row });
-      const saved = Array.isArray(res) ? res[0] : res;
-      if (!saved || !saved.po) throw new Error("respuesta sin PO: " + JSON.stringify(res).slice(0, 160));
-      const e = { po: saved.po, ts: new Date(saved.created_at).getTime(), who, role: row.role, vid: veh.id, veh: veh.desc, tipo: veh.tipo, comb: veh.comb,
-        placa: row.plate || "", equipo: row.equipo || "", lectura: row.reading == null ? "" : String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other,
-        obraSemana: row.jobsite_week || "", est: station, plateTyped: row.plate_typed, manualVeh: false, srv: true, v: 2, xGas: numOr0(xGas), xDyed: numOr0(xDyed) };
-      const h = LS.get(K_HIST, []); h.push(e); LS.set(K_HIST, h.slice(-400));
-      if (veh && !veh.placa && plate) { const p = LS.get(K_PLATES, {}); p[veh.id] = up(plate); LS.set(K_PLATES, p); }
-      logEvent("po_created", { who, meta: { po: saved.po, seconds: row.seconds_to_po, station } });
-      setTicket(e); setSent(true); go(7);
-    } catch (err) {
-      /* no signal or server down: keep it, retry, never lose it — but no PO until the server says so */
-      const q = LS.get("muniz_fuel_queue", []); q.push(row); LS.set("muniz_fuel_queue", q.slice(-50));
-      const msg = String((err && (err.body || err.message)) || err).slice(0, 300);
-      logEvent("error", { who, meta: { where: "insert", msg: msg.slice(0, 200) } });
-      setFailed({ ...row, __err: msg });
-    } finally { setBusy(false); }
-  };
-
-  const filtered = everyone().filter(n => !q || norm(n).includes(norm(q)));
-
-  /* ---------- 0 · an unregistered PO blocks everything ---------- */
-  const pend = useMemo(() => (HAS_BACKEND ? [] : pendList()), [tick, step]);
-  if (pend.length && step < 7) {
-    const p = pend[0];
-    const s0 = STATIONS[p.est] || {};
-    const body = pendBody(pend);
-    const tels = [FUEL.LOG_TEL, s0.tel].filter(Boolean);
-    return (
-      <Shell>
-        <Top title="Falta registrar un PO" sub="No se puede sacar otro hasta que este quede registrado" />
-        <div className="px-4 pb-8">
-          <div className="rounded-2xl bg-[#7F1D1D] px-4 py-4">
-            <div className="text-[12px] font-black tracking-widest opacity-90">PO SIN REGISTRAR{pend.length > 1 ? ` (${pend.length})` : ""}</div>
-            <div className="mono display text-[30px] leading-none mt-1">{p.po}</div>
-            <div className="text-[13px] font-bold mt-2">{p.who} · {p.veh}{p.placa ? " · " + p.placa : ""}</div>
-            <div className="text-[13px] mt-0.5 opacity-90">{p.obra} · {(STATIONS[p.est] || {}).corto || p.est} · {fmtDT(p.ts)}</div>
-          </div>
-          <div className="mt-4 text-[14px] text-[#B4BCC8] leading-snug">
-            Este PO ya está en la bomba pero la oficina todavía no lo tiene. Mándalo y ya puedes seguir.
-          </div>
-          <div className="mt-4">
-            <a href={smsHref(tels, body)} onClick={() => setAskedP(true)}
-               className="btn block w-full py-4 text-center text-[18px] bg-[#F5B800] text-[#0B0F14]">MANDAR REGISTRO ➤</a>
-          </div>
-          {askedP ? (
-            <div className="mt-4 card px-4 py-4 pop">
-              <div className="text-[15px] font-black text-center">¿Ya tocaste enviar en Mensajes?</div>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <button onClick={() => { pend.forEach(x => beacon(x)); pendClear(pend.map(x => x.po)); setAskedP(false); setTick(t => t + 1); }}
-                  className="btn py-3.5 bg-[#16A34A] text-white text-[15px]">SÍ, YA LO MANDÉ</button>
-                <button onClick={() => setAskedP(false)} className="btn py-3.5 bg-[#1A2230] text-white text-[15px]">TODAVÍA NO</button>
-              </div>
-            </div>) : null}
-        </div>
-      </Shell>);
-  }
-
-  /* ---------- no signal: the server assigns the PO, so without the server there is no PO yet ---------- */
-  if (failed) return (
-    <Shell>
-      <Top title="Sin señal" sub="El PO lo asigna la oficina en el momento. Sin señal no hay número todavía." />
-      <div className="px-4 pb-8">
-        <div className="card px-5 py-6 text-center">
-          <div className="text-6xl">📡</div>
-          <div className="display text-[22px] mt-3">No se pudo registrar</div>
-          <div className="text-[14px] text-[#B4BCC8] mt-2 leading-snug">Tu solicitud quedó guardada en el teléfono. Acércate a donde haya señal y toca reintentar. Se registra solita y te da el PO.</div>
-          {failed.__err ? <div className="mt-3 mono text-[11px] text-[#F87171] break-all">{String(failed.__err).slice(0, 220)}</div> : null}
-        </div>
-        <div className="mt-5"><Big onClick={() => { setFailed(null); generateServer(); }} disabled={busy}>{busy ? "REINTENTANDO…" : "REINTENTAR ↻"}</Big></div>
-        <button onClick={() => { setFailed(null); go(6); }} className="mt-3 w-full py-3 text-[12px] font-black text-[#5B6572]">REGRESAR</button>
-      </div>
-    </Shell>);
-
-  /* ---------- 1 · WHO ---------- */
-  if (step === 1) return (
-    <Shell>
-      <Top title="¿Quién eres?" sub="Toca tu nombre. El teléfono lo va a recordar." step={1} total={TOTAL} />
-      <div className="px-4 pb-6">
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar nombre…" autoFocus={false}
-          className="w-full h-14 rounded-2xl bg-[#121822] border border-[#1E2733] px-4 text-[17px] text-white placeholder-[#5B6572] outline-none" />
-        <div className="mt-3 grid grid-cols-1 gap-2">
-          {filtered.map(n => (
-            <button key={n} onClick={() => { setWho(n); LS.set(K_ME, n); setQ(""); go(2); }}
-              className="btn card px-4 py-4 text-left">
-              <span className="text-[17px] font-black">{n}</span>
-            </button>))}
-        </div>
-        <button onClick={onOffice} className="mt-8 w-full text-[11px] font-black tracking-widest text-[#5B6572]">OFICINA</button>
-      </div>
-    </Shell>);
-
-  /* ---------- 2 · WHAT ---------- */
-  if (step === 2) {
-    const VehCard = ({ v }) => {
-      const l = lastFor(v.id);
-      return (
-        <button onClick={() => { setVeh(v); setPlate(""); setEquipNo(""); setLectura(""); setSrvLast(null);
-            if (HAS_BACKEND) sbRpc("vehicle_status", { vid: v.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (x) setSrvLast(x); }).catch(() => {});
-            go(3); }}
-          className="btn card w-full text-left px-4 py-4 flex items-center gap-3 pop">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0" style={{ background: FUEL_COLOR[v.comb] + "22" }}>
-            {v.tipo === "CAMIONETA" ? "🛻" : v.tipo === "MAQUINARIA" ? "🚜" : v.tipo === "PIPA" ? "🚛" : "🛢️"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[16px] font-black leading-tight">{v.desc}</div>
-            <div className="mono text-[13px] text-[#B4BCC8] mt-0.5">{v.placa || plates[v.id] || (v.tipo === "CAMIONETA" || v.tipo === "PIPA" ? "placa pendiente" : v.tipo === "MAQUINARIA" ? "pide # de equipo" : "sin lectura")}</div>
-            {l ? <div className="text-[11px] text-[#5B6572] mt-0.5">Última carga {fmtDT(l.ts)}{l.lectura !== "" ? ` · ${fmtNum(l.lectura)}` : ""}</div> : null}
-          </div>
-          <FuelBadge comb={v.comb} />
-        </button>);
-    };
-    return (
-      <Shell>
-        <Top title="¿Qué vas a cargar?" sub={`${who} · el tipo de combustible lo pone el registro`} step={2} total={TOTAL} onBack={() => EMBED ? closeEmbed() : go(1)} />
-        <div className="px-4 pb-8 space-y-2">
-          {mine.length ? <><div className="text-[11px] font-black tracking-widest text-[#8B95A5] pt-2">TU VEHÍCULO</div>{mine.map(v => <VehCard key={v.id} v={v} />)}</> : null}
-          <div className="text-[11px] font-black tracking-widest text-[#8B95A5] pt-3">EQUIPO COMPARTIDO</div>
-          {shared.map(v => <VehCard key={v.id} v={v} />)}
-          {!showAll ? <button onClick={() => setShowAll(true)} className="w-full mt-3 py-3 text-[13px] font-black text-[#F5B800]">OTRO VEHÍCULO DE LA FLOTA ▾</button>
-            : <><div className="text-[11px] font-black tracking-widest text-[#8B95A5] pt-3">TODA LA FLOTA</div>
-                {others.map(v => <div key={v.id}><div className="text-[10px] text-[#5B6572] font-bold px-1 pt-2">{v.de}</div><VehCard v={v} /></div>)}</>}
-          <div className="mt-6 text-center text-[11px] text-[#5B6572] leading-snug">¿No está tu vehículo? Habla con Tito para que lo dé de alta.<br />No se puede cargar un vehículo que no esté en la flota.</div>
-        </div>
-      </Shell>);
-  }
-
-  /* ---------- 3 · PLATE / EQUIPMENT # (only when needed) ---------- */
-  if (step === 3) {
-    if (!needsPlate && !needsEquip) { go(4); return null; }
-    const isEq = needsEquip;
-    const val = isEq ? equipNo : plate;
-    const ok = isEq ? val.trim().length >= 1 : val.replace(/[^A-Z0-9]/g, "").length >= 5;
-    return (
-      <Shell>
-        <Top title={isEq ? "Número de equipo" : "Placa del vehículo"} sub={isEq ? "El número pintado en la máquina" : "Como aparece en la placa. Solo esta vez — se guarda."} step={3} total={TOTAL} onBack={() => go(2)} />
-        <div className="px-4 pb-8">
-          <input value={val} onChange={e => (isEq ? setEquipNo : setPlate)(up(e.target.value).replace(/[^A-Z0-9 -]/g, "").slice(0, 12))}
-            placeholder={isEq ? "EJ. BC-14" : "EJ. RTX4821"} autoCapitalize="characters" autoCorrect="off" spellCheck={false}
-            className="mono w-full h-20 rounded-2xl bg-[#121822] border-2 border-[#1E2733] px-4 text-[34px] tracking-widest text-center text-white placeholder-[#3B4553] outline-none focus:border-[#F5B800]" />
-          {!isEq ? <div className="mt-3 rounded-2xl bg-[#1A2230] px-4 py-3 text-[12px] text-[#B4BCC8]">Esta placa se va a guardar para <b className="text-white">{veh.desc}</b> y la oficina la va a verificar. Si te equivocas, la oficina lo va a ver.</div> : null}
-          <div className="mt-6"><Big onClick={() => go(4)} disabled={!ok}>CONTINUAR →</Big></div>
-        </div>
-      </Shell>);
-  }
-
-  /* ---------- 4 · ODOMETER / HOURS ---------- */
-  if (step === 4) {
-    if (!needsLectura) { go(5); return null; }
-    const isHrs = veh.tipo === "MAQUINARIA";
-    return (
-      <Shell>
-        <Top title={isHrs ? "Horas de la máquina" : "Odómetro"} sub={isHrs ? "Lo que marca el horómetro ahora" : "Las millas que marca el tablero ahora"} step={4} total={TOTAL} onBack={() => go(needsPlate || needsEquip ? 3 : 2)} />
-        <div className="px-4 pb-8">
-          <div className="card px-4 py-5 text-center">
-            <div className="mono text-[44px] leading-none text-white">{lectura ? fmtNum(lectura) : <span className="text-[#3B4553]">0</span>}</div>
-            <div className="text-[12px] font-black tracking-widest text-[#8B95A5] mt-1">{isHrs ? "HORAS" : "MILLAS"}</div>
-            {last && last.lectura !== "" ? <div className="mt-2 text-[12px] text-[#B4BCC8]">Última carga: <b className="mono text-white">{fmtNum(last.lectura)}</b> · {fmtDT(last.ts)}</div> : null}
-          </div>
-          {lecturaProblem ? <div className={`mt-3 rounded-2xl px-4 py-3 text-[13px] font-bold ${lecturaProblem.block ? "bg-[#7F1D1D] text-white" : "bg-[#78350F] text-white"}`}>{lecturaProblem.block ? "⛔ " : "⚠ "}{lecturaProblem.t}</div> : null}
-          <Keypad value={lectura} onChange={setLectura} />
-          <div className="mt-5"><Big onClick={() => go(5)} disabled={!lectura || (lecturaProblem && lecturaProblem.block)}>CONTINUAR →</Big></div>
-        </div>
-      </Shell>);
-  }
-
-  /* ---------- 5 · JOBSITE ---------- */
-  if (step === 5) return (
-    <Shell>
-      <Top title="¿En qué obra estás?" sub="El lugar, no el número de contrato" step={5} total={TOTAL} onBack={() => go(needsLectura ? 4 : (needsPlate || needsEquip ? 3 : 2))} />
-      <div className="px-4 pb-8">
-        {obraSemana ? (
-          <button onClick={() => { setObra(obraSemana); setObraOtra(""); go(6); }}
-            className="btn w-full text-left rounded-2xl px-4 py-4 border-2 border-[#F5B800] bg-[#F5B800]/10">
-            <div className="text-[10px] font-black tracking-widest text-[#F5B800]">SEGÚN EL ROL DE ESTA SEMANA</div>
-            <div className="display text-[22px] text-white mt-0.5">{obraSemana}</div>
-            <div className="text-[12px] text-[#B4BCC8] mt-1">Toca para confirmar</div>
-          </button>) : null}
-        <div className="text-[11px] font-black tracking-widest text-[#8B95A5] pt-4 pb-2">{obraSemana ? "¿ESTÁS EN OTRA OBRA?" : "ESCOGE LA OBRA"}</div>
-        <div className="grid grid-cols-2 gap-2">
-          {OBRAS.filter(o => o !== obraSemana).map(o => (
-            <button key={o} onClick={() => { setObra(o); setObraOtra(""); go(6); }} className="btn card px-3 py-3.5 text-left text-[14px] font-black leading-tight min-h-[60px]">{o}</button>))}
-        </div>
-        <div className="mt-4 card px-4 py-3">
-          <div className="text-[11px] font-black tracking-widest text-[#8B95A5]">OTRA UBICACIÓN (queda marcada)</div>
-          <div className="flex gap-2 mt-2">
-            <input value={obraOtra} onChange={e => setObraOtra(e.target.value.slice(0, 40))} placeholder="Calle o lugar…"
-              className="flex-1 h-12 rounded-xl bg-[#0B0F14] border border-[#1E2733] px-3 text-[15px] text-white outline-none" />
-            <button onClick={() => { if (obraOtra.trim().length >= 3) { setObra(""); go(6); } }} className="btn px-4 rounded-xl bg-[#1A2230] text-white text-[13px]">OK</button>
-          </div>
-        </div>
-      </div>
-    </Shell>);
-
-  /* ---------- 6 · STATION + REVIEW ---------- */
-  if (step === 6) {
-    const rows = [
-      ["Quién", who], ["Vehículo", veh.desc + (effPlate ? ` · ${effPlate}` : "") + (equipNo ? ` · ${equipNo}` : "")],
-      needsLectura ? [veh.tipo === "MAQUINARIA" ? "Horas" : "Odómetro", fmtNum(lectura)] : null,
-      ["Obra", obraOtra || obra],
-      ...(numOr0(xGas) ? [["+ Gasolina", `${numOr0(xGas)} gal · garrafas/equipo`]] : []),
-      ...(numOr0(xDyed) ? [["+ Diésel rojo", `${numOr0(xDyed)} gal · equipo`]] : []),
-    ].filter(Boolean);
-    return (
-      <Shell>
-        <Top title="¿Dónde vas a cargar?" sub="Escoge la estación, di qué más cargas y revisa" step={6} total={TOTAL} onBack={() => go(5)} />
-        <div className="px-4 pb-8">
-          <div className="grid grid-cols-2 gap-2">
-            {Object.entries(STATIONS).map(([k, s]) => (
-              <button key={k} onClick={() => setStation(k)} className={`btn rounded-2xl px-3 py-5 text-left border-2 ${station === k ? "border-white" : "border-transparent"}`} style={{ background: s.color, color: k === "LEOS" ? "#0B0F14" : "#fff" }}>
-                <div className="display text-[20px] leading-tight">{s.corto}</div>
-                <div className="text-[12px] font-bold mt-1 opacity-90">{s.nombre}</div>
-              </button>))}
-          </div>
-          <div className="mt-4 card px-4 py-3">
-            <div className="text-[11px] font-black tracking-widest text-[#8B95A5]">¿QUÉ MÁS CARGAS EN ESTE PO?</div>
-            <div className="text-[12px] text-[#B4BCC8] mt-0.5 mb-1">Además del {veh.comb === "DIESEL" ? "diésel" : "gasolina"} del vehículo. Déjalo vacío si nada más.</div>
-            <ExtraRow label="Gasolina" hint="garrafas · equipo chico" color="#FB923C" value={xGas} onChange={setXGas} presets={[5, 10]} />
-            <ExtraRow label="Diésel rojo" hint="equipo · tanque de transferencia" color="#F87171" value={xDyed} onChange={setXDyed} presets={[25, 50]} />
-          </div>
-          <div className="mt-4 card px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] font-black tracking-widest text-[#8B95A5]">RESUMEN</div>
-              <FuelBadge comb={veh.comb} />
-            </div>
-            {rows.map(([k, v]) => <div key={k} className="flex justify-between gap-3 py-2 border-b border-[#1E2733] last:border-0"><span className="text-[13px] text-[#8B95A5]">{k}</span><span className="text-[14px] font-black text-right">{v}</span></div>)}
-          </div>
-          {last && hoursBetween(Date.now(), last.ts) < AL.HORAS_MIN_ENTRE_CARGAS && veh.tipo !== "PIPA" ? (
-            <div className="mt-3 rounded-2xl bg-[#78350F] px-4 py-3 text-[13px] font-bold">⚠ Este vehículo cargó hace {Math.max(1, Math.round(hoursBetween(Date.now(), last.ts)))} h. Queda marcado para la oficina.</div>) : null}
-          <div className="mt-5"><Big onClick={generate} disabled={!station || busy}>{busy ? "REGISTRANDO…" : "GENERAR PO ⛽"}</Big></div>
-          {HAS_BACKEND ? <div className="mt-2 text-center text-[11px] text-[#5B6572]">Se registra en la oficina en este instante. Nadie tiene que mandar nada.</div> : null}
-        </div>
-      </Shell>);
-  }
-
-  /* ---------- 7 · REGISTER, THEN THE TICKET (only when there is NO backend) ---------- */
-  if (step === 7 && ticket && !sent && !ticket.srv) {
-    const s = STATIONS[ticket.est] || {};
-    const tels = [FUEL.LOG_TEL, s.tel].filter(Boolean);
-    const body = pendBody(pendList().length ? pendList() : [ticket]);
-    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-    return (
-      <Shell>
-        <Top title="Manda el registro" sub="Tu número de PO aparece en cuanto quede registrado" />
-        <div className="px-4 pb-8">
-          <div className="card px-5 py-6 text-center">
-            <div className="text-6xl">🔒</div>
-            <div className="display text-[22px] mt-3">Tu PO está listo</div>
-            <div className="text-[14px] text-[#B4BCC8] mt-2 leading-snug">Falta un paso: mandar el registro a la oficina.<br />Sin eso no se muestra el número.</div>
-          </div>
-          <div className="mt-4 card px-4 py-3">
-            {[["Quién", ticket.who], ["Vehículo", ticket.veh + (ticket.placa ? " · " + ticket.placa : "") + (ticket.equipo ? " · " + ticket.equipo : "")],
-              ticket.lectura !== "" ? [ticket.tipo === "MAQUINARIA" ? "Horas" : "Odómetro", fmtNum(ticket.lectura)] : null,
-              ["Obra", ticket.obra], ["Estación", s.nombre || ticket.est], ...(ticket.xGas ? [["+ Gasolina", ticket.xGas + " gal"]] : []), ...(ticket.xDyed ? [["+ Diésel rojo", ticket.xDyed + " gal"]] : [])].filter(Boolean)
-              .map(([k, v]) => <div key={k} className="flex justify-between gap-3 py-2 border-b border-[#1E2733] last:border-0"><span className="text-[13px] text-[#8B95A5]">{k}</span><span className="text-[14px] font-black text-right">{v}</span></div>)}
-          </div>
-          <div className="mt-5">
-            <a href={smsHref(tels, body)} onClick={() => { setAsked(true); }}
-               className="btn block w-full py-5 text-center text-[19px] bg-[#F5B800] text-[#0B0F14]">MANDAR REGISTRO ➤</a>
-            <div className="mt-2 text-center text-[11px] text-[#5B6572]">Se abre Mensajes con todo escrito. Solo toca la flecha de enviar.</div>
-          </div>
-          {asked ? (
-            <div className="mt-5 card px-4 py-4 pop">
-              <div className="text-[15px] font-black text-center">¿Ya tocaste enviar en Mensajes?</div>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <button onClick={() => { pendClear([ticket.po]); setSent(true); }} className="btn py-3.5 bg-[#16A34A] text-white text-[15px]">SÍ, YA LO MANDÉ</button>
-                <button onClick={() => setAsked(false)} className="btn py-3.5 bg-[#1A2230] text-white text-[15px]">TODAVÍA NO</button>
-              </div>
-            </div>) : null}
-          {offline ? (
-            <button onClick={() => setSent(true)} className="mt-6 w-full py-3 rounded-2xl bg-[#78350F] text-white text-[13px] font-black">
-              SIN SEÑAL — ver mi PO ahora (se manda solo cuando haya señal)
-            </button>) : null}
-        </div>
-      </Shell>);
-  }
-  if (step === 7 && ticket) {
-    const s = STATIONS[ticket.est] || { nombre: ticket.est, corto: ticket.est, color: "#374151" };
-    const payload = { ...ticket };
-    const link = APP_URL + "fuel.html#f=" + b64e(payload);
-    const xs = extrasText(ticket.xGas, ticket.xDyed);
-    const lines = [`PO ${ticket.po} · ${ticket.comb}${xs.length ? " " + xs.join(" ") : ""}`, `${ticket.who}`,
-      `${ticket.veh}${ticket.placa ? " · Placa " + ticket.placa : ""}${ticket.equipo ? " · Equipo " + ticket.equipo : ""}`,
-      ticket.lectura !== "" ? `${ticket.tipo === "MAQUINARIA" ? "Horas" : "Odómetro"}: ${fmtNum(ticket.lectura)}` : null,
-      `Obra: ${ticket.obra}`, `${s.nombre}`, "", "REGISTRO:", link].filter(x => x !== null);
-    const tels = [FUEL.LOG_TEL, s.tel].filter(Boolean);
-    return (
-      <Shell>
-        <div className="px-4 pt-4">
-          <div className="text-[11px] font-black tracking-[0.18em] text-[#8B95A5]">MUÑIZ COMBUSTIBLE · PO GENERADO</div>
-        </div>
-        <div className="px-4 pt-3 pb-10 pop">
-          <div className="rounded-t-3xl overflow-hidden" style={{ background: FUEL_COLOR[ticket.comb] }}>
-            <div className="px-5 py-5 text-white">
-              <div className="text-[12px] font-black tracking-[0.2em] opacity-90">TIPO DE COMBUSTIBLE</div>
-              <div className="display text-[46px] leading-none mt-1">{ticket.comb}</div>
-              {xs.length ? <div className="mt-2 flex flex-wrap gap-1">{xs.map(x => <span key={x} className="rounded-lg bg-black/25 px-2 py-1 text-[13px] font-black">{x}</span>)}</div> : null}
-            </div>
-          </div>
-          <div className="bg-white text-[#141414] px-5 pt-5 pb-4">
-            <div className="text-[11px] font-black tracking-[0.2em] text-[#6B7280]">NÚMERO DE PO</div>
-            <div className="mono display text-[38px] leading-none mt-1 tracking-tight">{ticket.po}</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-5">
-              <div><div className="text-[10px] font-black tracking-widest text-[#6B7280]">{ticket.placa ? "PLACA" : ticket.equipo ? "EQUIPO" : "UNIDAD"}</div><div className="mono text-[22px] font-black">{ticket.placa || ticket.equipo || "—"}</div></div>
-              <div><div className="text-[10px] font-black tracking-widest text-[#6B7280]">{ticket.tipo === "MAQUINARIA" ? "HORAS" : "ODÓMETRO"}</div><div className="mono text-[22px] font-black">{ticket.lectura !== "" ? fmtNum(ticket.lectura) : "—"}</div></div>
-              <div className="col-span-2"><div className="text-[10px] font-black tracking-widest text-[#6B7280]">CHOFER</div><div className="text-[18px] font-black">{ticket.who}</div></div>
-              <div className="col-span-2"><div className="text-[10px] font-black tracking-widest text-[#6B7280]">VEHÍCULO</div><div className="text-[15px] font-bold">{ticket.veh}</div></div>
-              <div className="col-span-2"><div className="text-[10px] font-black tracking-widest text-[#6B7280]">OBRA</div><div className="text-[15px] font-bold">{ticket.obra}</div></div>
-            </div>
-          </div>
-          <div className="perf" style={{ background: "#fff", backgroundImage: "radial-gradient(circle,#0B0F14 7px,transparent 8px)", backgroundSize: "24px 22px", backgroundPosition: "center", backgroundRepeat: "repeat-x" }} />
-          <div className="rounded-b-3xl px-5 py-4 flex items-center justify-between" style={{ background: s.color, color: ticket.est === "LEOS" ? "#0B0F14" : "#fff" }}>
-            <div><div className="text-[10px] font-black tracking-widest opacity-80">ESTACIÓN</div><div className="display text-[22px] leading-none">{s.corto}</div></div>
-            <div className="text-right"><div className="text-[10px] font-black tracking-widest opacity-80">FECHA</div><div className="text-[14px] font-black">{fmtDT(ticket.ts)}</div></div>
-          </div>
-
-          <div className="mt-5 text-center text-[13px] text-[#B4BCC8] font-bold">Muestra esta pantalla en la bomba. {xs.length ? "Todo lo de arriba va en este mismo PO." : "Leo's pide PO, placa y nombre — aquí están."}</div>
-          {ticket.srv ? (
-            <div className="mt-3 rounded-2xl bg-[#052E16] border border-[#16A34A] px-4 py-3 text-center text-[13px] font-black text-[#86EFAC]">✓ Registrado en la oficina · {fmtDT(ticket.ts)}</div>) : null}
-          {(!ticket.srv || s.tel) ? (
-            <div className="mt-4">
-              <a href={smsHref(ticket.srv ? [s.tel] : tels, lines.join("\n"))} className="btn block w-full py-4 text-center text-[18px] bg-[#F5B800] text-[#0B0F14]">{ticket.srv ? "MANDAR PO A " + (s.corto || "LA ESTACIÓN") + " ➤" : "MANDAR PO ➤"}</a>
-              <div className="mt-2 text-center text-[11px] text-[#5B6572]">{ticket.srv ? "Opcional: la estación lo recibe por texto." : "Se manda solo al registro" + (s.tel ? " y a la estación" : "") + ". Nadie tiene que aprobarlo."}</div>
-            </div>) : null}
-          <button onClick={() => onDone(ticket)} className="mt-6 w-full py-3 rounded-2xl bg-[#1A2230] text-white text-[15px] font-black">LISTO</button>
-        </div>
-      </Shell>);
-  }
-  return null;
-}
-
 /* ===================================================================== OFFICE CONSOLE */
 function Login({ onOk, onCancel }) {
   const [email, setEmail] = useState(""); const [pw, setPw] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   const go = async () => { setBusy(true); setErr(""); try { const t = await sbLogin(email.trim(), pw); onOk(t); } catch (e) { setErr("Correo o contraseña incorrectos"); } finally { setBusy(false); } };
   return (
-    <Shell>
-      <Top title="Oficina" sub="Entra con tu correo de Muñiz" />
+    <OShell>
+      <OTop title="Oficina" sub="Entra con tu correo de Muñiz" />
       <div className="px-4 pb-8">
         <input value={email} onChange={e => setEmail(e.target.value)} placeholder="correo" type="email" autoCapitalize="none"
           className="w-full h-14 rounded-2xl bg-[#121822] border border-[#1E2733] px-4 text-[17px] text-white outline-none" />
         <input value={pw} onChange={e => setPw(e.target.value)} placeholder="contraseña" type="password" onKeyDown={e => e.key === "Enter" && go()}
           className="mt-2 w-full h-14 rounded-2xl bg-[#121822] border border-[#1E2733] px-4 text-[17px] text-white outline-none" />
         {err ? <div className="mt-3 text-[#F87171] text-[14px] font-black">{err}</div> : null}
-        <div className="mt-5"><Big onClick={go} disabled={busy || !email || !pw}>{busy ? "ENTRANDO…" : "ENTRAR"}</Big></div>
+        <div className="mt-5"><OBig onClick={go} disabled={busy || !email || !pw}>{busy ? "ENTRANDO…" : "ENTRAR"}</OBig></div>
         <button onClick={onCancel} className="mt-4 w-full text-[12px] font-black text-[#5B6572]">CANCELAR</button>
       </div>
-    </Shell>);
+    </OShell>);
 }
 
 function Office({ whoOf, onExit, onNew, token }) {
@@ -791,7 +303,7 @@ function Office({ whoOf, onExit, onNew, token }) {
       <div className={`card-light px-4 py-3 ${red ? "border-[#DC2626] border-2" : e.flags.length ? "border-[#F59E0B] border-2" : ""}`}>
         <div className="flex items-center justify-between gap-2">
           <div className="mono text-[15px] font-black">{e.po}</div>
-          <div className="flex items-center gap-1.5"><FuelBadge comb={e.comb} /><span className="text-[10px] font-black px-2 py-1 rounded-full" style={{ background: s.color || "#ddd", color: e.est === "LEOS" ? "#0B0F14" : "#fff" }}>{s.corto || e.est}</span></div>
+          <div className="flex items-center gap-1.5"><OFuelBadge comb={e.comb} /><span className="text-[10px] font-black px-2 py-1 rounded-full" style={{ background: s.color || "#ddd", color: e.est === "LEOS" ? "#0B0F14" : "#fff" }}>{s.corto || e.est}</span></div>
         </div>
         <div className="mt-1.5 text-[15px] font-black">{e.who} <span className="text-[#6B7280] font-bold text-[13px]">· {e.veh}{e.placa ? ` · ${e.placa}` : ""}{e.equipo ? ` · ${e.equipo}` : ""}</span></div>
         <div className="text-[12px] text-[#6B7280] mt-0.5">{fmtDT(e.ts)} · {e.obra}{e.lectura !== "" ? ` · ${e.tipo === "MAQUINARIA" ? "hrs" : "mi"} ${fmtNum(e.lectura)}` : ""}</div>
@@ -803,7 +315,7 @@ function Office({ whoOf, onExit, onNew, token }) {
   const shown = list.filter(e => !filter || norm(e.who + " " + e.placa + " " + e.po + " " + e.obra + " " + e.veh).includes(norm(filter)));
 
   return (
-    <Shell dark={false}>
+    <OShell dark={false}>
       <div className="bg-[#0B0F14] text-white px-4 pt-4 pb-4">
         <div className="flex items-center justify-between">
           <div><div className="text-[11px] font-black tracking-[0.18em] text-[#8B95A5]">MUÑIZ COMBUSTIBLE · OFICINA</div><div className="display text-[24px]">Registro de combustible</div><div className="text-[12px] text-[#B4BCC8]">{whoOf}</div></div>
@@ -842,7 +354,7 @@ function Office({ whoOf, onExit, onNew, token }) {
           <div className="mt-3 space-y-2 pb-6">
             {FLOTA.map(v => { const h = (byVeh[v.id] || []).sort((a, b) => b.ts - a.ts); const l = h[0]; const typed = (h.find(x => x.plateTyped && x.placa) || {}).placa;
               return (<div key={v.id} className="card-light px-4 py-3 flex items-center gap-3">
-                <FuelBadge comb={v.comb} />
+                <OFuelBadge comb={v.comb} />
                 <div className="flex-1 min-w-0"><div className="text-[14px] font-black truncate">{v.desc} <span className="text-[#6B7280] font-bold">· {v.de || "compartido"}</span></div>
                   <div className="mono text-[12px] text-[#6B7280]">{v.placa || (typed ? `${typed} (dictada)` : "sin placa")} · {h.length} carga(s){l && l.lectura !== "" ? ` · última ${fmtNum(l.lectura)}` : ""}</div></div>
               </div>); })}
@@ -852,10 +364,511 @@ function Office({ whoOf, onExit, onNew, token }) {
           <button onClick={onNew} className="btn py-3.5 bg-[#F5B800] text-[#0B0F14] text-[14px]">⛽ NUEVO PO</button>
         </div>
       </div>
+    </OShell>);
+}
+
+/* =====================================================================
+   UI · same design system as MUÑIZ PEDIDOS (app.js): #EDEBE6 background,
+   white cards with #D8D4CB borders, black square ←, Archivo Black titles,
+   the hazard stripe on top. Hand-written CSS (no Tailwind dependency) so
+   the wizard renders identically inside index.html and in fuel.html.
+   ===================================================================== */
+const C = { bg: "#EDEBE6", ink: "#17181A", line: "#D8D4CB", mute: "#6B675E", faint: "#8A867C", orange: "#FF5A00",
+            blue: "#2E5C8A", green: "#1F8A3B", red: "#C81E1E", amber: "#FFB800", fuel: "#1E3A8A", paper: "#F5F3EE" };
+const FUEL_COLOR = { DIESEL: C.green, GASOLINA: C.orange, "DIESEL ROJO": C.red };
+const FUEL_LABEL = { DIESEL: "DIÉSEL", GASOLINA: "GASOLINA", "DIESEL ROJO": "DIÉSEL ROJO" };
+const TIPO_LABEL = { CAMIONETA: "Camioneta", MAQUINARIA: "Maquinaria", TAMBO: "Tambo / tanque", PIPA: "Camión de combustible" };
+
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap');
+.mzf{min-height:100%;background:${C.bg};color:${C.ink};font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.mzf,.mzf *{box-sizing:border-box}
+.mzf button{font-family:inherit;border:0;background:none;padding:0;margin:0;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+.mzf input{font-family:inherit;-webkit-user-select:text;user-select:text}
+.mzf-display{font-family:'Archivo Black',system-ui,sans-serif}
+.mzf-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.mzf-stripe{height:8px;background:repeating-linear-gradient(45deg,${C.ink} 0 14px,${C.amber} 14px 28px)}
+.mzf-head{position:sticky;top:0;z-index:20}
+.mzf-bar{background:#fff;border-bottom:1px solid ${C.line};padding:6px 8px;display:flex;align-items:center;gap:8px}
+.mzf .mzf-back{width:48px;height:48px;flex:none;border-radius:12px;background:${C.ink};color:#fff;font-size:24px;font-weight:900;display:flex;align-items:center;justify-content:center;transition:transform .08s}
+.mzf .mzf-back:active{transform:scale(.95)}
+.mzf-title{font-size:15px;font-weight:900;letter-spacing:-.025em;line-height:1.2}
+.mzf-sub{font-size:10px;color:${C.mute};line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mzf-strip{color:#fff;padding:4px 8px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:11px;font-weight:900;letter-spacing:.1em}
+.mzf-body{padding:12px 12px 150px}
+.mzf-label{font-size:10px;font-weight:900;letter-spacing:.1em;color:${C.mute};margin:0 2px 6px}
+.mzf-card{background:#fff;border:2px solid ${C.line};border-radius:12px}
+.mzf .mzf-choice{display:block;width:100%;text-align:left;background:#fff;border:4px solid;border-radius:16px;padding:14px 16px;transition:transform .08s}
+.mzf .mzf-choice:active{transform:scale(.98)}
+.mzf .mzf-choice .t{font-size:30px;line-height:1;letter-spacing:-.02em}
+.mzf .mzf-choice .s{font-size:12px;font-weight:700;color:${C.ink};margin-top:4px;line-height:1.3}
+.mzf-cta{display:inline-block;color:#fff;font-size:12px;font-weight:900;padding:6px 10px;border-radius:8px;margin-top:10px;letter-spacing:.02em}
+.mzf .mzf-pick{display:block;width:100%;text-align:left;background:#fff;border:2px solid ${C.line};border-radius:12px;padding:12px;min-height:60px;font-size:14px;font-weight:900;line-height:1.2;transition:transform .08s}
+.mzf .mzf-pick:active{transform:scale(.98)}
+.mzf .mzf-pick.on{border-color:${C.orange};box-shadow:inset 0 0 0 2px ${C.orange}}
+.mzf-input{width:100%;height:56px;border:2px solid ${C.ink};border-radius:12px;padding:0 12px;font-size:22px;font-weight:700;background:#fff;color:${C.ink};outline:none;appearance:none}
+.mzf-input::placeholder{color:#B9B4A9;font-weight:600}
+.mzf-input.big{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;text-align:center;font-size:30px;height:68px}
+.mzf-input.num{text-align:center;font-size:30px;height:68px;letter-spacing:.04em}
+.mzf .mzf-btn{display:block;width:100%;border-radius:12px;padding:15px 12px;text-align:center;font-weight:900;font-size:18px;color:#fff;letter-spacing:-.01em;transition:transform .08s,filter .08s}
+.mzf .mzf-btn:active{transform:scale(.98);filter:brightness(.95)}
+.mzf .mzf-btn:disabled{background:${C.line}!important;color:${C.faint}!important;transform:none;filter:none}
+.mzf .mzf-btn.lite{background:${C.bg};color:${C.ink};border:2px solid ${C.line};font-size:15px;padding:12px}
+.mzf-badge{display:inline-flex;align-items:center;border-radius:6px;padding:4px 7px;font-size:10px;font-weight:900;color:#fff;letter-spacing:.04em;white-space:nowrap}
+.mzf-grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mzf-fixed{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid ${C.line};padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+.mzf-fixed .hint{text-align:center;font-size:12px;font-weight:700;color:${C.mute};padding:6px 0 2px}
+.mzf-warn{border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;line-height:1.35}
+.mzf-warn.red{background:${C.red};color:#fff}
+.mzf-warn.amber{background:${C.amber};color:${C.ink}}
+.mzf-warn.blue{background:#EAF1F8;color:${C.blue};border:2px solid ${C.blue}}
+.mzf-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid ${C.bg}}
+.mzf-row:last-child{border-bottom:0}
+.mzf-row .k{font-size:12px;color:${C.mute};font-weight:700}
+.mzf-row .v{font-size:14px;font-weight:900;text-align:right}
+.mzf-yn{display:flex;gap:6px}
+.mzf-yn button{flex:1;padding:14px 0;border-radius:12px;border:2px solid ${C.line};background:#fff;font-size:16px;font-weight:900;color:${C.ink}}
+.mzf-yn button.on{background:${C.ink};color:#fff;border-color:${C.ink}}
+.mzf-names{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mzf-names button{min-height:52px;border-radius:12px;padding:8px 6px;font-size:12px;font-weight:900;line-height:1.2;border:2px solid ${C.line};background:#fff;color:${C.ink}}
+.mzf-names button:active{transform:scale(.97)}
+@keyframes mzfpop{0%{transform:scale(.96);opacity:0}100%{transform:scale(1);opacity:1}}
+.mzf-pop{animation:mzfpop .22s ease-out}
+@keyframes mzfspin{to{transform:rotate(360deg)}}
+.mzf-spin{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:mzfspin .8s linear infinite;vertical-align:-3px;margin-right:8px}
+`;
+
+const Shell = ({ children }) => (
+  <div className="mzf"><style>{CSS}</style>{children}</div>);
+
+/* the ONE header — identical geometry to the materials screens */
+const Head = ({ title, who, onBack, strip, stripColor }) => (
+  <div className="mzf-head">
+    <div className="mzf-stripe" />
+    <div className="mzf-bar">
+      {onBack ? <button className="mzf-back" aria-label="Atrás" onClick={onBack}>←</button> : null}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="mzf-title mzf-display">{title}</div>
+        {who ? <div className="mzf-sub">{who}</div> : null}
+      </div>
+    </div>
+    {strip ? <div className="mzf-strip" style={{ background: stripColor || C.fuel }}>{strip}</div> : null}
+  </div>);
+
+const Badge = ({ comb, style }) => (
+  <span className="mzf-badge" style={{ background: FUEL_COLOR[comb] || C.mute, ...(style || {}) }}>{FUEL_LABEL[comb] || comb}</span>);
+
+const Bottom = ({ children, hint }) => (
+  <div className="mzf-fixed">{children}{hint ? <div className="hint">{hint}</div> : null}</div>);
+
+const numOr0 = v => { const n = Number(String(v).replace(/[^\d.]/g, "")); return isFinite(n) && n > 0 ? Math.round(n * 10) / 10 : 0; };
+const digits = s => String(s || "").replace(/\D/g, "");
+const plateClean = s => up(s).replace(/[^A-Z0-9]/g, "");
+
+/* ===================================================================== THE WIZARD
+   Screens (the list adapts to the choice; every screen is one decision):
+     what      ¿QUÉ VAS A CARGAR?      VEHÍCULO · MAQUINARIA · LOS DOS
+     veh       TU CAMIONETA            placa (+ odómetro)     — only if VEHÍCULO or LOS DOS
+     mach      LA MÁQUINA              número + horas         — only if MAQUINARIA or LOS DOS
+     obra      ¿EN QUÉ OBRA ESTÁS?     rol de la semana primero
+     est       ¿DÓNDE VAS A CARGAR?    estación + ¿también gasolina? SÍ/NO
+     po        the PO, registered the instant the server answers
+   ===================================================================== */
+function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
+  const [screen, setScreen] = useState("what");
+  const [mode, setMode] = useState("");              // VEH | MACH | BOTH
+  const [veh, setVeh] = useState(null);              // registry truck
+  const [plate, setPlate] = useState("");
+  const [odo, setOdo] = useState("");
+  const [manualComb, setManualComb] = useState("");  // only when the truck is not in the registry
+  const [equipNo, setEquipNo] = useState("");
+  const [hrs, setHrs] = useState("");
+  const [obra, setObra] = useState("");
+  const [obraOtra, setObraOtra] = useState("");
+  const [otraOpen, setOtraOpen] = useState(false);
+  const [station, setStation] = useState("");
+  const [gas, setGas] = useState(null);              // true | false | null (not answered)
+  const [srvVeh, setSrvVeh] = useState(null);        // server: last reading for the truck
+  const [srvMach, setSrvMach] = useState(null);      // server: last reading for the machine
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(null);
+  const [ticket, setTicket] = useState(null);
+  const t0 = useRef(Date.now());
+  const hist = LS.get(K_HIST, []);
+  const plates = LS.get(K_PLATES, {});
+
+  useEffect(() => { logEvent("open", { who: who || null }); }, []);
+  useEffect(() => { logEvent("step", { who: who || null, step: ["what", "veh", "mach", "obra", "est", "po"].indexOf(screen) + 1, meta: { screen, mode } }); }, [screen]);
+
+  /* registry: this person's truck (CAMIONETA or PIPA). Fuel type comes from here, never from the person. */
+  const mine = useMemo(() => FLOTA.filter(v => v.de === who && (v.tipo === "CAMIONETA" || v.tipo === "PIPA")), [who, refTick]);
+  const machines = useMemo(() => FLOTA.filter(v => v.tipo === "MAQUINARIA"), [refTick]);
+  const genericMachine = useMemo(() => machines.find(v => !v.de && /M-GEN/i.test(v.id)) || machines.find(v => !v.de) || machines[0] || { id: "M-GEN", desc: "Maquinaria", tipo: "MAQUINARIA", comb: "DIESEL", de: "" }, [machines]);
+  const hasVeh = mode === "VEH" || mode === "BOTH", hasMach = mode === "MACH" || mode === "BOTH";
+  const steps = useMemo(() => ["what", ...(hasVeh ? ["veh"] : []), ...(hasMach ? ["mach"] : []), "obra", "est"], [mode]);
+  const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
+  const obraSemana = OBRA_SEMANA[who] || "";
+
+  /* plate typed by the person → is it a truck we know? (covers people without an assigned truck, or driving another one) */
+  const plateMatch = useMemo(() => { const p = plateClean(plate); if (p.length < 5) return null;
+    return FLOTA.find(v => (v.tipo === "CAMIONETA" || v.tipo === "PIPA") && (plateClean(v.placa) === p || plateClean(plates[v.id]) === p)) || null; }, [plate, refTick]);
+  const truck = veh || plateMatch || null;
+  const truckComb = truck ? truck.comb : manualComb;
+  const regPlate = truck ? (truck.placa || plates[truck.id] || "") : "";
+  const effPlate = plateClean(plate) || plateClean(regPlate);
+  const plateTyped = !!truck && plateClean(plate) !== "" && plateClean(plate) !== plateClean(truck.placa);
+  const manualVeh = hasVeh && !truck;
+
+  /* machine typed → known unit? */
+  const machMatch = useMemo(() => { const q = up(equipNo).replace(/[^A-Z0-9]/g, ""); if (q.length < 2) return null; const d = digits(q);
+    return machines.find(v => up(v.id).replace(/[^A-Z0-9]/g, "") === q) || (d.length >= 3 ? machines.find(v => digits(v.desc).endsWith(d) || digits(v.id).endsWith(d)) : null) || null; }, [equipNo, machines]);
+  const machine = machMatch || genericMachine;
+
+  useEffect(() => { if (!HAS_BACKEND || !truck) { setSrvVeh(null); return; } let ok = true;
+    sbRpc("vehicle_status", { vid: truck.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok && x) setSrvVeh(x); }).catch(() => {}); return () => { ok = false; }; }, [truck && truck.id]);
+  useEffect(() => { if (!HAS_BACKEND || !machMatch) { setSrvMach(null); return; } let ok = true;
+    sbRpc("vehicle_status", { vid: machMatch.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok && x) setSrvMach(x); }).catch(() => {}); return () => { ok = false; }; }, [machMatch && machMatch.id]);
+
+  const lastOf = (vid, srv) => { if (srv && srv.last_at) return { lectura: srv.last_reading == null ? "" : String(srv.last_reading), ts: new Date(srv.last_at).getTime() };
+    return hist.filter(h => h.vid === vid).sort((a, b) => b.ts - a.ts)[0] || null; };
+  const lastVeh = truck ? lastOf(truck.id, srvVeh) : null;
+  const lastMach = machMatch ? lastOf(machMatch.id, srvMach) : null;
+
+  const odoProblem = (() => { if (!hasVeh || odo === "" || !lastVeh || lastVeh.lectura === "") return null; const d = Number(odo) - Number(lastVeh.lectura);
+    if (d < 0) return { block: true, t: `El odómetro no puede bajar. Última carga: ${fmtNum(lastVeh.lectura)} mi` };
+    if (d > 3000) return { block: false, t: `Son ${fmtNum(d)} millas desde la última carga. Revisa el número.` }; return null; })();
+  const hrsProblem = (() => { if (!hasMach || hrs === "" || !lastMach || lastMach.lectura === "") return null;
+    if (Number(hrs) < Number(lastMach.lectura)) return { block: true, t: `Las horas no pueden bajar. Última carga: ${fmtNum(lastMach.lectura)} h` }; return null; })();
+
+  const vehOk = !hasVeh || (effPlate.length >= 5 && !!truckComb && odo !== "" && !(odoProblem && odoProblem.block));
+  const machOk = !hasMach || (up(equipNo).trim().length >= 1 && hrs !== "" && !(hrsProblem && hrsProblem.block));
+
+  const pickTruck = v => { setVeh(v); setPlate(v ? (v.placa || plates[v.id] || "") : ""); };
+  const go = s => { setScreen(s); try { const p = document.querySelector(".mzf-scroll"); if (p) p.scrollTop = 0; window.scrollTo(0, 0); } catch (e) {} };
+  const next = () => { const i = steps.indexOf(screen); if (i >= 0 && i < steps.length - 1) go(steps[i + 1]); };
+  const back = () => { if (screen === "po") { done(); return; } if (failed) { setFailed(null); return; }
+    const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
+  const done = () => { if (embedded) onClose(); else if (onChangeWho) onChangeWho(true); };
+  const another = () => { setScreen("what"); setMode(""); setVeh(null); setPlate(""); setOdo(""); setManualComb(""); setEquipNo(""); setHrs(""); setObra(""); setObraOtra(""); setOtraOpen(false); setStation(""); setGas(null); setTicket(null); t0.current = Date.now(); go("what"); };
+
+  /* -------- the PO: server assigns the number, the row is the record -------- */
+  const buildRow = () => {
+    const comb = hasVeh ? truckComb : "DIESEL";
+    const main = hasVeh ? (truck || { id: "V-MANUAL", desc: `Camioneta ${comb === "GASOLINA" ? "gasolina" : "diésel"} (fuera del registro)`, tipo: "CAMIONETA", comb }) : machine;
+    const flags = [];
+    if (manualVeh) flags.push("Vehículo fuera del registro");
+    if (hasVeh && plateTyped) flags.push("Placa dictada por la persona");
+    if (obraOtra) flags.push("Obra escrita a mano");
+    if (obraSemana && (obraOtra || obra) !== obraSemana) flags.push(`Obra distinta al rol (${obraSemana})`);
+    if (hasVeh && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && main.tipo !== "PIPA") flags.push(`Mismo vehículo cargó hace ${Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h`);
+    if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
+    if (hasMach) flags.push(`+ Maquinaria ${up(equipNo)} · ${fmtNum(hrs)} h · diésel rojo` + (machMatch ? "" : " (equipo no registrado)"));
+    if (gas) flags.push("+ Gasolina (garrafas / equipo chico)");
+    return {
+      client_ref: uuid(), device_id: deviceId(), who, role: roleOf(who),
+      vehicle_id: main.id, vehicle_desc: main.desc, tipo: main.tipo, comb,
+      plate: hasVeh ? effPlate : null, plate_typed: hasVeh ? (plateTyped || manualVeh) : false,
+      equipo: hasMach ? up(equipNo) : null,
+      reading: hasVeh ? Number(odo) : Number(hrs),
+      jobsite: obraOtra || obra, jobsite_other: !!obraOtra, jobsite_week: obraSemana || null,
+      station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
+      extra_gas_gal: null, extra_dyed_gal: null,
+      extra_gas: !!gas, machine_id: hasMach && hasVeh ? machine.id : null, machine_equipo: hasMach && hasVeh ? up(equipNo) : null, machine_hours: hasMach && hasVeh ? Number(hrs) : null,
+      flags,
+    };
+  };
+  const generate = async () => {
+    if (!HAS_BACKEND) { setFailed({ __err: "Falta SUPABASE en config.js" }); return; }
+    setBusy(true); setFailed(null);
+    const row = buildRow();
+    try {
+      const res = await sbRpc("create_fuel_po", { payload: row });
+      const saved = Array.isArray(res) ? res[0] : res;
+      if (!saved || !saved.po) throw new Error("respuesta sin PO: " + JSON.stringify(res).slice(0, 160));
+      const e = { po: saved.po, ts: new Date(saved.created_at || Date.now()).getTime(), who, role: row.role, vid: row.vehicle_id, veh: row.vehicle_desc, tipo: row.tipo, comb: row.comb,
+        placa: row.plate || "", equipo: row.equipo || "", lectura: String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other, obraSemana: row.jobsite_week || "",
+        est: station, plateTyped: row.plate_typed, manualVeh, srv: true, v: 3, mode, gas: !!gas, hrs: hasMach ? String(hrs) : "", odo: hasVeh ? String(odo) : "", flags: row.flags };
+      const h = LS.get(K_HIST, []); h.push(e); if (hasMach && hasVeh) h.push({ ...e, vid: machine.id, lectura: String(hrs) }); LS.set(K_HIST, h.slice(-400));
+      if (truck && !truck.placa && effPlate) { const p = LS.get(K_PLATES, {}); p[truck.id] = effPlate; LS.set(K_PLATES, p); }
+      logEvent("po_created", { who, meta: { po: saved.po, seconds: row.seconds_to_po, station, mode } });
+      setTicket(e); go("po");
+    } catch (err) {
+      const q = LS.get("muniz_fuel_queue", []); q.push(row); LS.set("muniz_fuel_queue", q.slice(-50));
+      const msg = String((err && (err.body || err.message)) || err).slice(0, 300);
+      logEvent("error", { who, meta: { where: "insert", msg: msg.slice(0, 200) } });
+      setFailed({ ...row, __err: msg });
+    } finally { setBusy(false); }
+  };
+
+  const strip = screen === "po" ? null : screen === "what" ? "COMBUSTIBLE" : `COMBUSTIBLE · PASO ${stepNo} DE ${TOTAL}`;
+  const titles = { what: "¿QUÉ VAS A CARGAR?", veh: "TU CAMIONETA", mach: "LA MÁQUINA", obra: "¿EN QUÉ OBRA ESTÁS?", est: "¿DÓNDE VAS A CARGAR?", po: "PO DE COMBUSTIBLE" };
+
+  /* -------- no signal -------- */
+  if (failed) return (
+    <Shell>
+      <Head title="SIN SEÑAL" who={who} onBack={back} strip="COMBUSTIBLE" />
+      <div className="mzf-body">
+        <div className="mzf-card" style={{ padding: 20, textAlign: "center" }}>
+          <div style={{ fontSize: 56 }}>📡</div>
+          <div className="mzf-display" style={{ fontSize: 22, marginTop: 8 }}>No se pudo registrar</div>
+          <div style={{ fontSize: 14, color: C.mute, marginTop: 8, lineHeight: 1.4, fontWeight: 600 }}>El número de PO lo da la oficina en el momento. Tu solicitud quedó guardada en el teléfono: acércate a donde haya señal y toca reintentar.</div>
+          {failed.__err ? <div className="mzf-mono" style={{ fontSize: 11, color: C.red, marginTop: 10, wordBreak: "break-all" }}>{String(failed.__err).slice(0, 220)}</div> : null}
+        </div>
+      </div>
+      <Bottom>
+        <button className="mzf-btn mzf-display" style={{ background: C.ink }} disabled={busy} onClick={() => { setFailed(null); generate(); }}>{busy ? <><span className="mzf-spin" />REINTENTANDO…</> : "REINTENTAR ↻"}</button>
+      </Bottom>
+    </Shell>);
+
+  /* -------- 1 · WHAT -------- */
+  if (screen === "what") {
+    const Choice = ({ color, icon, title, sub, cta, onClick }) => (
+      <button className="mzf-choice mzf-pop" style={{ borderColor: color }} onClick={onClick}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ fontSize: 34, lineHeight: 1 }}>{icon}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="t mzf-display" style={{ color }}>{title}</div>
+            <div className="s">{sub}</div>
+          </div>
+        </div>
+        <div className="mzf-cta" style={{ background: color }}>{cta}</div>
+      </button>);
+    const truckSub = mine.length ? `${mine[0].desc}${mine[0].placa ? " · " + mine[0].placa : ""}` : "Pide la placa y el odómetro";
+    return (
+      <Shell>
+        <Head title={titles.what} who={who} onBack={back} strip={strip} />
+        <div className="mzf-body" style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 24 }}>
+          <Choice color={C.blue} icon="🛻" title="VEHÍCULO" sub={truckSub} cta="PLACA + ODÓMETRO →" onClick={() => { setMode("VEH"); pickTruck(mine[0] || null); go("veh"); }} />
+          <Choice color={C.red} icon="🚜" title="MAQUINARIA" sub="Bobcat, rodillo, compactador, generador… · diésel rojo" cta="NÚMERO + HORAS →" onClick={() => { setMode("MACH"); setVeh(null); go("mach"); }} />
+          <Choice color={C.ink} icon="🛻🚜" title="LOS DOS" sub="Camioneta y maquinaria en el mismo PO" cta="PLACA + HORAS →" onClick={() => { setMode("BOTH"); pickTruck(mine[0] || null); go("veh"); }} />
+          <div style={{ textAlign: "center", fontSize: 11, color: C.faint, fontWeight: 700, paddingTop: 8 }}>El tipo de combustible lo pone el registro de la flota, no la persona.</div>
+        </div>
+      </Shell>);
+  }
+
+  /* -------- 2 · TRUCK: plate + odometer -------- */
+  if (screen === "veh") return (
+    <Shell>
+      <Head title={titles.veh} who={who} onBack={back} strip={strip} />
+      <div className="mzf-body">
+        <div className="mzf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 12, background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flex: "none" }}>🛻</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{truck ? truck.desc : (manualComb ? `Camioneta ${manualComb === "GASOLINA" ? "gasolina" : "diésel"}` : "Camioneta")}</div>
+            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{truck ? (truck.de === who ? "Tu camioneta según el registro" : `Registrada a ${truck.de || "la empresa"}`) : "No está en el registro de la flota"}</div>
+            {lastVeh ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastVeh.ts)}{lastVeh.lectura !== "" ? ` · ${fmtNum(lastVeh.lectura)} mi` : ""}</div> : null}
+          </div>
+          {truckComb ? <Badge comb={truckComb} /> : null}
+        </div>
+
+        <div className="mzf-label" style={{ marginTop: 16 }}>PLACA</div>
+        <input className="mzf-input big" value={plate} onChange={e => setPlate(up(e.target.value).replace(/[^A-Z0-9 -]/g, "").slice(0, 10))}
+          placeholder={regPlate || "EJ. RTX4821"} autoCapitalize="characters" autoCorrect="off" spellCheck={false} inputMode="text" />
+        {regPlate && plateClean(plate) === plateClean(regPlate) ? <div style={{ fontSize: 12, color: C.mute, fontWeight: 700, marginTop: 6, textAlign: "center" }}>Placa registrada · si traes otra camioneta, cámbiala</div> : null}
+        {!regPlate && !plate ? <div style={{ fontSize: 12, color: C.mute, fontWeight: 700, marginTop: 6, textAlign: "center" }}>Como aparece en la placa. Se guarda para la próxima vez.</div> : null}
+        {plate && plateClean(plate).length >= 5 && !truck ? (
+          <div style={{ marginTop: 10 }}>
+            <div className="mzf-warn amber">Esa placa no está en la flota. Queda marcada para la oficina. ¿Qué combustible usa esa camioneta?</div>
+            <div className="mzf-yn" style={{ marginTop: 8 }}>
+              <button className={manualComb === "DIESEL" ? "on" : ""} onClick={() => setManualComb("DIESEL")}>DIÉSEL</button>
+              <button className={manualComb === "GASOLINA" ? "on" : ""} onClick={() => setManualComb("GASOLINA")}>GASOLINA</button>
+            </div>
+          </div>) : null}
+
+        <div className="mzf-label" style={{ marginTop: 16 }}>ODÓMETRO · millas que marca el tablero</div>
+        <input className="mzf-input num" value={odo ? fmtNum(odo) : ""} onChange={e => setOdo(digits(e.target.value).slice(0, 7))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
+        {odoProblem ? <div className={`mzf-warn ${odoProblem.block ? "red" : "amber"}`} style={{ marginTop: 8 }}>{odoProblem.block ? "⛔ " : "⚠ "}{odoProblem.t}</div> : null}
+      </div>
+      <Bottom hint={hasMach ? "Después: la máquina" : null}>
+        <button className="mzf-btn mzf-display" style={{ background: C.blue }} disabled={!vehOk} onClick={next}>CONTINUAR →</button>
+      </Bottom>
+    </Shell>);
+
+  /* -------- 3 · MACHINE: number + hours -------- */
+  if (screen === "mach") return (
+    <Shell>
+      <Head title={titles.mach} who={who} onBack={back} strip={strip} />
+      <div className="mzf-body">
+        <div className="mzf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 12, background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flex: "none" }}>🚜</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{machMatch ? machMatch.desc : "Maquinaria"}</div>
+            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{machMatch ? "Equipo registrado" : "Bobcat, rodillo, compactador, generador…"}</div>
+            {lastMach ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastMach.ts)}{lastMach.lectura !== "" ? ` · ${fmtNum(lastMach.lectura)} h` : ""}</div> : null}
+          </div>
+          <Badge comb="DIESEL ROJO" />
+        </div>
+
+        <div className="mzf-label" style={{ marginTop: 16 }}>NÚMERO DE LA MÁQUINA · el que trae pintado</div>
+        <input className="mzf-input big" value={equipNo} onChange={e => setEquipNo(up(e.target.value).replace(/[^A-Z0-9 -]/g, "").slice(0, 12))}
+          placeholder="EJ. 0415" autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
+
+        <div className="mzf-label" style={{ marginTop: 16 }}>HORAS · lo que marca el horómetro</div>
+        <input className="mzf-input num" value={hrs ? fmtNum(hrs) : ""} onChange={e => setHrs(digits(e.target.value).slice(0, 6))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
+        {hrsProblem ? <div className="mzf-warn red" style={{ marginTop: 8 }}>⛔ {hrsProblem.t}</div> : null}
+      </div>
+      <Bottom>
+        <button className="mzf-btn mzf-display" style={{ background: C.red }} disabled={!machOk} onClick={next}>CONTINUAR →</button>
+      </Bottom>
+    </Shell>);
+
+  /* -------- 4 · JOBSITE -------- */
+  if (screen === "obra") return (
+    <Shell>
+      <Head title={titles.obra} who={who} onBack={back} strip={strip} />
+      <div className="mzf-body" style={{ paddingBottom: 24 }}>
+        {obraSemana ? (
+          <button className="mzf-choice" style={{ borderColor: C.orange }} onClick={() => { setObra(obraSemana); setObraOtra(""); next(); }}>
+            <div className="mzf-label" style={{ color: C.orange, margin: 0 }}>SEGÚN EL ROL DE ESTA SEMANA</div>
+            <div className="mzf-display" style={{ fontSize: 24, lineHeight: 1.1, marginTop: 4 }}>{obraSemana}</div>
+            <div className="mzf-cta" style={{ background: C.orange }}>AQUÍ ESTOY →</div>
+          </button>) : null}
+        <div className="mzf-label" style={{ marginTop: 16 }}>{obraSemana ? "¿ESTÁS EN OTRA OBRA? TÓCALA" : "TOCA LA OBRA"}</div>
+        <div className="mzf-grid2">
+          {OBRAS.filter(o => o !== obraSemana).map(o => (
+            <button key={o} className="mzf-pick" onClick={() => { setObra(o); setObraOtra(""); next(); }}>{o}</button>))}
+        </div>
+        <div className="mzf-card" style={{ padding: 10, marginTop: 12 }}>
+          {!otraOpen ? <button style={{ width: "100%", textAlign: "center", fontSize: 12, fontWeight: 900, color: C.mute, padding: 6 }} onClick={() => setOtraOpen(true)}>¿NO ESTÁ TU OBRA? Escribe el lugar</button> : (
+            <>
+              <div className="mzf-label">OTRA UBICACIÓN · queda marcada para la oficina</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input className="mzf-input" style={{ height: 48, fontSize: 16 }} value={obraOtra} onChange={e => setObraOtra(e.target.value.slice(0, 40))} placeholder="Calle o lugar…" />
+                <button className="mzf-btn mzf-display" style={{ width: "auto", padding: "0 18px", background: C.ink, fontSize: 15 }} disabled={obraOtra.trim().length < 3} onClick={() => { setObra(""); next(); }}>OK</button>
+              </div>
+            </>)}
+        </div>
+      </div>
+    </Shell>);
+
+  /* -------- 5 · STATION + gasolina? + review -------- */
+  if (screen === "est") {
+    const comb = hasVeh ? truckComb : "DIESEL";
+    const rows = [
+      hasVeh ? ["Camioneta", `${truck ? truck.desc : "Camioneta"} · ${effPlate}`] : null,
+      hasVeh ? ["Odómetro", `${fmtNum(odo)} mi`] : null,
+      hasMach ? ["Máquina", `${up(equipNo)}${machMatch ? " · " + machMatch.desc : ""}`] : null,
+      hasMach ? ["Horas", `${fmtNum(hrs)} h`] : null,
+      ["Obra", obraOtra || obra],
+    ].filter(Boolean);
+    const ready = !!station && gas !== null && !busy;
+    return (
+      <Shell>
+        <Head title={titles.est} who={who} onBack={back} strip={strip} />
+        <div className="mzf-body">
+          <div className="mzf-label">ESTACIÓN</div>
+          <div className="mzf-grid2">
+            {Object.entries(STATIONS).map(([k, s]) => {
+              const on = station === k, dark = k === "LEOS";
+              return (
+                <button key={k} className="mzf-choice" style={{ borderColor: on ? C.ink : s.color, background: on ? s.color : "#fff", padding: "14px 12px" }} onClick={() => setStation(k)}>
+                  <div className="mzf-display" style={{ fontSize: 22, lineHeight: 1, color: on ? (dark ? C.ink : "#fff") : s.color }}>{s.corto}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4, color: on ? (dark ? C.ink : "#fff") : C.mute }}>{s.nombre}</div>
+                  <div style={{ fontSize: 11, fontWeight: 900, marginTop: 8, color: on ? (dark ? C.ink : "#fff") : s.color }}>{on ? "✓ AQUÍ CARGO" : "TOCAR"}</div>
+                </button>);
+            })}
+          </div>
+
+          <div className="mzf-label" style={{ marginTop: 16 }}>¿TAMBIÉN GASOLINA EN ESTE PO? · garrafas, equipo chico</div>
+          <div className="mzf-yn">
+            <button className={gas === false ? "on" : ""} onClick={() => setGas(false)}>NO</button>
+            <button className={gas === true ? "on" : ""} onClick={() => setGas(true)}>SÍ, GASOLINA</button>
+          </div>
+
+          <div className="mzf-card" style={{ padding: "6px 12px", marginTop: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0 4px" }}>
+              <div className="mzf-label" style={{ margin: 0 }}>RESUMEN</div>
+              <div style={{ display: "flex", gap: 4 }}><Badge comb={comb} />{hasMach && hasVeh ? <Badge comb="DIESEL ROJO" /> : null}{gas ? <Badge comb="GASOLINA" style={{ background: C.orange }} /> : null}</div>
+            </div>
+            {rows.map(([k, v]) => <div key={k} className="mzf-row"><span className="k">{k}</span><span className="v">{v}</span></div>)}
+          </div>
+          {hasVeh && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && truck && truck.tipo !== "PIPA" ? (
+            <div className="mzf-warn amber" style={{ marginTop: 10 }}>⚠ Esta camioneta cargó hace {Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h. Queda marcado para la oficina.</div>) : null}
+        </div>
+        <Bottom hint={!station ? "Toca la estación" : gas === null ? "Contesta si también llevas gasolina" : "El PO se registra en la oficina en este instante"}>
+          <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!ready} onClick={generate}>{busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>
+        </Bottom>
+      </Shell>);
+  }
+
+  /* -------- 6 · THE PO -------- */
+  if (screen === "po" && ticket) {
+    const s = STATIONS[ticket.est] || { nombre: ticket.est, corto: ticket.est, color: C.mute };
+    const dark = ticket.est === "LEOS";
+    const both = ticket.mode === "BOTH", machOnly = ticket.mode === "MACH";
+    const mainComb = machOnly ? "DIESEL ROJO" : ticket.comb;
+    const cell = (k, v, mono) => <div><div className="mzf-label" style={{ margin: "0 0 2px" }}>{k}</div><div className={mono ? "mzf-mono" : ""} style={{ fontSize: mono ? 22 : 16, fontWeight: 900, lineHeight: 1.1 }}>{v}</div></div>;
+    return (
+      <Shell>
+        <Head title={titles.po} who={who} onBack={back} strip="✓ REGISTRADO EN LA OFICINA" stripColor={C.green} />
+        <div className="mzf-body mzf-pop">
+          <div className="mzf-card" style={{ overflow: "hidden", borderColor: C.ink, borderWidth: 3 }}>
+            <div style={{ background: FUEL_COLOR[mainComb] || C.mute, color: "#fff", padding: "14px 16px" }}>
+              <div className="mzf-label" style={{ color: "rgba(255,255,255,.85)", margin: 0 }}>TIPO DE COMBUSTIBLE</div>
+              <div className="mzf-display" style={{ fontSize: 40, lineHeight: 1, marginTop: 4 }}>{FUEL_LABEL[mainComb]}</div>
+              {(both || ticket.gas) ? <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>
+                {both ? <span className="mzf-badge" style={{ background: "rgba(0,0,0,.28)", fontSize: 12 }}>+ DIÉSEL ROJO · máquina {ticket.equipo}</span> : null}
+                {ticket.gas ? <span className="mzf-badge" style={{ background: "rgba(0,0,0,.28)", fontSize: 12 }}>+ GASOLINA · garrafas</span> : null}
+              </div> : null}
+            </div>
+            <div style={{ padding: "14px 16px" }}>
+              <div className="mzf-label" style={{ margin: 0 }}>NÚMERO DE PO</div>
+              <div className="mzf-mono mzf-display" style={{ fontSize: 38, lineHeight: 1, marginTop: 4, letterSpacing: "-.02em" }}>{ticket.po}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 10px", marginTop: 16 }}>
+                {!machOnly ? cell("PLACA", ticket.placa || "—", true) : cell("MÁQUINA", ticket.equipo || "—", true)}
+                {!machOnly ? cell("ODÓMETRO", `${fmtNum(ticket.odo)} mi`, true) : cell("HORAS", `${fmtNum(ticket.hrs)} h`, true)}
+                {both ? cell("MÁQUINA", ticket.equipo, true) : null}
+                {both ? cell("HORAS", `${fmtNum(ticket.hrs)} h`, true) : null}
+                <div style={{ gridColumn: "1 / -1" }}>{cell("NOMBRE", ticket.who)}</div>
+                <div style={{ gridColumn: "1 / -1" }}>{cell(machOnly ? "EQUIPO" : "VEHÍCULO", ticket.veh)}</div>
+                <div style={{ gridColumn: "1 / -1" }}>{cell("OBRA", ticket.obra)}</div>
+              </div>
+            </div>
+            <div style={{ background: s.color, color: dark ? C.ink : "#fff", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div><div className="mzf-label" style={{ color: "inherit", opacity: .8, margin: 0 }}>ESTACIÓN</div><div className="mzf-display" style={{ fontSize: 22, lineHeight: 1 }}>{s.corto}</div></div>
+              <div style={{ textAlign: "right" }}><div className="mzf-label" style={{ color: "inherit", opacity: .8, margin: 0 }}>FECHA</div><div style={{ fontSize: 14, fontWeight: 900 }}>{fmtDT(ticket.ts)}</div></div>
+            </div>
+          </div>
+          <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: C.mute, marginTop: 14, lineHeight: 1.4 }}>Muestra esta pantalla en la bomba.<br />{machOnly ? "PO, número de máquina y nombre" : "PO, placa y nombre"} — aquí están. No hay que mandar nada.</div>
+        </div>
+        <Bottom>
+          <button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={done}>LISTO</button>
+          <button className="mzf-btn lite" style={{ marginTop: 6 }} onClick={another}>OTRO PO DE COMBUSTIBLE</button>
+        </Bottom>
+      </Shell>);
+  }
+  return null;
+}
+
+/* ===================================================================== standalone WHO (fuel.html only) */
+function Who({ onPick, onOffice }) {
+  const [q, setQ] = useState("");
+  const list = everyone().filter(n => !q || norm(n).includes(norm(q)));
+  return (
+    <Shell>
+      <Head title="¿QUIÉN ERES?" strip="COMBUSTIBLE" />
+      <div className="mzf-body" style={{ paddingBottom: 24 }}>
+        <input className="mzf-input" style={{ height: 48, fontSize: 16, marginBottom: 10 }} value={q} onChange={e => setQ(e.target.value)} placeholder="🔍  Buscar nombre…" />
+        <div className="mzf-names">{list.map(n => <button key={n} onClick={() => onPick(n)}>{n}</button>)}</div>
+        <button onClick={onOffice} style={{ width: "100%", textAlign: "center", fontSize: 11, fontWeight: 900, letterSpacing: ".1em", color: C.faint, padding: "24px 0 8px" }}>OFICINA</button>
+      </div>
     </Shell>);
 }
 
-/* ===================================================================== APP */
+/* ===================================================================== embedded (inside MUÑIZ PEDIDOS) */
+function Embedded({ who, onClose }) {
+  const [refTick, setRefTick] = useState(0);
+  useEffect(() => { if (HAS_BACKEND) refreshRef().then(() => setRefTick(t => t + 1)).catch(() => {}); flushQueue(); }, []);
+  return <Wizard who={who} embedded onClose={onClose} refTick={refTick} />;
+}
+function flushQueue() {
+  if (!HAS_BACKEND) return;
+  const q = LS.get("muniz_fuel_queue", []);
+  if (q.length) (async () => { const left = []; for (const row of q) { const r = { ...row }; delete r.__err;
+    try { await sbRpc("create_fuel_po", { payload: r }); } catch (e) { left.push(r); } } LS.set("muniz_fuel_queue", left); })();
+}
+
+/* ===================================================================== standalone APP (fuel.html) */
 function App() {
   const [mode, setMode] = useState("boot");
   const [pin, setPin] = useState(false);
@@ -863,62 +876,44 @@ function App() {
   const [token, setToken] = useState(officeToken());
   const [ofName, setOfName] = useState("");
   const [refTick, setRefTick] = useState(0);
-  useEffect(() => {
-    if (!HAS_BACKEND) return;
-    refreshRef().then(() => setRefTick(t => t + 1)).catch(() => {});
-    /* flush anything a phone could not send earlier (idempotent via client_ref) */
-    const q = LS.get("muniz_fuel_queue", []);
-    if (q.length) (async () => { const left = []; for (const row of q) { const r = { ...row }; delete r.__err;
-      try { await sbRpc("create_fuel_po", { payload: r }); } catch (e) { left.push(r); } } LS.set("muniz_fuel_queue", left); })();
-  }, []);
   const [me, setMe] = useState(LS.get(K_ME, ""));
   const [logged, setLogged] = useState(null);
-
+  useEffect(() => { if (!HAS_BACKEND) return; refreshRef().then(() => setRefTick(t => t + 1)).catch(() => {}); flushQueue(); }, []);
   useEffect(() => {
     const route = () => {
       const h = window.location.hash || "";
       if (h.startsWith("#f=")) {
         const raw = b64d(h.slice(3));
         const batch = raw && Array.isArray(raw.multi) ? raw.multi : (raw && raw.po ? [raw] : null);
-        if (batch) {
-          if (officeUnlocked()) { const L = LS.get(K_LOG, []); batch.forEach(e => { if (!L.some(x => x.po === e.po)) L.push(e); }); LS.set(K_LOG, L); setLogged(batch[0]); setMode("office"); setOfName(n => n || "OFICINA"); }
-          else { setLogged(batch); setPin(true); }
-          return;
-        }
-        const e = raw;
-        if (e && e.po) {
-          if (officeUnlocked()) { const L = LS.get(K_LOG, []); if (!L.some(x => x.po === e.po)) { L.push(e); LS.set(K_LOG, L); } setLogged(e); setMode("office"); setOfName(n => n || "OFICINA"); }
-          else { setLogged(e); setPin(true); }
-          return;
-        }
+        if (batch) { if (officeUnlocked()) { const L = LS.get(K_LOG, []); batch.forEach(e => { if (!L.some(x => x.po === e.po)) L.push(e); }); LS.set(K_LOG, L); setLogged(batch[0]); setMode("office"); setOfName(n => n || "OFICINA"); }
+          else { setLogged(batch); setPin(true); } return; }
       }
       if (h === "#oficina") { if (HAS_BACKEND) { officeToken() ? setMode("office") : setLogin(true); } else setPin(true); return; }
       setMode("wizard");
     };
-    /* anything still pending gets another try at the server on every open */
-    try { if (WEBHOOK) { const p = pendList(); if (p.length) { p.forEach(e => beacon(e)); } } } catch (x) {}
-    route();
-    window.addEventListener("hashchange", route);
-    return () => window.removeEventListener("hashchange", route);
+    route(); window.addEventListener("hashchange", route); return () => window.removeEventListener("hashchange", route);
   }, []);
-
+  const office = () => { if (HAS_BACKEND) { officeToken() ? setMode("office") : setLogin(true); } else setPin(true); };
   if (login) return <Login onOk={t => { setToken(t); setOfName(t.email); setLogin(false); setMode("office"); }} onCancel={() => { setLogin(false); window.location.hash = ""; setMode("wizard"); }} />;
   if (pin) return <PinGate onOk={n => { setOfName(n); setPin(false); if (logged) { const L = LS.get(K_LOG, []); (Array.isArray(logged) ? logged : [logged]).forEach(e => { if (e && e.po && !L.some(x => x.po === e.po)) L.push(e); }); LS.set(K_LOG, L); } setMode("office"); }} onCancel={() => { setPin(false); setLogged(null); window.location.hash = ""; setMode("wizard"); }} />;
   if (mode === "office") return <Office key={refTick} token={token} whoOf={ofName || (token && token.email) || "OFICINA"} onExit={() => { window.location.hash = ""; setMode("wizard"); }} onNew={() => { window.location.hash = ""; setMode("wizard"); }} />;
-  if (mode === "wizard") return <Wizard key={me + ":" + refTick} initialWho={me} onDone={() => { setMe(LS.get(K_ME, "")); setMode("done"); }} onOffice={() => { if (HAS_BACKEND) { officeToken() ? setMode("office") : setLogin(true); } else setPin(true); }} />;
-  if (mode === "done") return (
-    <Shell>
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
-        <div className="w-24 h-24 rounded-full bg-[#16A34A] flex items-center justify-center text-5xl">✓</div>
-        <div className="display text-[28px] mt-5">PO registrado</div>
-        <div className="text-[14px] text-[#B4BCC8] mt-2">{HAS_BACKEND ? "Quedó registrado en la oficina en el momento." : "Ya quedó en el registro de la oficina."}</div>
-        <button onClick={() => setMode("wizard")} className="btn mt-8 w-full py-4 bg-[#F5B800] text-[#0B0F14] text-[17px]">OTRO PO</button>
-        {EMBED ? <button onClick={closeEmbed} className="btn mt-3 w-full py-4 bg-[#1A2230] text-white text-[17px]">← REGRESAR AL APP</button> : null}
-        <a href="./index.html" className="mt-4 text-[13px] font-black text-[#8B95A5]">← Volver a pedidos</a>
-        <div className="mt-10 text-[10px] text-[#3B4553]">Muñiz Combustible v{VERSION}</div>
-      </div>
-    </Shell>);
-  return <Shell><div className="p-8 text-center text-[#8B95A5]">Cargando…</div></Shell>;
+  if (mode === "wizard") {
+    if (!me) return <Who onPick={n => { LS.set(K_ME, n); setMe(n); }} onOffice={office} />;
+    return <Wizard key={me} who={me} refTick={refTick} onChangeWho={() => { LS.set(K_ME, ""); setMe(""); }} />;
+  }
+  return <Shell><div style={{ padding: 32, textAlign: "center", color: C.faint, fontWeight: 700 }}>Cargando…</div></Shell>;
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+/* ---------- mount API: the orders app opens the wizard in place, same document, no iframe ---------- */
+if (typeof window !== "undefined") {
+  window.MunizFuel = {
+    version: VERSION,
+    mount(el, opts) {
+      const root = createRoot(el);
+      root.render(<Embedded who={up((opts && opts.who) || LS.get(K_ME, ""))} onClose={() => { try { opts && opts.onClose && opts.onClose(); } catch (e) {} }} />);
+      return { unmount() { try { root.unmount(); } catch (e) {} } };
+    },
+  };
+  const standalone = document.getElementById("fuel-root");
+  if (standalone) createRoot(standalone).render(<App />);
+}
