@@ -103,7 +103,7 @@
     var els = document.querySelectorAll("button, a, div");
     for (var i = 0; i < els.length; i++) {
       var el = els[i]; if (panel && panel.contains(el)) continue; if (overlay && overlay.contains(el)) continue;
-      if (el.children.length > 1) continue;
+      if (el.children.length > 3) continue;                       // la pastilla trae hasta 2 numeritos
       var txt = (el.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
       if (!/MIS PEDIDOS/.test(txt) || txt.length > 24) continue;
       var pos = getComputedStyle(el).position; if (pos !== "fixed" && pos !== "absolute") continue;
