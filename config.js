@@ -41,6 +41,18 @@ window.MUNIZ_CONFIG = {
     "CLAUDIA TAMAYO": "2718",
   },
 
+  /* ===== PERSONAL QUE NO ES MAYORDOMO =====
+     Gente que pide material o combustible pero no es mayordomo: choferes,
+     taller, yarda, ayudantes. Aparecen en la MISMA lista de nombres que los
+     mayordomos, sin nada que los distinga. Para agregar a alguien, escribe su
+     nombre aqui abajo entre comillas y una coma al final. Escribelo EXACTAMENTE
+     igual que en FLOTA (abajo) para que el app le reconozca su camioneta. */
+  PERSONAL: [
+    "ABRAHAM GONZALEZ",
+    "ULISES LARA",
+    "HECTOR SEGURA",
+  ],
+
   /* ===== GERENTES DE PROYECTO =====
      Su pedido va DIRECTO a la oficina (no pasa por supervisor),
      igual que los supervisores. Aparecen en su propia seccion. */
