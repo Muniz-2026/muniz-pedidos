@@ -1,5 +1,5 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v1.2
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v1.3
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -20,8 +20,13 @@
   function clearSeen() { try { sessionStorage.removeItem(K_SEEN); } catch (e) { } }
 
   /* ---------- el menú ---------- */
-  var overlay = null;
-  function hide() { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); overlay = null; }
+  var overlay = null, hiding = false;
+  function hide() {
+    if (!overlay || hiding) return; hiding = true;
+    var el = overlay; overlay = null;
+    el.style.transition = "opacity .16s ease-in, transform .16s ease-in"; el.style.opacity = "0"; el.style.transform = "translateY(10px)";
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); hiding = false; }, 170);
+  }
   function card(id, color, icon, title, sub, btn) {
     return '<button id="' + id + '" style="text-align:left;background:#fff;border:3px solid ' + color + ';border-radius:22px;padding:22px 20px;cursor:pointer;display:block;width:100%">' +
       '<div style="font-size:40px;line-height:1">' + icon + '</div>' +
@@ -34,7 +39,7 @@
     if (overlay) return;
     overlay = document.createElement("div");
     overlay.setAttribute("role", "dialog");
-    overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#EEECE6;display:flex;flex-direction:column;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#111;";
+    overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#EEECE6;display:flex;flex-direction:column;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#111;opacity:0;transform:translateY(14px);will-change:opacity,transform;";
     overlay.innerHTML =
       '<div style="background:#fff;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 14px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)">' +
         '<button id="mz-back" aria-label="Regresar" style="width:56px;height:56px;border:0;border-radius:16px;background:#111;color:#fff;font-size:26px;line-height:1;cursor:pointer">←</button>' +
@@ -46,6 +51,7 @@
         card("mz-fuel", "#1E3A8A", "⛽", "COMBUSTIBLE", "PO de diésel o gasolina · Tex-Con · Leo's", "SACAR PO DE COMBUSTIBLE →") +
       '</div>';
     document.body.appendChild(overlay);
+    requestAnimationFrame(function () { overlay && (overlay.style.transition = "opacity .22s cubic-bezier(.2,.8,.2,1), transform .26s cubic-bezier(.2,.8,.2,1)", overlay.style.opacity = "1", overlay.style.transform = "translateY(0)"); });
     overlay.querySelector("#mz-mat").onclick = function () { markSeen(name); hide(); };
     overlay.querySelector("#mz-fuel").onclick = function () {
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }   // el wizard arranca en el paso 2 con el nombre puesto
@@ -91,6 +97,20 @@
   }
   window.addEventListener("message", function (ev) { if (ev && ev.data && ev.data.type === "muniz-fuel-close") closeFuel(); });
 
+  /* ---------- el toque en el nombre: el menú aparece EN ESE INSTANTE, antes de que el app cambie de pantalla ---------- */
+  var tapped = "", tappedAt = 0;
+  document.addEventListener("click", function (ev) {
+    if (panel || overlay) return;
+    if (!hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) return;
+    var b = ev.target && ev.target.closest ? ev.target.closest("button") : null; if (!b) return;
+    var txt = (b.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
+    if (!txt || /MIS PEDIDOS|CAMBIAR|^EN$|^ES$|^←/.test(txt) || txt.length > 40) return;
+    tapped = txt; tappedAt = Date.now();
+    show(tapped);
+    // si el app NO pasó a la tienda (ej. pidió PIN a oficina), el menú se quita solo
+    setTimeout(function () { if (overlay && !panel && !hasText(TITLE, "h1,h2,h3,div,span")) { hide(); clearSeen(); } }, 450);
+  }, true);
+
   /* ---------- ¿en qué pantalla está el app? ---------- */
   function hasText(re, sel) {
     var els = document.querySelectorAll(sel);
@@ -103,7 +123,7 @@
     t = setTimeout(function () {
       if (panel) return;                                                          // combustible abierto encima: no tocar
       if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { clearSeen(); hide(); return; }   // lista de nombres: la próxima vez pregunta otra vez
-      if (hasText(TITLE, "h1,h2,h3,div,span")) { var n = who(); if (n && !seen(n)) show(n); }
+      if (hasText(TITLE, "h1,h2,h3,div,span")) { var n = who() || (Date.now() - tappedAt < 2000 ? tapped : ""); if (n && !seen(n)) show(n); }
       else hide();
     }, 60);
   }
