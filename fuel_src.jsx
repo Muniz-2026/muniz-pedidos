@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v3.0
+   MUÑIZ COMBUSTIBLE · v3.1
    Lives INSIDE the orders app (index.html loads fuel.js; pedidos_menu.js
    calls window.MunizFuel.mount). Same design system as app.js. One header,
    one back arrow. The registry decides the fuel type, not the person.
@@ -65,7 +65,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "3.0";
+const VERSION = "3.1";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -381,21 +381,21 @@ const TIPO_LABEL = { CAMIONETA: "Camioneta", MAQUINARIA: "Maquinaria", TAMBO: "T
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap');
-.mzf{min-height:100%;background:${C.bg};color:${C.ink};font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.mzf{height:100%;display:flex;flex-direction:column;background:${C.bg};color:${C.ink};font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 .mzf,.mzf *{box-sizing:border-box}
 .mzf button{font-family:inherit;border:0;background:none;padding:0;margin:0;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
 .mzf input{font-family:inherit;-webkit-user-select:text;user-select:text}
 .mzf-display{font-family:'Archivo Black',system-ui,sans-serif}
 .mzf-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .mzf-stripe{height:8px;background:repeating-linear-gradient(45deg,${C.ink} 0 14px,${C.amber} 14px 28px)}
-.mzf-head{position:sticky;top:0;z-index:20}
+.mzf-head{flex:none;z-index:2}
 .mzf-bar{background:#fff;border-bottom:1px solid ${C.line};padding:6px 8px;display:flex;align-items:center;gap:8px}
 .mzf .mzf-back{width:48px;height:48px;flex:none;border-radius:12px;background:${C.ink};color:#fff;font-size:24px;font-weight:900;display:flex;align-items:center;justify-content:center;transition:transform .08s}
 .mzf .mzf-back:active{transform:scale(.95)}
 .mzf-title{font-size:15px;font-weight:900;letter-spacing:-.025em;line-height:1.2}
 .mzf-sub{font-size:10px;color:${C.mute};line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mzf-strip{color:#fff;padding:4px 8px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:11px;font-weight:900;letter-spacing:.1em}
-.mzf-body{padding:12px 12px 150px}
+.mzf-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:12px 12px 24px}
 .mzf-label{font-size:10px;font-weight:900;letter-spacing:.1em;color:${C.mute};margin:0 2px 6px}
 .mzf-card{background:#fff;border:2px solid ${C.line};border-radius:12px}
 .mzf .mzf-choice{display:block;width:100%;text-align:left;background:#fff;border:4px solid;border-radius:16px;padding:14px 16px;transition:transform .08s}
@@ -416,7 +416,7 @@ const CSS = `
 .mzf .mzf-btn.lite{background:${C.bg};color:${C.ink};border:2px solid ${C.line};font-size:15px;padding:12px}
 .mzf-badge{display:inline-flex;align-items:center;border-radius:6px;padding:4px 7px;font-size:10px;font-weight:900;color:#fff;letter-spacing:.04em;white-space:nowrap}
 .mzf-grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.mzf-fixed{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid ${C.line};padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
+.mzf-fixed{flex:none;background:#fff;border-top:1px solid ${C.line};padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px))}
 .mzf-fixed .hint{text-align:center;font-size:12px;font-weight:700;color:${C.mute};padding:6px 0 2px}
 .mzf-warn{border-radius:10px;padding:10px 12px;font-size:13px;font-weight:700;line-height:1.35}
 .mzf-warn.red{background:${C.red};color:#fff}
@@ -432,8 +432,6 @@ const CSS = `
 .mzf-names{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .mzf-names button{min-height:52px;border-radius:12px;padding:8px 6px;font-size:12px;font-weight:900;line-height:1.2;border:2px solid ${C.line};background:#fff;color:${C.ink}}
 .mzf-names button:active{transform:scale(.97)}
-@keyframes mzfpop{0%{transform:scale(.96);opacity:0}100%{transform:scale(1);opacity:1}}
-.mzf-pop{animation:mzfpop .22s ease-out}
 @keyframes mzfspin{to{transform:rotate(360deg)}}
 .mzf-spin{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:mzfspin .8s linear infinite;vertical-align:-3px;margin-right:8px}
 `;
@@ -544,7 +542,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const machOk = !hasMach || (up(equipNo).trim().length >= 1 && hrs !== "" && !(hrsProblem && hrsProblem.block));
 
   const pickTruck = v => { setVeh(v); setPlate(v ? (v.placa || plates[v.id] || "") : ""); };
-  const go = s => { setScreen(s); try { const p = document.querySelector(".mzf-scroll"); if (p) p.scrollTop = 0; window.scrollTo(0, 0); } catch (e) {} };
+  const go = s => { setScreen(s); try { requestAnimationFrame(() => { document.querySelectorAll(".mzf-body").forEach(b => { b.scrollTop = 0; }); }); } catch (e) {} };
   const next = () => { const i = steps.indexOf(screen); if (i >= 0 && i < steps.length - 1) go(steps[i + 1]); };
   const back = () => { if (screen === "po") { done(); return; } if (failed) { setFailed(null); return; }
     const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
@@ -623,7 +621,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   /* -------- 1 · WHAT -------- */
   if (screen === "what") {
     const Choice = ({ color, icon, title, sub, cta, onClick }) => (
-      <button className="mzf-choice mzf-pop" style={{ borderColor: color }} onClick={onClick}>
+      <button className="mzf-choice" style={{ borderColor: color }} onClick={onClick}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ fontSize: 34, lineHeight: 1 }}>{icon}</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -637,7 +635,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     return (
       <Shell>
         <Head title={titles.what} who={who} onBack={back} strip={strip} />
-        <div className="mzf-body" style={{ display: "flex", flexDirection: "column", gap: 12, paddingBottom: 24 }}>
+        <div className="mzf-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <Choice color={C.blue} icon="🛻" title="VEHÍCULO" sub={truckSub} cta="PLACA + ODÓMETRO →" onClick={() => { setMode("VEH"); pickTruck(mine[0] || null); go("veh"); }} />
           <Choice color={C.red} icon="🚜" title="MAQUINARIA" sub="Bobcat, rodillo, compactador, generador… · diésel rojo" cta="NÚMERO + HORAS →" onClick={() => { setMode("MACH"); setVeh(null); go("mach"); }} />
           <Choice color={C.ink} icon="🛻🚜" title="LOS DOS" sub="Camioneta y maquinaria en el mismo PO" cta="PLACA + HORAS →" onClick={() => { setMode("BOTH"); pickTruck(mine[0] || null); go("veh"); }} />
@@ -716,7 +714,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   if (screen === "obra") return (
     <Shell>
       <Head title={titles.obra} who={who} onBack={back} strip={strip} />
-      <div className="mzf-body" style={{ paddingBottom: 24 }}>
+      <div className="mzf-body">
         {obraSemana ? (
           <button className="mzf-choice" style={{ borderColor: C.orange }} onClick={() => { setObra(obraSemana); setObraOtra(""); next(); }}>
             <div className="mzf-label" style={{ color: C.orange, margin: 0 }}>SEGÚN EL ROL DE ESTA SEMANA</div>
@@ -801,7 +799,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     return (
       <Shell>
         <Head title={titles.po} who={who} onBack={back} strip="✓ REGISTRADO EN LA OFICINA" stripColor={C.green} />
-        <div className="mzf-body mzf-pop">
+        <div className="mzf-body">
           <div className="mzf-card" style={{ overflow: "hidden", borderColor: C.ink, borderWidth: 3 }}>
             <div style={{ background: FUEL_COLOR[mainComb] || C.mute, color: "#fff", padding: "14px 16px" }}>
               <div className="mzf-label" style={{ color: "rgba(255,255,255,.85)", margin: 0 }}>TIPO DE COMBUSTIBLE</div>
@@ -847,7 +845,7 @@ function Who({ onPick, onOffice }) {
   return (
     <Shell>
       <Head title="¿QUIÉN ERES?" strip="COMBUSTIBLE" />
-      <div className="mzf-body" style={{ paddingBottom: 24 }}>
+      <div className="mzf-body">
         <input className="mzf-input" style={{ height: 48, fontSize: 16, marginBottom: 10 }} value={q} onChange={e => setQ(e.target.value)} placeholder="🔍  Buscar nombre…" />
         <div className="mzf-names">{list.map(n => <button key={n} onClick={() => onPick(n)}>{n}</button>)}</div>
         <button onClick={onOffice} style={{ width: "100%", textAlign: "center", fontSize: 11, fontWeight: 900, letterSpacing: ".1em", color: C.faint, padding: "24px 0 8px" }}>OFICINA</button>
@@ -856,9 +854,11 @@ function Who({ onPick, onOffice }) {
 }
 
 /* ===================================================================== embedded (inside MUÑIZ PEDIDOS) */
+const REF_FRESH_MS = 5 * 60e3;
+const refAge = () => { try { const r = JSON.parse(localStorage.getItem(K_REF) || "null"); return r && r.at ? Date.now() - r.at : Infinity; } catch (e) { return Infinity; } };
 function Embedded({ who, onClose }) {
   const [refTick, setRefTick] = useState(0);
-  useEffect(() => { if (HAS_BACKEND) refreshRef().then(() => setRefTick(t => t + 1)).catch(() => {}); flushQueue(); }, []);
+  useEffect(() => { if (HAS_BACKEND && refAge() > REF_FRESH_MS) refreshRef().then(() => setRefTick(t => t + 1)).catch(() => {}); flushQueue(); }, []);
   return <Wizard who={who} embedded onClose={onClose} refTick={refTick} />;
 }
 function flushQueue() {
@@ -916,4 +916,5 @@ if (typeof window !== "undefined") {
   };
   const standalone = document.getElementById("fuel-root");
   if (standalone) createRoot(standalone).render(<App />);
+  else if (HAS_BACKEND) setTimeout(() => { refreshRef().catch(() => {}); }, 1500);   // inside pedidos: warm the fleet cache before anyone taps COMBUSTIBLE
 }

@@ -26,8 +26,7 @@
   function hide() {
     if (!overlay || hiding) return; hiding = true;
     var el = overlay; overlay = null;
-    el.style.transition = "opacity .16s ease-in, transform .16s ease-in"; el.style.opacity = "0"; el.style.transform = "translateY(10px)";
-    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); hiding = false; if (!panel) showPills(); }, 170);
+    if (el.parentNode) el.parentNode.removeChild(el); hiding = false; if (!panel) showPills();
   }
   function card(id, color, icon, title, sub, btn) {
     return '<button id="' + id + '" style="text-align:left;background:#fff;border:3px solid ' + color + ';border-radius:22px;padding:22px 20px;cursor:pointer;display:block;width:100%">' +
@@ -41,7 +40,7 @@
     if (overlay) return;
     overlay = document.createElement("div");
     overlay.setAttribute("role", "dialog");
-    overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#EDEBE6;display:flex;flex-direction:column;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#111;opacity:0;transform:translateY(14px);will-change:opacity,transform;";
+    overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#EDEBE6;display:flex;flex-direction:column;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#111;";
     /* misma cabecera que el resto del app: franja, flecha negra de 48px, título Archivo Black 15px, nombre en gris */
     overlay.innerHTML =
       '<div style="height:8px;background:repeating-linear-gradient(45deg,#17181A 0 14px,#FFB800 14px 28px)"></div>' +
@@ -56,7 +55,6 @@
       '</div>';
     document.body.appendChild(overlay);
     hidePills();
-    requestAnimationFrame(function () { overlay && (overlay.style.transition = "opacity .22s cubic-bezier(.2,.8,.2,1), transform .26s cubic-bezier(.2,.8,.2,1)", overlay.style.opacity = "1", overlay.style.transform = "translateY(0)"); });
     overlay.querySelector("#mz-mat").onclick = function () { markSeen(name); hide(); };
     overlay.querySelector("#mz-fuel").onclick = function () {
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }   // el wizard arranca en el paso 2 con el nombre puesto
@@ -85,7 +83,7 @@
     panel = document.createElement("div");
     panel.setAttribute("role", "dialog");
     panel.className = "mzf-scroll";
-    panel.style.cssText = "position:fixed;inset:0;z-index:9995;background:#EDEBE6;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;";
+    panel.style.cssText = "position:fixed;inset:0;z-index:9995;background:#EDEBE6;overflow:hidden;";
     document.body.appendChild(panel);
     document.body.style.overflow = "hidden";
     hidePills();
@@ -100,7 +98,10 @@
   }
   /* la pastilla flotante "MIS PEDIDOS" (pedidos_db.js) no debe verse encima del combustible */
   function hidePills() {
-    var els = document.querySelectorAll("button, a, div");
+    var direct = document.querySelectorAll('a[href$="bandeja.html#mis"]');
+    for (var d = 0; d < direct.length; d++) { if (hiddenPills.indexOf(direct[d]) < 0) { direct[d].setAttribute("data-mz-hidden", direct[d].style.visibility || ""); direct[d].style.visibility = "hidden"; hiddenPills.push(direct[d]); } }
+    if (direct.length) return;
+    var els = document.querySelectorAll("button, a");
     for (var i = 0; i < els.length; i++) {
       var el = els[i]; if (panel && panel.contains(el)) continue; if (overlay && overlay.contains(el)) continue;
       if (el.children.length > 3) continue;                       // la pastilla trae hasta 2 numeritos
