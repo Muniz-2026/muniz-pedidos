@@ -2,12 +2,15 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v3.2
+   MUÑIZ COMBUSTIBLE · v3.3
    Lives INSIDE the orders app (index.html loads fuel.js; pedidos_menu.js
    calls window.MunizFuel.mount). Same design system as app.js. One header,
-   one back arrow. The registry decides the fuel type, not the person.
-   Every PO is registered by the server (create_fuel_po) the instant it is
-   generated. No supervisor, no messages.
+   one back arrow. The registry decides the fuel type, not the person, and
+   the vehicle_id on a PO is ALWAYS a real unit from the fleet - a plate the
+   registry does not know opens a picker instead of inventing a unit.
+   create_fuel_po is tried with the full payload first and, if the server
+   does not know the newer columns, again with the columns it has had since
+   parche 19 (the machine and the gasoline still travel in flags).
    Flow: ¿Qué vas a cargar? VEHÍCULO (placa + odómetro) · MAQUINARIA
    (número + horas · diésel rojo) · LOS DOS → obra → estación + ¿gasolina?
    Names are matched by key (nk), so Gonzales/Gonzalez never splits a person.
@@ -139,6 +142,7 @@ const LS = {
 };
 const K_ME = "muniz_fuel_me", K_HIST = "muniz_fuel_hist", K_LOG = "muniz_fuel_log", K_PLATES = "muniz_fuel_plates", K_OF = "muniz_oficina";
 const K_PEND = "muniz_fuel_pend";     /* POs generated but not yet registered */
+const K_SHAPE = "muniz_fuel_shape";   /* que forma de payload acepta create_fuel_po en este servidor */
 const WEBHOOK = String(FUEL.WEBHOOK || "");
 const officeUnlocked = () => { try { return localStorage.getItem(K_OF) === "1"; } catch (e) { return false; } };
 /* ---------- encoding (same as the orders app) ---------- */
@@ -493,7 +497,6 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const [veh, setVeh] = useState(null);              // registry truck
   const [plate, setPlate] = useState("");
   const [odo, setOdo] = useState("");
-  const [manualComb, setManualComb] = useState("");  // only when the truck is not in the registry
   const [equipNo, setEquipNo] = useState("");
   const [hrs, setHrs] = useState("");
   const [obra, setObra] = useState("");
@@ -503,6 +506,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const [gas, setGas] = useState(null);              // true | false | null (not answered)
   const [srvVeh, setSrvVeh] = useState(null);        // server: last reading for the truck
   const [srvMach, setSrvMach] = useState(null);      // server: last reading for the machine
+  const [pickOpen, setPickOpen] = useState(false);   // solo para quien no tiene camioneta registrada
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [ticket, setTicket] = useState(null);
@@ -516,6 +520,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   /* registry: this person's truck (CAMIONETA or PIPA). Fuel type comes from here, never from the person. */
   const mine = useMemo(() => FLOTA.filter(v => nEq(v.de, who) && (v.tipo === "CAMIONETA" || v.tipo === "PIPA")), [who, refTick]);
   const machines = useMemo(() => FLOTA.filter(v => v.tipo === "MAQUINARIA"), [refTick]);
+  const allTrucks = useMemo(() => FLOTA.filter(v => v.tipo === "CAMIONETA" || v.tipo === "PIPA"), [refTick]);
   const genericMachine = useMemo(() => machines.find(v => !v.de && /M-GEN/i.test(v.id)) || machines.find(v => !v.de) || machines[0] || { id: "M-GEN", desc: "Maquinaria", tipo: "MAQUINARIA", comb: "DIESEL", de: "" }, [machines]);
   const hasVeh = mode === "VEH" || mode === "BOTH", hasMach = mode === "MACH" || mode === "BOTH";
   const steps = useMemo(() => ["what", ...(hasVeh ? ["veh"] : []), ...(hasMach ? ["mach"] : []), "obra", "est"], [mode]);
@@ -526,11 +531,11 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const plateMatch = useMemo(() => { const p = plateClean(plate); if (p.length < 5) return null;
     return FLOTA.find(v => (v.tipo === "CAMIONETA" || v.tipo === "PIPA") && (plateClean(v.placa) === p || plateClean(plates[v.id]) === p)) || null; }, [plate, refTick]);
   const truck = veh || plateMatch || null;
-  const truckComb = truck ? truck.comb : manualComb;
+  const truckComb = truck ? truck.comb : "";
   const regPlate = truck ? (truck.placa || plates[truck.id] || "") : "";
   const effPlate = plateClean(plate) || plateClean(regPlate);
   const plateTyped = !!truck && plateClean(plate) !== "" && plateClean(plate) !== plateClean(truck.placa);
-  const manualVeh = hasVeh && !truck;
+  const noTruck = hasVeh && !truck;          // no tiene camioneta en el registro y la placa no coincide
 
   /* machine typed → known unit? */
   const machMatch = useMemo(() => { const q = up(equipNo).replace(/[^A-Z0-9]/g, ""); if (q.length < 2) return null; const d = digits(q);
@@ -553,7 +558,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const hrsProblem = (() => { if (!hasMach || hrs === "" || !lastMach || lastMach.lectura === "") return null;
     if (Number(hrs) < Number(lastMach.lectura)) return { block: true, t: `Las horas no pueden bajar. Última carga: ${fmtNum(lastMach.lectura)} h` }; return null; })();
 
-  const vehOk = !hasVeh || (effPlate.length >= 5 && !!truckComb && odo !== "" && !(odoProblem && odoProblem.block));
+  const vehOk = !hasVeh || (!!truck && effPlate.length >= 5 && odo !== "" && !(odoProblem && odoProblem.block));
   const machOk = !hasMach || (up(equipNo).trim().length >= 1 && hrs !== "" && !(hrsProblem && hrsProblem.block));
 
   const pickTruck = v => { setVeh(v); setPlate(v ? (v.placa || plates[v.id] || "") : ""); };
@@ -562,14 +567,13 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const back = () => { if (screen === "po") { done(); return; } if (failed) { setFailed(null); return; }
     const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
   const done = () => { if (embedded) onClose(); else if (onChangeWho) onChangeWho(true); };
-  const another = () => { setScreen("what"); setMode(""); setVeh(null); setPlate(""); setOdo(""); setManualComb(""); setEquipNo(""); setHrs(""); setObra(""); setObraOtra(""); setOtraOpen(false); setStation(""); setGas(null); setTicket(null); t0.current = Date.now(); go("what"); };
+  const another = () => { setScreen("what"); setMode(""); setVeh(null); setPlate(""); setOdo(""); setEquipNo(""); setHrs(""); setObra(""); setObraOtra(""); setOtraOpen(false); setStation(""); setGas(null); setTicket(null); t0.current = Date.now(); go("what"); };
 
   /* -------- the PO: server assigns the number, the row is the record -------- */
-  const buildRow = () => {
-    const comb = hasVeh ? truckComb : "DIESEL";
-    const main = hasVeh ? (truck || { id: "V-MANUAL", desc: `Camioneta ${comb === "GASOLINA" ? "gasolina" : "diésel"} (fuera del registro)`, tipo: "CAMIONETA", comb }) : machine;
+  const buildRow = (ref, shape) => {
+    const main = hasVeh ? truck : machine;
+    const comb = hasVeh ? main.comb : "DIESEL";
     const flags = [];
-    if (manualVeh) flags.push("Vehículo fuera del registro");
     if (hasVeh && plateTyped) flags.push("Placa dictada por la persona");
     if (obraOtra) flags.push("Obra escrita a mano");
     if (obraSemana && (obraOtra || obra) !== obraSemana) flags.push(`Obra distinta al rol (${obraSemana})`);
@@ -577,39 +581,51 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
     if (hasMach) flags.push(`+ Maquinaria ${up(equipNo)} · ${fmtNum(hrs)} h · diésel rojo` + (machMatch ? "" : " (equipo no registrado)"));
     if (gas) flags.push("+ Gasolina (garrafas / equipo chico)");
-    return {
-      client_ref: uuid(), device_id: deviceId(), who, role: roleOf(who),
+    /* shape 0 = todo. shape 1 = solo las columnas que el servidor ya conocía
+       (la maquinaria y la gasolina siguen viajando en flags, que es texto). */
+    const row = {
+      client_ref: ref, device_id: deviceId(), who, role: roleOf(who),
       vehicle_id: main.id, vehicle_desc: main.desc, tipo: main.tipo, comb,
-      plate: hasVeh ? effPlate : null, plate_typed: hasVeh ? (plateTyped || manualVeh) : false,
+      plate: hasVeh ? effPlate : null, plate_typed: hasVeh ? plateTyped : false,
       equipo: hasMach ? up(equipNo) : null,
       reading: hasVeh ? Number(odo) : Number(hrs),
       jobsite: obraOtra || obra, jobsite_other: !!obraOtra, jobsite_week: obraSemana || null,
       station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
       extra_gas_gal: null, extra_dyed_gal: null,
-      extra_gas: !!gas, machine_id: hasMach && hasVeh ? machine.id : null, machine_equipo: hasMach && hasVeh ? up(equipNo) : null, machine_hours: hasMach && hasVeh ? Number(hrs) : null,
       flags,
     };
+    if (!shape) { row.extra_gas = !!gas; row.machine_id = hasMach && hasVeh ? machine.id : null;
+      row.machine_equipo = hasMach && hasVeh ? up(equipNo) : null; row.machine_hours = hasMach && hasVeh ? Number(hrs) : null; }
+    return row;
   };
   const generate = async () => {
     if (!HAS_BACKEND) { setFailed({ __err: "Falta SUPABASE en config.js" }); return; }
+    if (hasVeh && !truck) { setFailed({ __err: "Escoge la camioneta de la flota antes de generar el PO." }); return; }
     setBusy(true); setFailed(null);
-    const row = buildRow();
+    const ref = uuid();                                   /* el mismo en los dos intentos: el servidor no duplica */
+    const order = Number(LS.get(K_SHAPE, 0)) ? [1, 0] : [0, 1];
+    let row = null, saved = null, lastErr = null;
+    for (const shape of order) {
+      row = buildRow(ref, shape);
+      try {
+        const res = await sbRpc("create_fuel_po", { payload: row });
+        saved = Array.isArray(res) ? res[0] : res;
+        if (!saved || !saved.po) throw new Error("respuesta sin PO: " + JSON.stringify(res).slice(0, 160));
+        LS.set(K_SHAPE, shape); break;
+      } catch (err) { lastErr = err; saved = null; logEvent("error", { who, meta: { where: "insert", shape, msg: String((err && (err.body || err.message)) || err).slice(0, 180) } }); }
+    }
     try {
-      const res = await sbRpc("create_fuel_po", { payload: row });
-      const saved = Array.isArray(res) ? res[0] : res;
-      if (!saved || !saved.po) throw new Error("respuesta sin PO: " + JSON.stringify(res).slice(0, 160));
+      if (!saved) throw lastErr || new Error("no se pudo registrar");
       const e = { po: saved.po, ts: new Date(saved.created_at || Date.now()).getTime(), who, role: row.role, vid: row.vehicle_id, veh: row.vehicle_desc, tipo: row.tipo, comb: row.comb,
         placa: row.plate || "", equipo: row.equipo || "", lectura: String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other, obraSemana: row.jobsite_week || "",
-        est: station, plateTyped: row.plate_typed, manualVeh, srv: true, v: 3, mode, gas: !!gas, hrs: hasMach ? String(hrs) : "", odo: hasVeh ? String(odo) : "", flags: row.flags };
+        est: station, plateTyped: row.plate_typed, srv: true, v: 3, mode, gas: !!gas, hrs: hasMach ? String(hrs) : "", odo: hasVeh ? String(odo) : "", flags: row.flags };
       const h = LS.get(K_HIST, []); h.push(e); if (hasMach && hasVeh) h.push({ ...e, vid: machine.id, lectura: String(hrs) }); LS.set(K_HIST, h.slice(-400));
       if (truck && !truck.placa && effPlate) { const p = LS.get(K_PLATES, {}); p[truck.id] = effPlate; LS.set(K_PLATES, p); }
       logEvent("po_created", { who, meta: { po: saved.po, seconds: row.seconds_to_po, station, mode } });
       setTicket(e); go("po");
     } catch (err) {
       const q = LS.get("muniz_fuel_queue", []); q.push(row); LS.set("muniz_fuel_queue", q.slice(-50));
-      const msg = String((err && (err.body || err.message)) || err).slice(0, 300);
-      logEvent("error", { who, meta: { where: "insert", msg: msg.slice(0, 200) } });
-      setFailed({ ...row, __err: msg });
+      setFailed({ ...row, __err: String((err && (err.body || err.message)) || err).slice(0, 400) });
     } finally { setBusy(false); }
   };
 
@@ -625,7 +641,8 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
           <div style={{ fontSize: 56 }}>📡</div>
           <div className="mzf-display" style={{ fontSize: 22, marginTop: 8 }}>No se pudo registrar</div>
           <div style={{ fontSize: 14, color: C.mute, marginTop: 8, lineHeight: 1.4, fontWeight: 600 }}>El número de PO lo da la oficina en el momento. Tu solicitud quedó guardada en el teléfono: acércate a donde haya señal y toca reintentar.</div>
-          {failed.__err ? <div className="mzf-mono" style={{ fontSize: 11, color: C.red, marginTop: 10, wordBreak: "break-all" }}>{String(failed.__err).slice(0, 220)}</div> : null}
+          {failed.__err ? <div className="mzf-mono" style={{ fontSize: 12, color: C.red, marginTop: 10, wordBreak: "break-word", textAlign: "left", background: C.paper, borderRadius: 8, padding: 8 }}>{String(failed.__err).slice(0, 400)}</div> : null}
+          {failed.__err ? <button className="mzf-btn lite" style={{ marginTop: 8 }} onClick={() => { try { navigator.clipboard.writeText("COMBUSTIBLE v" + VERSION + " · " + who + "\n" + String(failed.__err)); } catch (e) {} }}>COPIAR EL ERROR (para Tito)</button> : null}
         </div>
       </div>
       <Bottom>
@@ -667,24 +684,35 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
         <div className="mzf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 52, height: 52, borderRadius: 12, background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flex: "none" }}>🛻</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{truck ? truck.desc : (manualComb ? `Camioneta ${manualComb === "GASOLINA" ? "gasolina" : "diésel"}` : "Camioneta")}</div>
-            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{truck ? (nEq(truck.de, who) ? "Tu camioneta según el registro" : `Registrada a ${truck.de || "la empresa"}`) : "No está en el registro de la flota"}</div>
+            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{truck ? truck.desc : "¿Cuál camioneta?"}</div>
+            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{truck ? (nEq(truck.de, who) ? "Tu camioneta según el registro" : `Registrada a ${truck.de || "la empresa"}`) : "Escógela de la lista de abajo"}</div>
             {lastVeh ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastVeh.ts)}{lastVeh.lectura !== "" ? ` · ${fmtNum(lastVeh.lectura)} mi` : ""}</div> : null}
           </div>
-          {truckComb ? <Badge comb={truckComb} /> : null}
+          {truck ? <Badge comb={truck.comb} /> : null}
         </div>
 
         <div className="mzf-label" style={{ marginTop: 16 }}>PLACA</div>
         <input className="mzf-input big" value={plate} onChange={e => setPlate(up(e.target.value).replace(/[^A-Z0-9 -]/g, "").slice(0, 10))}
           placeholder={regPlate || "EJ. RTX4821"} autoCapitalize="characters" autoCorrect="off" spellCheck={false} inputMode="text" />
         {regPlate && plateClean(plate) === plateClean(regPlate) ? <div style={{ fontSize: 12, color: C.mute, fontWeight: 700, marginTop: 6, textAlign: "center" }}>Placa registrada · si traes otra camioneta, cámbiala</div> : null}
-        {!regPlate && !plate ? <div style={{ fontSize: 12, color: C.mute, fontWeight: 700, marginTop: 6, textAlign: "center" }}>Como aparece en la placa. Se guarda para la próxima vez.</div> : null}
-        {plate && plateClean(plate).length >= 5 && !truck ? (
-          <div style={{ marginTop: 10 }}>
-            <div className="mzf-warn amber">Esa placa no está en la flota. Queda marcada para la oficina. ¿Qué combustible usa esa camioneta?</div>
-            <div className="mzf-yn" style={{ marginTop: 8 }}>
-              <button className={manualComb === "DIESEL" ? "on" : ""} onClick={() => setManualComb("DIESEL")}>DIÉSEL</button>
-              <button className={manualComb === "GASOLINA" ? "on" : ""} onClick={() => setManualComb("GASOLINA")}>GASOLINA</button>
+        {!regPlate && !plate && !noTruck ? <div style={{ fontSize: 12, color: C.mute, fontWeight: 700, marginTop: 6, textAlign: "center" }}>Como aparece en la placa. Se guarda para la próxima vez.</div> : null}
+        {noTruck ? (
+          <div style={{ marginTop: 12 }}>
+            <div className="mzf-warn blue">{plateClean(plate).length >= 5 ? "Esa placa no está en la flota." : "No tienes camioneta asignada."} Toca cuál es — el tipo de combustible lo pone el registro.</div>
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+              {(pickOpen || plateClean(plate).length >= 2 ? allTrucks : allTrucks.slice(0, 6)).map(v => (
+                <button key={v.id} className="mzf-pick" onClick={() => { setVeh(v); setPlate(v.placa || plates[v.id] || plate); }}
+                  style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 24 }}>{v.tipo === "PIPA" ? "🚛" : "🛻"}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 15 }}>{v.de || v.desc}</span>
+                    <span style={{ display: "block", fontSize: 11, color: C.mute, fontWeight: 700 }}>{v.desc}{(v.placa || plates[v.id]) ? " · " + (v.placa || plates[v.id]) : ""}</span>
+                  </span>
+                  <Badge comb={v.comb} />
+                </button>))}
+              {!pickOpen && plateClean(plate).length < 2 && allTrucks.length > 6 ?
+                <button className="mzf-btn lite" onClick={() => setPickOpen(true)}>VER TODA LA FLOTA ({allTrucks.length})</button> : null}
+              {!allTrucks.length ? <div className="mzf-warn amber">La flota no cargó. Revisa la señal y vuelve a entrar.</div> : null}
             </div>
           </div>) : null}
 
