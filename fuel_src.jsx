@@ -2,15 +2,21 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v3.3
+   MUÑIZ COMBUSTIBLE · v3.4
    Lives INSIDE the orders app (index.html loads fuel.js; pedidos_menu.js
    calls window.MunizFuel.mount). Same design system as app.js. One header,
-   one back arrow. The registry decides the fuel type, not the person, and
-   the vehicle_id on a PO is ALWAYS a real unit from the fleet - a plate the
-   registry does not know opens a picker instead of inventing a unit.
-   create_fuel_po is tried with the full payload first and, if the server
-   does not know the newer columns, again with the columns it has had since
-   parche 19 (the machine and the gasoline still travel in flags).
+   one back arrow. No messages: create_fuel_po issues the number on the spot.
+
+   Rules that keep the record honest:
+     · the fuel type comes from the fleet registry, never from the person
+     · vehicle_id is ALWAYS a real unit - a truck or a machine the registry
+       knows. A plate or a number it does not know opens a picker; it never
+       invents a unit and never lumps machines under one shared counter
+     · the odometer / hour guard runs against the SAME unit the PO will
+       carry, and the screen waits for the server's last reading before it
+       lets anyone past ("REVISANDO…")
+     · if the server still rejects a reading, the app says so in plain
+       Spanish and puts the person back on the screen that fixes it
    Flow: ¿Qué vas a cargar? VEHÍCULO (placa + odómetro) · MAQUINARIA
    (número + horas · diésel rojo) · LOS DOS → obra → estación + ¿gasolina?
    Names are matched by key (nk), so Gonzales/Gonzalez never splits a person.
@@ -69,7 +75,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "3.0";
+const VERSION = "3.4";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -506,7 +512,10 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const [gas, setGas] = useState(null);              // true | false | null (not answered)
   const [srvVeh, setSrvVeh] = useState(null);        // server: last reading for the truck
   const [srvMach, setSrvMach] = useState(null);      // server: last reading for the machine
+  const [machPick, setMachPick] = useState(null);   // unidad escogida de la lista
   const [pickOpen, setPickOpen] = useState(false);   // solo para quien no tiene camioneta registrada
+  const [vehWait, setVehWait] = useState(false);    // esperando la última lectura del servidor
+  const [machWait, setMachWait] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [ticket, setTicket] = useState(null);
@@ -519,9 +528,10 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
 
   /* registry: this person's truck (CAMIONETA or PIPA). Fuel type comes from here, never from the person. */
   const mine = useMemo(() => FLOTA.filter(v => nEq(v.de, who) && (v.tipo === "CAMIONETA" || v.tipo === "PIPA")), [who, refTick]);
-  const machines = useMemo(() => FLOTA.filter(v => v.tipo === "MAQUINARIA"), [refTick]);
+  /* todo lo que no es camioneta ni pipa: bobcat, rodillo, compactador, generador,
+     dump truck, tambo. Cada unidad lleva SU propio contador de horas. */
+  const machines = useMemo(() => FLOTA.filter(v => v.tipo !== "CAMIONETA" && v.tipo !== "PIPA"), [refTick]);
   const allTrucks = useMemo(() => FLOTA.filter(v => v.tipo === "CAMIONETA" || v.tipo === "PIPA"), [refTick]);
-  const genericMachine = useMemo(() => machines.find(v => !v.de && /M-GEN/i.test(v.id)) || machines.find(v => !v.de) || machines[0] || { id: "M-GEN", desc: "Maquinaria", tipo: "MAQUINARIA", comb: "DIESEL", de: "" }, [machines]);
   const hasVeh = mode === "VEH" || mode === "BOTH", hasMach = mode === "MACH" || mode === "BOTH";
   const steps = useMemo(() => ["what", ...(hasVeh ? ["veh"] : []), ...(hasMach ? ["mach"] : []), "obra", "est"], [mode]);
   const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
@@ -538,19 +548,30 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const noTruck = hasVeh && !truck;          // no tiene camioneta en el registro y la placa no coincide
 
   /* machine typed → known unit? */
-  const machMatch = useMemo(() => { const q = up(equipNo).replace(/[^A-Z0-9]/g, ""); if (q.length < 2) return null; const d = digits(q);
-    return machines.find(v => up(v.id).replace(/[^A-Z0-9]/g, "") === q) || (d.length >= 3 ? machines.find(v => digits(v.desc).endsWith(d) || digits(v.id).endsWith(d)) : null) || null; }, [equipNo, machines]);
-  const machine = machMatch || genericMachine;
+  const machMatch = useMemo(() => { const q = up(equipNo).replace(/[^A-Z0-9]/g, ""); if (q.length < 1) return null; const d = digits(q);
+    return machines.find(v => up(v.id).replace(/[^A-Z0-9]/g, "") === q)
+      || machines.find(v => digits(v.desc) && d && digits(v.desc) === d)
+      || (d.length >= 3 ? machines.find(v => digits(v.desc).endsWith(d) || digits(v.id).endsWith(d)) : null)
+      || machines.find(v => up(v.desc).replace(/[^A-Z0-9]/g, "").indexOf(q) >= 0 && q.length >= 3)
+      || null; }, [equipNo, machines]);
+  const machine = machPick || machMatch;                 /* NUNCA una unidad inventada */
+  const noMach = hasMach && !machine;
+  const machList = useMemo(() => { const q = up(equipNo).replace(/[^A-Z0-9]/g, "");
+    if (!q) return machines;
+    const hit = machines.filter(v => (up(v.desc) + up(v.id)).replace(/[^A-Z0-9]/g, "").indexOf(q) >= 0);
+    return hit.length ? hit : machines; }, [equipNo, machines]);
 
-  useEffect(() => { if (!HAS_BACKEND || !truck) { setSrvVeh(null); return; } let ok = true;
-    sbRpc("vehicle_status", { vid: truck.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok && x) setSrvVeh(x); }).catch(() => {}); return () => { ok = false; }; }, [truck && truck.id]);
-  useEffect(() => { if (!HAS_BACKEND || !machMatch) { setSrvMach(null); return; } let ok = true;
-    sbRpc("vehicle_status", { vid: machMatch.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok && x) setSrvMach(x); }).catch(() => {}); return () => { ok = false; }; }, [machMatch && machMatch.id]);
+  useEffect(() => { setSrvVeh(null); if (!HAS_BACKEND || !truck) { setVehWait(false); return; } let ok = true; setVehWait(true);
+    sbRpc("vehicle_status", { vid: truck.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok) { if (x) setSrvVeh(x); setVehWait(false); } })
+      .catch(() => { if (ok) setVehWait(false); }); return () => { ok = false; }; }, [truck && truck.id]);
+  useEffect(() => { setSrvMach(null); if (!HAS_BACKEND || !machine) { setMachWait(false); return; } let ok = true; setMachWait(true);
+    sbRpc("vehicle_status", { vid: machine.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok) { if (x) setSrvMach(x); setMachWait(false); } })
+      .catch(() => { if (ok) setMachWait(false); }); return () => { ok = false; }; }, [machine && machine.id]);
 
   const lastOf = (vid, srv) => { if (srv && srv.last_at) return { lectura: srv.last_reading == null ? "" : String(srv.last_reading), ts: new Date(srv.last_at).getTime() };
     return hist.filter(h => h.vid === vid).sort((a, b) => b.ts - a.ts)[0] || null; };
   const lastVeh = truck ? lastOf(truck.id, srvVeh) : null;
-  const lastMach = machMatch ? lastOf(machMatch.id, srvMach) : null;
+  const lastMach = machine ? lastOf(machine.id, srvMach) : null;
 
   const odoProblem = (() => { if (!hasVeh || odo === "" || !lastVeh || lastVeh.lectura === "") return null; const d = Number(odo) - Number(lastVeh.lectura);
     if (d < 0) return { block: true, t: `El odómetro no puede bajar. Última carga: ${fmtNum(lastVeh.lectura)} mi` };
@@ -558,8 +579,8 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const hrsProblem = (() => { if (!hasMach || hrs === "" || !lastMach || lastMach.lectura === "") return null;
     if (Number(hrs) < Number(lastMach.lectura)) return { block: true, t: `Las horas no pueden bajar. Última carga: ${fmtNum(lastMach.lectura)} h` }; return null; })();
 
-  const vehOk = !hasVeh || (!!truck && effPlate.length >= 5 && odo !== "" && !(odoProblem && odoProblem.block));
-  const machOk = !hasMach || (up(equipNo).trim().length >= 1 && hrs !== "" && !(hrsProblem && hrsProblem.block));
+  const vehOk = !hasVeh || (!!truck && effPlate.length >= 5 && odo !== "" && !(odoProblem && odoProblem.block) && !vehWait);
+  const machOk = !hasMach || (!!machine && up(equipNo).trim().length >= 1 && hrs !== "" && !(hrsProblem && hrsProblem.block) && !machWait);
 
   const pickTruck = v => { setVeh(v); setPlate(v ? (v.placa || plates[v.id] || "") : ""); };
   const go = s => { setScreen(s); try { requestAnimationFrame(() => { document.querySelectorAll(".mzf-body").forEach(b => { b.scrollTop = 0; }); }); } catch (e) {} };
@@ -567,7 +588,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const back = () => { if (screen === "po") { done(); return; } if (failed) { setFailed(null); return; }
     const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
   const done = () => { if (embedded) onClose(); else if (onChangeWho) onChangeWho(true); };
-  const another = () => { setScreen("what"); setMode(""); setVeh(null); setPlate(""); setOdo(""); setEquipNo(""); setHrs(""); setObra(""); setObraOtra(""); setOtraOpen(false); setStation(""); setGas(null); setTicket(null); t0.current = Date.now(); go("what"); };
+  const another = () => { setScreen("what"); setMode(""); setVeh(null); setPlate(""); setOdo(""); setEquipNo(""); setMachPick(null); setHrs(""); setObra(""); setObraOtra(""); setOtraOpen(false); setStation(""); setGas(null); setTicket(null); t0.current = Date.now(); go("what"); };
 
   /* -------- the PO: server assigns the number, the row is the record -------- */
   const buildRow = (ref, shape) => {
@@ -579,7 +600,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (obraSemana && (obraOtra || obra) !== obraSemana) flags.push(`Obra distinta al rol (${obraSemana})`);
     if (hasVeh && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && main.tipo !== "PIPA") flags.push(`Mismo vehículo cargó hace ${Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h`);
     if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
-    if (hasMach) flags.push(`+ Maquinaria ${up(equipNo)} · ${fmtNum(hrs)} h · diésel rojo` + (machMatch ? "" : " (equipo no registrado)"));
+    if (hasMach && hasVeh) flags.push(`+ Maquinaria ${machine.desc} (${machine.id}) · ${fmtNum(hrs)} h · diésel rojo`);
     if (gas) flags.push("+ Gasolina (garrafas / equipo chico)");
     /* shape 0 = todo. shape 1 = solo las columnas que el servidor ya conocía
        (la maquinaria y la gasolina siguen viajando en flags, que es texto). */
@@ -587,7 +608,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
       client_ref: ref, device_id: deviceId(), who, role: roleOf(who),
       vehicle_id: main.id, vehicle_desc: main.desc, tipo: main.tipo, comb,
       plate: hasVeh ? effPlate : null, plate_typed: hasVeh ? plateTyped : false,
-      equipo: hasMach ? up(equipNo) : null,
+      equipo: hasMach ? (machine.desc || up(equipNo)) : null,
       reading: hasVeh ? Number(odo) : Number(hrs),
       jobsite: obraOtra || obra, jobsite_other: !!obraOtra, jobsite_week: obraSemana || null,
       station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
@@ -595,12 +616,13 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
       flags,
     };
     if (!shape) { row.extra_gas = !!gas; row.machine_id = hasMach && hasVeh ? machine.id : null;
-      row.machine_equipo = hasMach && hasVeh ? up(equipNo) : null; row.machine_hours = hasMach && hasVeh ? Number(hrs) : null; }
+      row.machine_equipo = hasMach && hasVeh ? (machine.desc || up(equipNo)) : null; row.machine_hours = hasMach && hasVeh ? Number(hrs) : null; }
     return row;
   };
   const generate = async () => {
     if (!HAS_BACKEND) { setFailed({ __err: "Falta SUPABASE en config.js" }); return; }
     if (hasVeh && !truck) { setFailed({ __err: "Escoge la camioneta de la flota antes de generar el PO." }); return; }
+    if (hasMach && !machine) { setFailed({ __err: "Escoge la máquina de la lista antes de generar el PO." }); return; }
     setBusy(true); setFailed(null);
     const ref = uuid();                                   /* el mismo en los dos intentos: el servidor no duplica */
     const order = Number(LS.get(K_SHAPE, 0)) ? [1, 0] : [0, 1];
@@ -631,6 +653,30 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
 
   const strip = screen === "po" ? null : screen === "what" ? "COMBUSTIBLE" : `COMBUSTIBLE · PASO ${stepNo} DE ${TOTAL}`;
   const titles = { what: "¿QUÉ VAS A CARGAR?", veh: "TU CAMIONETA", mach: "LA MÁQUINA", obra: "¿EN QUÉ OBRA ESTÁS?", est: "¿DÓNDE VAS A CARGAR?", po: "PO DE COMBUSTIBLE" };
+
+  /* -------- the server rejected the reading: send them back to fix it -------- */
+  const readingErr = failed && /lectura|reading|menor|odom|hora/i.test(String(failed.__err || ""));
+  if (failed && readingErr) {
+    const nums = String(failed.__err).match(/\d[\d,.]*/g) || [];
+    return (
+      <Shell>
+        <Head title="REVISA LA LECTURA" who={who} onBack={() => setFailed(null)} strip="COMBUSTIBLE" stripColor={C.red} />
+        <div className="mzf-body">
+          <div className="mzf-card" style={{ padding: 18, textAlign: "center", borderColor: C.red }}>
+            <div style={{ fontSize: 52 }}>🔢</div>
+            <div className="mzf-display" style={{ fontSize: 22, marginTop: 8 }}>El número no puede ir para atrás</div>
+            <div style={{ fontSize: 15, color: C.ink, marginTop: 8, lineHeight: 1.4, fontWeight: 700 }}>
+              {nums.length >= 2 ? <>Pusiste <b style={{ color: C.red }}>{nums[0]}</b> y la última carga fue <b>{nums[1]}</b>.</> : "La lectura que pusiste es menor que la última registrada."}
+            </div>
+            <div style={{ fontSize: 13, color: C.mute, marginTop: 8, lineHeight: 1.4, fontWeight: 600 }}>Vuelve a ver el tablero y escríbelo otra vez. Si de veras marca menos, habla con Tito — no le des vuelta.</div>
+          </div>
+        </div>
+        <Bottom>
+          {hasVeh ? <button className="mzf-btn mzf-display" style={{ background: C.blue }} onClick={() => { setOdo(""); setFailed(null); go("veh"); }}>CORREGIR EL ODÓMETRO →</button> : null}
+          {hasMach ? <button className="mzf-btn mzf-display" style={{ background: C.red, marginTop: hasVeh ? 6 : 0 }} onClick={() => { setHrs(""); setFailed(null); go("mach"); }}>CORREGIR LAS HORAS →</button> : null}
+        </Bottom>
+      </Shell>);
+  }
 
   /* -------- no signal -------- */
   if (failed) return (
@@ -686,7 +732,9 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{truck ? truck.desc : "¿Cuál camioneta?"}</div>
             <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{truck ? (nEq(truck.de, who) ? "Tu camioneta según el registro" : `Registrada a ${truck.de || "la empresa"}`) : "Escógela de la lista de abajo"}</div>
-            {lastVeh ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastVeh.ts)}{lastVeh.lectura !== "" ? ` · ${fmtNum(lastVeh.lectura)} mi` : ""}</div> : null}
+            {truck ? (vehWait ? <div style={{ fontSize: 11, color: C.blue, fontWeight: 700, marginTop: 2 }}>Revisando la última lectura…</div>
+              : lastVeh ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastVeh.ts)}{lastVeh.lectura !== "" ? ` · ${fmtNum(lastVeh.lectura)} mi` : ""}</div>
+              : <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Primera carga registrada</div>) : null}
           </div>
           {truck ? <Badge comb={truck.comb} /> : null}
         </div>
@@ -720,8 +768,8 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
         <input className="mzf-input num" value={odo ? fmtNum(odo) : ""} onChange={e => setOdo(digits(e.target.value).slice(0, 7))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
         {odoProblem ? <div className={`mzf-warn ${odoProblem.block ? "red" : "amber"}`} style={{ marginTop: 8 }}>{odoProblem.block ? "⛔ " : "⚠ "}{odoProblem.t}</div> : null}
       </div>
-      <Bottom hint={hasMach ? "Después: la máquina" : null}>
-        <button className="mzf-btn mzf-display" style={{ background: C.blue }} disabled={!vehOk} onClick={next}>CONTINUAR →</button>
+      <Bottom hint={truck && vehWait ? "Revisando la última lectura de esta camioneta…" : hasMach ? "Después: la máquina" : null}>
+        <button className="mzf-btn mzf-display" style={{ background: C.blue }} disabled={!vehOk} onClick={next}>{truck && vehWait ? "REVISANDO…" : "CONTINUAR →"}</button>
       </Bottom>
     </Shell>);
 
@@ -733,23 +781,43 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
         <div className="mzf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 52, height: 52, borderRadius: 12, background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flex: "none" }}>🚜</div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{machMatch ? machMatch.desc : "Maquinaria"}</div>
-            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{machMatch ? "Equipo registrado" : "Bobcat, rodillo, compactador, generador…"}</div>
-            {lastMach ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastMach.ts)}{lastMach.lectura !== "" ? ` · ${fmtNum(lastMach.lectura)} h` : ""}</div> : null}
+            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{machine ? machine.desc : "¿Cuál máquina?"}</div>
+            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{machine ? "Equipo registrado" : "Escógela de la lista de abajo"}</div>
+            {machine ? (machWait ? <div style={{ fontSize: 11, color: C.blue, fontWeight: 700, marginTop: 2 }}>Revisando la última lectura…</div>
+              : lastMach ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastMach.ts)}{lastMach.lectura !== "" ? ` · ${fmtNum(lastMach.lectura)} h` : ""}</div>
+              : <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Primera carga registrada</div>) : null}
           </div>
           <Badge comb="DIESEL ROJO" />
         </div>
 
         <div className="mzf-label" style={{ marginTop: 16 }}>NÚMERO DE LA MÁQUINA · el que trae pintado</div>
-        <input className="mzf-input big" value={equipNo} onChange={e => setEquipNo(up(e.target.value).replace(/[^A-Z0-9 -]/g, "").slice(0, 12))}
+        <input className="mzf-input big" value={equipNo} onChange={e => { setEquipNo(up(e.target.value).replace(/[^A-Z0-9 -]/g, "").slice(0, 12)); setMachPick(null); setHrs(""); }}
           placeholder="EJ. 0415" autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
 
-        <div className="mzf-label" style={{ marginTop: 16 }}>HORAS · lo que marca el horómetro</div>
-        <input className="mzf-input num" value={hrs ? fmtNum(hrs) : ""} onChange={e => setHrs(digits(e.target.value).slice(0, 6))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
-        {hrsProblem ? <div className="mzf-warn red" style={{ marginTop: 8 }}>⛔ {hrsProblem.t}</div> : null}
+        {noMach ? (
+          <div style={{ marginTop: 12 }}>
+            <div className="mzf-warn blue">{machines.length ? "Toca cuál es. Cada máquina lleva sus propias horas." : "La flota no cargó. Revisa la señal y vuelve a entrar."}</div>
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+              {machList.map(v => (
+                <button key={v.id} className="mzf-pick" onClick={() => { setMachPick(v); setEquipNo(up(v.id)); setHrs(""); }}
+                  style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 24 }}>{v.tipo === "TAMBO" ? "🛢️" : "🚜"}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 15 }}>{v.desc}</span>
+                    <span style={{ display: "block", fontSize: 11, color: C.mute, fontWeight: 700 }}>{v.id}{v.de ? " · " + v.de : ""}</span>
+                  </span>
+                </button>))}
+            </div>
+          </div>) : null}
+
+        {machine ? (<>
+          <div className="mzf-label" style={{ marginTop: 16 }}>HORAS · lo que marca el horómetro</div>
+          <input className="mzf-input num" value={hrs ? fmtNum(hrs) : ""} onChange={e => setHrs(digits(e.target.value).slice(0, 6))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
+          {hrsProblem ? <div className={`mzf-warn ${hrsProblem.block ? "red" : "amber"}`} style={{ marginTop: 8 }}>{hrsProblem.block ? "⛔ " : "⚠ "}{hrsProblem.t}</div> : null}
+        </>) : null}
       </div>
-      <Bottom>
-        <button className="mzf-btn mzf-display" style={{ background: C.red }} disabled={!machOk} onClick={next}>CONTINUAR →</button>
+      <Bottom hint={machine && machWait ? "Revisando la última lectura de esta máquina…" : null}>
+        <button className="mzf-btn mzf-display" style={{ background: C.red }} disabled={!machOk} onClick={next}>{machine && machWait ? "REVISANDO…" : "CONTINUAR →"}</button>
       </Bottom>
     </Shell>);
 
@@ -788,7 +856,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     const rows = [
       hasVeh ? ["Camioneta", `${truck ? truck.desc : "Camioneta"} · ${effPlate}`] : null,
       hasVeh ? ["Odómetro", `${fmtNum(odo)} mi`] : null,
-      hasMach ? ["Máquina", `${up(equipNo)}${machMatch ? " · " + machMatch.desc : ""}`] : null,
+      hasMach ? ["Máquina", machine ? machine.desc : up(equipNo)] : null,
       hasMach ? ["Horas", `${fmtNum(hrs)} h`] : null,
       ["Obra", obraOtra || obra],
     ].filter(Boolean);
