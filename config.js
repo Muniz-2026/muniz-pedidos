@@ -45,10 +45,12 @@ window.MUNIZ_CONFIG = {
      Gente que pide material o combustible pero no es mayordomo: choferes,
      taller, yarda, ayudantes. Aparecen en la MISMA lista de nombres que los
      mayordomos, sin nada que los distinga. Para agregar a alguien, escribe su
-     nombre aqui abajo entre comillas y una coma al final. Escribelo EXACTAMENTE
-     igual que en FLOTA (abajo) para que el app le reconozca su camioneta. */
+     nombre aqui abajo entre comillas y una coma al final.
+     NO importa si escribes Gonzales o Gonzalez, Nino o Nino, con o sin acento:
+     el app reconoce a la persona igual. Tampoco importa si aqui esta escrito de
+     una forma y en FLOTA de otra - se enlazan solos. */
   PERSONAL: [
-    "ABRAHAM GONZALEZ",
+    "ABRAHAM GONZALES",
     "ULISES LARA",
     "HECTOR SEGURA",
   ],
@@ -136,7 +138,7 @@ window.MUNIZ_CONFIG = {
 
     /* Gente que pide combustible y NO esta en la lista de mayordomos (del registro de POs). */
     USUARIOS_EXTRA: [
-      "ABRAHAM GONZALEZ","ULISES LARA","JOSE ANTONIO LICEA","ISIDRO GARCIA","ENRIQUE CHAPA",
+      "ABRAHAM GONZALES","ULISES LARA","JOSE ANTONIO LICEA","ISIDRO GARCIA","ENRIQUE CHAPA",
       "RAFAEL PEREZ","JOSE DE LA CERDA","JESUS G RODRIGUEZ","FRANCIS ECHEVESTRE","AVISAI JIMENEZ",
       "ROGELIO LOPEZ","ALEJANDRO ESQUIVEL","ANDY HERNANDEZ","MARTIN JUAREZ","JOSE GERARDO GARCIA",
       "MARCELA CASTANEDA","IVAN MUNIZ","FERNANDO ARELLANO","ALEXANDER ROSALES","URIEL SOTO",
@@ -188,7 +190,7 @@ window.MUNIZ_CONFIG = {
       { id:"P-LPE", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"LUIS PEREZ" },
       /* --- choferes y otros (revisar tipo de combustible) --- */
       { id:"V-HSE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"HECTOR SEGURA" },
-      { id:"V-AGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ABRAHAM GONZALEZ" },
+      { id:"V-AGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ABRAHAM GONZALES" },
       { id:"V-ULA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ULISES LARA" },
       { id:"V-JLI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JOSE ANTONIO LICEA" },
       { id:"V-ECH", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ENRIQUE CHAPA" },

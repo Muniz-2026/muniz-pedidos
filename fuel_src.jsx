@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v3.1
+   MUÑIZ COMBUSTIBLE · v3.2
    Lives INSIDE the orders app (index.html loads fuel.js; pedidos_menu.js
    calls window.MunizFuel.mount). Same design system as app.js. One header,
    one back arrow. The registry decides the fuel type, not the person.
@@ -10,6 +10,7 @@ import { createRoot } from "react-dom/client";
    generated. No supervisor, no messages.
    Flow: ¿Qué vas a cargar? VEHÍCULO (placa + odómetro) · MAQUINARIA
    (número + horas · diésel rojo) · LOS DOS → obra → estación + ¿gasolina?
+   Names are matched by key (nk), so Gonzales/Gonzalez never splits a person.
    fuel.html still works on its own (office console at fuel.html#oficina).
    ===================================================================== */
 
@@ -65,7 +66,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "3.1";
+const VERSION = "3.0";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -79,15 +80,29 @@ const SUPS = Object.keys(CFG.SUPERVISORES || {}).map(up);
 const PMS  = Object.keys(CFG.GERENTES || {}).map(up);
 const DRIVERS = Object.keys(CFG.CHOFERES || {}).map(up);
 const EXTRA = (FUEL.USUARIOS_EXTRA || []).map(up);
+const PERSONAL_CFG = (CFG.PERSONAL || []).map(up);
 const OFICINA = (() => { const o = {}; const m = CFG.OFICINA || {};
   for (const k in m) o[up(k)] = String(m[k] || ""); return o; })();
+/* ---------- name key: the same person no matter how the name is spelled.
+   Gonzales/González/Gonzalez, Nino/Niño, Perez/Peres, Hernandez/Ernandez,
+   Vazquez/Bazquez all collapse to one key. Checked against the whole roster: no two different
+   people collide. Lookups try the exact spelling first, then the key. -------- */
+const nk = s => String(s || "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^A-Z ]/g, " ").replace(/H/g, "").replace(/C([EI])/g, "S$1").replace(/Z/g, "S")
+  .replace(/V/g, "B").replace(/Y/g, "I").replace(/(.)\1+/g, "$1").replace(/\s+/g, " ").trim()
+  .split(" ").map(w => (w.length > 3 ? w.replace(/S$/, "") : w)).join(" ");
+const nEq = (a, b) => { const x = nk(a); return !!x && x === nk(b); };
+const nGet = (m, n) => { if (!m) return undefined; const k = up(n); if (Object.prototype.hasOwnProperty.call(m, k)) return m[k];
+  const t = nk(n); if (!t) return undefined; for (const x in m) if (nk(x) === t) return m[x]; return undefined; };
+const nHas = (a, n) => (a || []).some(x => nEq(x, n));
+const nUniq = list => { const seen = {}, out = []; list.forEach(x => { const k = nk(x); if (!k || seen[k]) return; seen[k] = 1; out.push(x); }); return out; };
 const lastName = s => { const p = up(s).split(/\s+/); return p[p.length - 1] + " " + p.slice(0, -1).join(" "); };
-const everyone = () => (PEOPLE_DB ? PEOPLE_DB.map(p => up(p.name))
-  : Array.from(new Set([...FOREMEN_BASE, ...SUPS, ...PMS, ...DRIVERS, ...EXTRA, ...Object.keys(OFICINA)])))
+const everyone = () => nUniq(PEOPLE_DB ? PEOPLE_DB.map(p => up(p.name))
+  : [...FOREMEN_BASE, ...PERSONAL_CFG, ...SUPS, ...PMS, ...DRIVERS, ...EXTRA, ...Object.keys(OFICINA)])
   .sort((a, b) => lastName(a).localeCompare(lastName(b), "es"));
-const roleOf = n => { if (PEOPLE_DB) { const p = PEOPLE_DB.find(x => up(x.name) === n); if (p) return up(p.role); }
-  return OFICINA[n] !== undefined ? "OFICINA" : SUPS.includes(n) ? "SUPERVISOR" : PMS.includes(n) ? "GERENTE"
-  : DRIVERS.includes(n) ? "CHOFER" : FOREMEN_BASE.includes(n) ? "MAYORDOMO" : "PERSONAL"; };
+const roleOf = n => { if (PEOPLE_DB) { const p = PEOPLE_DB.find(x => nEq(x.name, n)); if (p) return up(p.role); }
+  return nGet(OFICINA, n) !== undefined ? "OFICINA" : nHas(SUPS, n) ? "SUPERVISOR" : nHas(PMS, n) ? "GERENTE"
+  : nHas(DRIVERS, n) ? "CHOFER" : nHas(FOREMEN_BASE, n) ? "MAYORDOMO" : "PERSONAL"; };
 
 /* ---------- fleet / stations / jobsites ---------- */
 let FLOTA = (FUEL.FLOTA || []).map(v => ({ ...v, de: up(v.de), comb: up(v.comb), tipo: up(v.tipo), placa: up(v.placa) }));
@@ -499,13 +514,13 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   useEffect(() => { logEvent("step", { who: who || null, step: ["what", "veh", "mach", "obra", "est", "po"].indexOf(screen) + 1, meta: { screen, mode } }); }, [screen]);
 
   /* registry: this person's truck (CAMIONETA or PIPA). Fuel type comes from here, never from the person. */
-  const mine = useMemo(() => FLOTA.filter(v => v.de === who && (v.tipo === "CAMIONETA" || v.tipo === "PIPA")), [who, refTick]);
+  const mine = useMemo(() => FLOTA.filter(v => nEq(v.de, who) && (v.tipo === "CAMIONETA" || v.tipo === "PIPA")), [who, refTick]);
   const machines = useMemo(() => FLOTA.filter(v => v.tipo === "MAQUINARIA"), [refTick]);
   const genericMachine = useMemo(() => machines.find(v => !v.de && /M-GEN/i.test(v.id)) || machines.find(v => !v.de) || machines[0] || { id: "M-GEN", desc: "Maquinaria", tipo: "MAQUINARIA", comb: "DIESEL", de: "" }, [machines]);
   const hasVeh = mode === "VEH" || mode === "BOTH", hasMach = mode === "MACH" || mode === "BOTH";
   const steps = useMemo(() => ["what", ...(hasVeh ? ["veh"] : []), ...(hasMach ? ["mach"] : []), "obra", "est"], [mode]);
   const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
-  const obraSemana = OBRA_SEMANA[who] || "";
+  const obraSemana = nGet(OBRA_SEMANA, who) || "";
 
   /* plate typed by the person → is it a truck we know? (covers people without an assigned truck, or driving another one) */
   const plateMatch = useMemo(() => { const p = plateClean(plate); if (p.length < 5) return null;
@@ -653,7 +668,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
           <div style={{ width: 52, height: 52, borderRadius: 12, background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flex: "none" }}>🛻</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{truck ? truck.desc : (manualComb ? `Camioneta ${manualComb === "GASOLINA" ? "gasolina" : "diésel"}` : "Camioneta")}</div>
-            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{truck ? (truck.de === who ? "Tu camioneta según el registro" : `Registrada a ${truck.de || "la empresa"}`) : "No está en el registro de la flota"}</div>
+            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{truck ? (nEq(truck.de, who) ? "Tu camioneta según el registro" : `Registrada a ${truck.de || "la empresa"}`) : "No está en el registro de la flota"}</div>
             {lastVeh ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastVeh.ts)}{lastVeh.lectura !== "" ? ` · ${fmtNum(lastVeh.lectura)} mi` : ""}</div> : null}
           </div>
           {truckComb ? <Badge comb={truckComb} /> : null}
