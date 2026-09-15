@@ -146,6 +146,9 @@ function useOps(t) {
 /* ---------- derived: who decided an order (falls back to the approval/rejection event) ---------- */
 function deciderMap(oev) { const m = {}; (oev || []).forEach(e => { if ((e.stage === "APROBADO" || e.stage === "RECHAZADO") && e.actor && !m[e.order_id]) m[e.order_id] = e.actor; }); return m; }
 const decidedBy = (o, dm) => o.decided_by || (dm && dm[o.id]) || null;
+/* jobsite the order should count under: its own, else where the crew is rostered this week */
+const siteOf = o => o.jobsite || o.jobsite_week || null;
+const siteIsRoster = o => !o.jobsite && !!o.jobsite_week;
 
 /* ---------- derived: the signal feed ---------- */
 function buildSignals(d) {
@@ -387,12 +390,12 @@ function Orders({ d, now, t, q, focus, clearFocus, onChanged }) {
   useEffect(() => { if (focus) { const o = (d.orders || []).find(x => x.id === focus); if (o) setSel(o); clearFocus(); } }, [focus, d.orders]);
   const all = (d.orders || []).filter(o => !o.is_practice && (range === 0 || o.ts >= now - range * 864e5));
   const shown = all.filter(o => (tab === "all" || (tab === "open" ? (o.status === "SOLICITADO" || o.status === "APROBADO") : tab === "auto" ? decidedBy(o, dm) === "REGLAS" : o.status === tab))
-    && (!q || `${o.req_no} ${o.po || ""} ${o.foreman} ${o.jobsite || ""} ${o.supervisor || ""} ${o.provider} ${(o.lines || []).map(l => (l.code || "") + " " + (l.descr || "")).join(" ")}`.toLowerCase().includes(q.toLowerCase())));
+    && (!q || `${o.req_no} ${o.po || ""} ${o.foreman} ${siteOf(o) || ""} ${o.supervisor || ""} ${o.provider} ${(o.lines || []).map(l => (l.code || "") + " " + (l.descr || "")).join(" ")}`.toLowerCase().includes(q.toLowerCase())));
   const top = (f, val) => { const m = {}; all.forEach(o => { if (o.status === "RECHAZADO") return; const k = f(o) || "—"; m[k] = (m[k] || 0) + val(o); }); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
-  const byJob = top(o => o.jobsite, o => Number(o.est_total) || 0), byWho = top(o => o.foreman, o => Number(o.est_total) || 0);
+  const byJob = top(o => siteOf(o), o => Number(o.est_total) || 0), byWho = top(o => o.foreman, o => Number(o.est_total) || 0);
   const items = useMemo(() => { const m = {}; all.forEach(o => (o.lines || []).filter(l => l.stage === (o.approved_at ? "APROBADO" : "SOLICITADO") && !l.removed && l.qty > 0).forEach(l => { const k = (l.code || "") + "|" + (l.descr || ""); const x = m[k] = m[k] || { code: l.code, descr: l.descr, qty: 0, n: 0, usd: 0 }; x.qty += +l.qty || 0; x.n++; x.usd += +l.line_total || 0; })); return Object.values(m).sort((a, b) => b.usd - a.usd).slice(0, 10); }, [all]);
   const csv = () => { const cl = s => `"${String(s ?? "").replace(/"/g, '""')}"`; const H = ["req_no", "date", "foreman", "role", "provider", "jobsite", "rostered", "supervisor", "status", "lane", "decided_by", "po", "lines_requested", "lines_approved", "value_usd", "min_to_decision", "flags", "lines"];
-    const R = shown.map(o => [o.req_no, new Date(o.ts).toLocaleString("en-US"), o.foreman, o.foreman_role, o.provider, o.jobsite, o.jobsite_week, o.supervisor, o.status, o.lane, decidedBy(o, dm), o.po, o.requested_lines, o.approved_lines, o.est_total, o.secs_to_approve ? Math.round(o.secs_to_approve / 60) : "", (o.server_flags || []).join(" | "), (o.lines || []).filter(l => l.stage === (o.approved_at ? "APROBADO" : "SOLICITADO")).map(l => `${l.qty}x ${l.descr || l.code}${l.removed ? " (CUT)" : ""}`).join(" | ")].map(cl).join(","));
+    const R = shown.map(o => [o.req_no, new Date(o.ts).toLocaleString("en-US"), o.foreman, o.foreman_role, o.provider, siteOf(o), o.jobsite_week, o.supervisor, o.status, o.lane, decidedBy(o, dm), o.po, o.requested_lines, o.approved_lines, o.est_total, o.secs_to_approve ? Math.round(o.secs_to_approve / 60) : "", (o.server_flags || []).join(" | "), (o.lines || []).filter(l => l.stage === (o.approved_at ? "APROBADO" : "SOLICITADO")).map(l => `${l.qty}x ${l.descr || l.code}${l.removed ? " (CUT)" : ""}`).join(" | ")].map(cl).join(","));
     const b = new Blob(["\uFEFF" + [H.join(","), ...R].join("\n")], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `muniz_orders_${dayKey(now)}.csv`; a.click(); };
   return (
     <div className="room">
@@ -402,7 +405,7 @@ function Orders({ d, now, t, q, focus, clearFocus, onChanged }) {
         <button className="btn sm" onClick={csv}>↓ CSV</button>
       </div>
       <div className="g3">
-        <Panel title="SPEND BY JOBSITE" right={<span className="dim">catalog value</span>}>{byJob.slice(0, 8).map(([k, v], i) => <div key={k} className="row"><span className="dim mono w2">{i + 1}</span><b className="grow tr">{k}</b><div className="hbar" style={{ width: `${v / (byJob[0][1] || 1) * 100}px`, background: C.orange }} /><span className="mono r">{money0(v)}</span></div>)}{!byJob.length ? <Empty>No orders in range.</Empty> : null}</Panel>
+        <Panel title="SPEND BY JOBSITE" right={<span className="dim">catalog value · roster when the order has no site</span>}>{byJob.slice(0, 8).map(([k, v], i) => <div key={k} className="row"><span className="dim mono w2">{i + 1}</span><b className="grow tr">{k}</b><div className="hbar" style={{ width: `${v / (byJob[0][1] || 1) * 100}px`, background: C.orange }} /><span className="mono r">{money0(v)}</span></div>)}{!byJob.length ? <Empty>No orders in range.</Empty> : null}</Panel>
         <Panel title="SPEND BY FOREMAN">{byWho.slice(0, 8).map(([k, v], i) => <div key={k} className="row"><span className="dim mono w2">{i + 1}</span><b className="grow tr">{title(k)}</b><div className="hbar" style={{ width: `${v / (byWho[0][1] || 1) * 100}px`, background: C.cyan }} /><span className="mono r">{money0(v)}</span></div>)}{!byWho.length ? <Empty>No orders in range.</Empty> : null}</Panel>
         <Panel title="TOP ITEMS BY VALUE">{items.map((x, i) => <div key={i} className="row"><span className="mono dim w6 tr">{x.code || "off-cat"}</span><b className="grow tr">{x.descr}</b><span className="mono dim">{x.n}×</span><span className="mono r">{money0(x.usd)}</span></div>)}{!items.length ? <Empty>No lines in range.</Empty> : null}</Panel>
       </div>
@@ -411,7 +414,7 @@ function Orders({ d, now, t, q, focus, clearFocus, onChanged }) {
           {shown.map(o => { const [lbl, c] = ORDER_STATUS[o.status] || ["", C.dim]; return (
             <tr key={o.id} onClick={() => setSel(o)}>
               <td className="mono"><b>{o.req_no}</b>{o.is_addon ? <Tag c={C.amber} dim>+ADD</Tag> : null}</td><td className="dim">{dt(o.ts)}</td><td><b>{title(o.foreman)}</b></td><td><Tag c={PROV[o.provider]}>{o.provider}</Tag></td>
-              <td className={o.jobsite_known ? "" : "amber"}>{o.jobsite || <span className="red">none</span>}</td><td className="dim">{o.supervisor === "REGLAS (AUTO)" ? "rules" : title(o.supervisor) || "—"}</td>
+              <td className={o.jobsite && !o.jobsite_known ? "amber" : ""}>{siteOf(o) ? <>{siteOf(o)}{siteIsRoster(o) ? <span className="dim xs"> · rol</span> : null}</> : <span className="red">none</span>}</td><td className="dim">{o.supervisor === "REGLAS (AUTO)" ? "rules" : title(o.supervisor) || "—"}</td>
               <td className="mono r">{o.approved_lines != null ? <>{o.requested_lines}<span className="dim">→</span>{o.approved_lines}{o.removed_lines && o.removed_lines === o.requested_lines - o.approved_lines ? <span className="red"> −{o.removed_lines}</span> : null}</> : o.requested_lines}</td>
               <td className="mono r">{o.est_total ? money(o.est_total) : "—"}</td><td><Tag c={c}>{lbl}</Tag></td><td>{o.lane ? <Dot c={LANE[o.lane]} /> : null}</td>
               <td className="dim">{decidedBy(o, dm) === "REGLAS" ? <span style={{ color: C.green }}>rules</span> : title(decidedBy(o, dm)) || "—"}{o.secs_to_approve ? <span className="mono"> · {ago(o.secs_to_approve)}</span> : null}</td><td className="mono"><b>{o.po || "—"}</b></td>
@@ -727,7 +730,7 @@ function Ops({ t, onOut }) {
 /* ---------- GLOBAL SEARCH: one box, every room ---------- */
 function SearchResults({ d, q, now, onGo, onFocusOrder, mapGo }) {
   const k = q.trim().toLowerCase(); const has = s => String(s || "").toLowerCase().includes(k);
-  const orders = (d.orders || []).filter(o => !o.is_practice && [o.req_no, o.po, o.foreman, o.jobsite, o.supervisor, o.provider, ...(o.lines || []).map(l => (l.code || "") + " " + (l.descr || ""))].some(has)).slice(0, 12);
+  const orders = (d.orders || []).filter(o => !o.is_practice && [o.req_no, o.po, o.foreman, siteOf(o), o.supervisor, o.provider, ...(o.lines || []).map(l => (l.code || "") + " " + (l.descr || ""))].some(has)).slice(0, 12);
   const fuel = (d.fuel || []).filter(p => [p.po, p.who, p.plate, p.vehicle_id, p.vehicle_desc, p.jobsite, p.station].some(has)).slice(0, 12);
   const fleet = (d.fleet || []).filter(u => [u.name, u.person, u.assigned_to, u.vehicle_id, u.plate, u.vin, u.last_geofence].some(has)).slice(0, 12);
   const inv = (d.ledger || []).filter(i => [i.invoice, i.po, i.foreman, i.project, i.vendor, i.po_descr].some(has)).slice(0, 12);
@@ -742,7 +745,7 @@ function SearchResults({ d, q, now, onGo, onFocusOrder, mapGo }) {
     <div className="room">
       <div className="dim xs" style={{ margin: "0 0 10px 2px" }}>{total} result{total === 1 ? "" : "s"} for <b className="ink">“{q}”</b> · Esc clears</div>
       <Sec label="ORDERS" n={orders.length} room="orders">
-        {orders.map(o => <R key={o.id} onClick={() => onFocusOrder(o.id)}><span className="mono">{o.req_no}</span><span className="rf">{title(o.foreman)}</span><Tag c={PROV[o.provider] || C.dim}>{o.provider}</Tag><span className="dim">{o.jobsite || "—"}</span><span className="mono dim">{money0(o.est_total)}</span><Tag c={(ORDER_STATUS[o.status] || ["", C.dim])[1]} dim>{(ORDER_STATUS[o.status] || [o.status])[0]}</Tag>{o.po ? <span className="mono">PO {o.po}</span> : null}</R>)}
+        {orders.map(o => <R key={o.id} onClick={() => onFocusOrder(o.id)}><span className="mono">{o.req_no}</span><span className="rf">{title(o.foreman)}</span><Tag c={PROV[o.provider] || C.dim}>{o.provider}</Tag><span className="dim">{siteOf(o) || "—"}</span><span className="mono dim">{money0(o.est_total)}</span><Tag c={(ORDER_STATUS[o.status] || ["", C.dim])[1]} dim>{(ORDER_STATUS[o.status] || [o.status])[0]}</Tag>{o.po ? <span className="mono">PO {o.po}</span> : null}</R>)}
       </Sec>
       <Sec label="FUEL POs" n={fuel.length} room="fuel">
         {fuel.map(p => <R key={p.id} onClick={() => onGo("fuel")}><span className="mono">{p.po}</span><span className="rf">{title(p.who)}</span><span className="mono">{p.vehicle_id || p.plate || "—"}</span><span className="dim">{p.jobsite}</span><Tag c={PROV[p.station] || C.dim}>{p.station}</Tag><span className="dim mono">{dt(p.ts)}</span></R>)}
