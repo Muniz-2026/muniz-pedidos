@@ -59,7 +59,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "2.1";
+const VERSION = "2.2";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -285,6 +285,24 @@ function PinGate({ onOk, onCancel }) {
 }
 
 /* ===================================================================== THE WIZARD */
+const numOr0 = v => { const n = Number(String(v).replace(/[^\d.]/g, "")); return isFinite(n) && n > 0 ? Math.round(n * 10) / 10 : 0; };
+const extrasText = (g, d) => [g ? `+ Gasolina ${g} gal (garrafas/equipo)` : null, d ? `+ Diésel rojo ${d} gal (equipo)` : null].filter(Boolean);
+function ExtraRow({ label, hint, color, value, onChange, presets }) {
+  return (
+    <div className="flex items-center justify-between gap-2 py-2 border-b border-[#1E2733] last:border-0">
+      <div className="min-w-0">
+        <div className="text-[13px] font-black" style={{ color }}>{label}</div>
+        <div className="text-[11px] text-[#8B95A5] leading-tight">{hint}</div>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        {presets.map(n => <button key={n} onClick={() => onChange(String(n))} className={`btn h-9 px-2 rounded-lg text-[12px] font-black ${String(value) === String(n) ? "bg-white text-[#0B0F14]" : "bg-[#1A2230] text-white"}`}>{n}</button>)}
+        <input inputMode="decimal" value={value} onChange={e => onChange(e.target.value.replace(/[^\d.]/g, "").slice(0, 5))} placeholder="gal"
+          className="w-16 h-9 rounded-lg bg-[#0B0F14] border border-[#1E2733] px-2 text-[14px] text-white text-right outline-none" />
+        {value ? <button onClick={() => onChange("")} className="btn h-9 w-9 rounded-lg bg-[#1A2230] text-[#8B95A5] text-[14px]">×</button> : null}
+      </div>
+    </div>);
+}
+
 function Wizard({ initialWho, onDone, onOffice }) {
   const [step, setStep] = useState(initialWho ? 2 : 1);
   const [who, setWho] = useState(initialWho || "");
@@ -297,6 +315,8 @@ function Wizard({ initialWho, onDone, onOffice }) {
   const [obra, setObra] = useState("");
   const [obraOtra, setObraOtra] = useState("");
   const [station, setStation] = useState("");
+  const [xGas, setXGas] = useState("");    // gal de gasolina para garrafas / equipo (además del vehículo)
+  const [xDyed, setXDyed] = useState("");  // gal de diésel rojo para equipo
   const [ticket, setTicket] = useState(null);
   const [sent, setSent] = useState(false);
   const [asked, setAsked] = useState(false);
@@ -345,7 +365,7 @@ function Wizard({ initialWho, onDone, onOffice }) {
       vid: veh.id, veh: veh.desc, tipo: veh.tipo, comb: veh.comb,
       placa: effPlate || "", equipo: equipNo || "", lectura: needsLectura ? lectura : "",
       obra: obraOtra || obra, obraOtra: !!obraOtra, obraSemana,
-      est: station, plateTyped: !!(veh && !veh.placa && (plates[veh.id] || plate) && (veh.tipo === "CAMIONETA" || veh.tipo === "PIPA")), manualVeh: false, v: 1 };
+      est: station, plateTyped: !!(veh && !veh.placa && (plates[veh.id] || plate) && (veh.tipo === "CAMIONETA" || veh.tipo === "PIPA")), manualVeh: false, v: 1, xGas: numOr0(xGas), xDyed: numOr0(xDyed) };
     e.autoFlags = flagsFor(e, LS.get(K_HIST, [])).map(f => f.t);
     const h = LS.get(K_HIST, []); h.push(e); LS.set(K_HIST, h.slice(-400));
     if (veh && !veh.placa && plate) { const p = LS.get(K_PLATES, {}); p[veh.id] = up(plate); LS.set(K_PLATES, p); }
@@ -361,6 +381,7 @@ function Wizard({ initialWho, onDone, onOffice }) {
     equipo: equipNo || null, reading: needsLectura && lectura !== "" ? Number(lectura) : null,
     jobsite: obraOtra || obra, jobsite_other: !!obraOtra, jobsite_week: obraSemana || null,
     station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
+    extra_gas_gal: numOr0(xGas) || null, extra_dyed_gal: numOr0(xDyed) || null,
     flags: flagsFor({ vid: veh.id, tipo: veh.tipo, ts: Date.now(), lectura: needsLectura ? lectura : "", who, obra: obraOtra || obra, obraOtra: !!obraOtra, obraSemana, plateTyped: false, manualVeh: false }, LS.get(K_HIST, [])).map(f => f.t),
   });
   const generateServer = async () => {
@@ -372,7 +393,7 @@ function Wizard({ initialWho, onDone, onOffice }) {
       if (!saved || !saved.po) throw new Error("respuesta sin PO: " + JSON.stringify(res).slice(0, 160));
       const e = { po: saved.po, ts: new Date(saved.created_at).getTime(), who, role: row.role, vid: veh.id, veh: veh.desc, tipo: veh.tipo, comb: veh.comb,
         placa: row.plate || "", equipo: row.equipo || "", lectura: row.reading == null ? "" : String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other,
-        obraSemana: row.jobsite_week || "", est: station, plateTyped: row.plate_typed, manualVeh: false, srv: true, v: 2 };
+        obraSemana: row.jobsite_week || "", est: station, plateTyped: row.plate_typed, manualVeh: false, srv: true, v: 2, xGas: numOr0(xGas), xDyed: numOr0(xDyed) };
       const h = LS.get(K_HIST, []); h.push(e); LS.set(K_HIST, h.slice(-400));
       if (veh && !veh.placa && plate) { const p = LS.get(K_PLATES, {}); p[veh.id] = up(plate); LS.set(K_PLATES, p); }
       logEvent("po_created", { who, meta: { po: saved.po, seconds: row.seconds_to_po, station } });
@@ -567,10 +588,12 @@ function Wizard({ initialWho, onDone, onOffice }) {
       ["Quién", who], ["Vehículo", veh.desc + (effPlate ? ` · ${effPlate}` : "") + (equipNo ? ` · ${equipNo}` : "")],
       needsLectura ? [veh.tipo === "MAQUINARIA" ? "Horas" : "Odómetro", fmtNum(lectura)] : null,
       ["Obra", obraOtra || obra],
+      ...(numOr0(xGas) ? [["+ Gasolina", `${numOr0(xGas)} gal · garrafas/equipo`]] : []),
+      ...(numOr0(xDyed) ? [["+ Diésel rojo", `${numOr0(xDyed)} gal · equipo`]] : []),
     ].filter(Boolean);
     return (
       <Shell>
-        <Top title="¿Dónde vas a cargar?" sub="Escoge la estación y revisa" step={6} total={TOTAL} onBack={() => go(5)} />
+        <Top title="¿Dónde vas a cargar?" sub="Escoge la estación, di qué más cargas y revisa" step={6} total={TOTAL} onBack={() => go(5)} />
         <div className="px-4 pb-8">
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(STATIONS).map(([k, s]) => (
@@ -578,6 +601,12 @@ function Wizard({ initialWho, onDone, onOffice }) {
                 <div className="display text-[20px] leading-tight">{s.corto}</div>
                 <div className="text-[12px] font-bold mt-1 opacity-90">{s.nombre}</div>
               </button>))}
+          </div>
+          <div className="mt-4 card px-4 py-3">
+            <div className="text-[11px] font-black tracking-widest text-[#8B95A5]">¿QUÉ MÁS CARGAS EN ESTE PO?</div>
+            <div className="text-[12px] text-[#B4BCC8] mt-0.5 mb-1">Además del {veh.comb === "DIESEL" ? "diésel" : "gasolina"} del vehículo. Déjalo vacío si nada más.</div>
+            <ExtraRow label="Gasolina" hint="garrafas · equipo chico" color="#FB923C" value={xGas} onChange={setXGas} presets={[5, 10]} />
+            <ExtraRow label="Diésel rojo" hint="equipo · tanque de transferencia" color="#F87171" value={xDyed} onChange={setXDyed} presets={[25, 50]} />
           </div>
           <div className="mt-4 card px-4 py-3">
             <div className="flex items-center justify-between">
@@ -612,7 +641,7 @@ function Wizard({ initialWho, onDone, onOffice }) {
           <div className="mt-4 card px-4 py-3">
             {[["Quién", ticket.who], ["Vehículo", ticket.veh + (ticket.placa ? " · " + ticket.placa : "") + (ticket.equipo ? " · " + ticket.equipo : "")],
               ticket.lectura !== "" ? [ticket.tipo === "MAQUINARIA" ? "Horas" : "Odómetro", fmtNum(ticket.lectura)] : null,
-              ["Obra", ticket.obra], ["Estación", s.nombre || ticket.est]].filter(Boolean)
+              ["Obra", ticket.obra], ["Estación", s.nombre || ticket.est], ...(ticket.xGas ? [["+ Gasolina", ticket.xGas + " gal"]] : []), ...(ticket.xDyed ? [["+ Diésel rojo", ticket.xDyed + " gal"]] : [])].filter(Boolean)
               .map(([k, v]) => <div key={k} className="flex justify-between gap-3 py-2 border-b border-[#1E2733] last:border-0"><span className="text-[13px] text-[#8B95A5]">{k}</span><span className="text-[14px] font-black text-right">{v}</span></div>)}
           </div>
           <div className="mt-5">
@@ -639,7 +668,8 @@ function Wizard({ initialWho, onDone, onOffice }) {
     const s = STATIONS[ticket.est] || { nombre: ticket.est, corto: ticket.est, color: "#374151" };
     const payload = { ...ticket };
     const link = APP_URL + "fuel.html#f=" + b64e(payload);
-    const lines = [`PO ${ticket.po} · ${ticket.comb}`, `${ticket.who}`,
+    const xs = extrasText(ticket.xGas, ticket.xDyed);
+    const lines = [`PO ${ticket.po} · ${ticket.comb}${xs.length ? " " + xs.join(" ") : ""}`, `${ticket.who}`,
       `${ticket.veh}${ticket.placa ? " · Placa " + ticket.placa : ""}${ticket.equipo ? " · Equipo " + ticket.equipo : ""}`,
       ticket.lectura !== "" ? `${ticket.tipo === "MAQUINARIA" ? "Horas" : "Odómetro"}: ${fmtNum(ticket.lectura)}` : null,
       `Obra: ${ticket.obra}`, `${s.nombre}`, "", "REGISTRO:", link].filter(x => x !== null);
@@ -654,6 +684,7 @@ function Wizard({ initialWho, onDone, onOffice }) {
             <div className="px-5 py-5 text-white">
               <div className="text-[12px] font-black tracking-[0.2em] opacity-90">TIPO DE COMBUSTIBLE</div>
               <div className="display text-[46px] leading-none mt-1">{ticket.comb}</div>
+              {xs.length ? <div className="mt-2 flex flex-wrap gap-1">{xs.map(x => <span key={x} className="rounded-lg bg-black/25 px-2 py-1 text-[13px] font-black">{x}</span>)}</div> : null}
             </div>
           </div>
           <div className="bg-white text-[#141414] px-5 pt-5 pb-4">
@@ -673,7 +704,7 @@ function Wizard({ initialWho, onDone, onOffice }) {
             <div className="text-right"><div className="text-[10px] font-black tracking-widest opacity-80">FECHA</div><div className="text-[14px] font-black">{fmtDT(ticket.ts)}</div></div>
           </div>
 
-          <div className="mt-5 text-center text-[13px] text-[#B4BCC8] font-bold">Muestra esta pantalla en la bomba. Leo's pide PO, placa y nombre — aquí están.</div>
+          <div className="mt-5 text-center text-[13px] text-[#B4BCC8] font-bold">Muestra esta pantalla en la bomba. {xs.length ? "Todo lo de arriba va en este mismo PO." : "Leo's pide PO, placa y nombre — aquí están."}</div>
           {ticket.srv ? (
             <div className="mt-3 rounded-2xl bg-[#052E16] border border-[#16A34A] px-4 py-3 text-center text-[13px] font-black text-[#86EFAC]">✓ Registrado en la oficina · {fmtDT(ticket.ts)}</div>) : null}
           {(!ticket.srv || s.tel) ? (
