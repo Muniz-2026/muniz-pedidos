@@ -113,7 +113,7 @@ function useOps(t) {
     const pull = async () => {
       try {
         const a = t.access_token;
-        const [fuel, fuelTest, orders, ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog] = await Promise.all([
+        const [fuel, fuelTest, orders, ev, veh, ppl, tickets, fleet, fuelGps, lastPo, unitDay, oev, notif, rules, stationVisits, ledger, poLog] = await Promise.all([
           get("fuel_pos_flagged?select=*&order=created_at.desc&limit=3000", a),
           safe(get("fuel_pos?select=id,po,created_at,who,role,vehicle_id,vehicle_desc,plate,comb,reading,jobsite,station,gallons,amount,is_practice,notes&is_practice=eq.true&order=created_at.desc&limit=500", a)),
           safe(get("material_orders_full?select=*&order=created_at.desc&limit=2000", a)),
@@ -123,6 +123,7 @@ function useOps(t) {
           safe(getAll("station_tickets?select=*&order=ticket_date.desc", a, 5)),
           safe(get("gps_fleet_now?select=*&order=last_seen.desc", a)),
           safe(get("fuel_gps_check?select=*&order=created_at.desc&limit=300", a)),
+          safe(get("office_last_po?select=*", a)),
           safe(get("unit_day?select=*&order=day.desc&limit=3000", a)),
           safe(get("material_order_events?select=order_id,ts,stage,actor,meta&order=ts.desc&limit=400", a)),
           safe(get("notifications?select=*&order=created_at.desc&limit=200", a)),
@@ -134,7 +135,7 @@ function useOps(t) {
         rpc("verify_pending_fuel", {}, a).catch(() => {}); rpc("escalate_pending", {}, a).catch(() => {});
         if (!on) return;
         setD({ loading: false, fuel: fuel.map(p => ({ ...p, ts: new Date(p.created_at).getTime() })), orders: orders.map(o => ({ ...o, ts: new Date(o.submitted_at || o.requested_at || o.created_at).getTime() })),
-          fuelTest: fuelTest || [], ev, veh, ppl, tickets, fleet, fuelGps, unitDay, oev, notif, rules, stationVisits, ledger, poLog, sync: Date.now(), err: "" });
+          fuelTest: fuelTest || [], ev, veh, ppl, tickets, fleet, fuelGps, lastPo: (lastPo || [])[0] || null, unitDay, oev, notif, rules, stationVisits, ledger, poLog, sync: Date.now(), err: "" });
       } catch (e) { if (on) setD(x => ({ ...x, loading: false, err: /JWT|PGRST30|Session expired/i.test(String(e.message || e)) ? "SESSION EXPIRED · renewing…" : String(e.message || e).slice(0, 160) })); }
     };
     pull(); const iv = setInterval(pull, 7000); return () => { on = false; clearInterval(iv); };
@@ -310,8 +311,17 @@ function Ledger({ d, q, t }) {
 /* ============================================================================
    ROOM · ORDERS
    ============================================================================ */
-function OrderDrawer({ o, t, onClose, onChanged }) {
+function OrderDrawer({ o, t, d, onClose, onChanged }) {
   const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
+  const [po, setPo] = useState(""); const [poOpen, setPoOpen] = useState(false);
+  const lastPo = d?.lastPo?.po; const nextPo = lastPo && /^\d+$/.test(lastPo) ? String(Number(lastPo) + 1) : "";
+  const act = async (action, label, extra) => {
+    if (!window.confirm(`${label} · ${o.req_no} · ${title(o.foreman)} · ${o.provider}?`)) return;
+    setBusy(true); setErr("");
+    try { const r = await rpc("office_act", { p_order_id: o.id, p_action: action, p_po: extra?.po || null, p_note: extra?.note || null, p_lines: null }, t);
+      if (r && r.note && !/^(APROBADO|RECHAZADO|PO_ASIGNADO)$/.test(r.status || "")) setErr(r.note); onChanged(); onClose(); }
+    catch (e) { let m = String(e.message || e); try { m = JSON.parse(m).message || m; } catch (x) {} setErr(m.slice(0, 240)); } finally { setBusy(false); }
+  };
   const stages = ["SOLICITADO", "APROBADO", "TICKET"].filter(s => (o.lines || []).some(l => l.stage === s));
   const [st, setSt] = useState(stages[stages.length - 1] || "SOLICITADO");
   const lines = (o.lines || []).filter(l => l.stage === st);
@@ -348,7 +358,26 @@ function OrderDrawer({ o, t, onClose, onChanged }) {
         <button className="btn" onClick={onClose}>CLOSE</button>
         {o.is_practice ? <button className="btn" disabled={busy} onClick={() => mark({ is_practice: false }, "Count as real")}>COUNT AS REAL</button>
           : <button className="btn amber" disabled={busy} onClick={() => mark({ is_practice: true, notes: ((o.notes || "") + " · marked TEST from Ops").trim() }, "Mark as TEST (excluded from all numbers)")}>MARK TEST</button>}
-        {o.status === "SOLICITADO" || o.status === "APROBADO" ? <button className="btn red" disabled={busy} onClick={() => mark({ status: "RECHAZADO", rejected_at: new Date().toISOString(), decided_by: t.email.split("@")[0].toUpperCase(), decided_via: "MANDO" }, "Reject from the office")}>REJECT</button> : null}
+        {o.status === "SOLICITADO" ? <>
+          <button className="btn red" disabled={busy} onClick={() => act("RECHAZAR", "Reject")}>REJECT</button>
+          <button className="btn green" disabled={busy} onClick={() => act("APROBAR", "Approve as requested (tool-bag items are cut automatically)")}>APPROVE</button>
+          <button className="btn green" disabled={busy} onClick={() => setPoOpen(v => !v)}>APPROVE + ISSUE PO…</button>
+        </> : null}
+        {o.status === "APROBADO" ? <>
+          <button className="btn red" disabled={busy} onClick={() => act("RECHAZAR", "Reject")}>REJECT</button>
+          <button className="btn green" disabled={busy} onClick={() => setPoOpen(v => !v)}>ISSUE PO…</button>
+        </> : null}
+        {poOpen && (o.status === "SOLICITADO" || o.status === "APROBADO") ? (
+          <div className="po-issue" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", width: "100%" }}>
+            <span className="dim xs">PO #</span>
+            <input className="inp mono" style={{ width: 120 }} autoFocus value={po} onChange={e => setPo(e.target.value.replace(/[^0-9A-Za-z\-]/g, "").toUpperCase())} placeholder={nextPo || "number"}
+              onKeyDown={e => { if (e.key === "Enter" && (po || nextPo)) act(o.status === "SOLICITADO" ? "APROBAR_Y_EMITIR" : "EMITIR_PO", `Issue PO ${po || nextPo}`, { po: po || nextPo }); }} />
+            {nextPo ? <button className="btn sm" onClick={() => setPo(nextPo)}>use {nextPo}</button> : null}
+            <button className="btn green" disabled={busy || !(po || nextPo)} onClick={() => act(o.status === "SOLICITADO" ? "APROBAR_Y_EMITIR" : "EMITIR_PO", `Issue PO ${po || nextPo}`, { po: po || nextPo })}>
+              {o.status === "SOLICITADO" ? "APPROVE + ISSUE" : "ISSUE"} PO {po || nextPo}
+            </button>
+            {lastPo ? <span className="dim xs">last issued: {lastPo}</span> : null}
+          </div>) : null}
       </footer>
     </aside></div>);
 }
@@ -390,7 +419,7 @@ function Orders({ d, now, t, q, focus, clearFocus, onChanged }) {
           {!shown.length ? <tr><td colSpan={12}><Empty>Nothing matches.</Empty></td></tr> : null}
         </tbody></table>
       </Panel>
-      {sel ? <OrderDrawer o={sel} t={t} onClose={() => setSel(null)} onChanged={onChanged} /> : null}
+      {sel ? <OrderDrawer o={sel} t={t} d={d} onClose={() => setSel(null)} onChanged={onChanged} /> : null}
     </div>);
 }
 
