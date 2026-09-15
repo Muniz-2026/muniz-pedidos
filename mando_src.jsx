@@ -675,11 +675,15 @@ function Ops({ t, onOut }) {
       </nav>
       <main className="stage">
         <header className="cmd">
-          <div className="crumb"><span className="dim">MUÑIZ CONCRETE &amp; CONTRACTING</span><span className="sep">/</span><b>{ROOMS.find(r => r[0] === room)[1]}</b></div>
+          <div className="crumb"><span className="dim">MUÑIZ CONCRETE &amp; CONTRACTING</span><span className="sep">/</span><b>{q.trim().length >= 2 ? "SEARCH" : ROOMS.find(r => r[0] === room)[1]}</b></div>
           <div className="search"><span className="dim">⌕</span><input id="q" value={q} onChange={e => setQ(e.target.value)} placeholder="Search — req, PO, name, plate, jobsite, item…   ⌘K" /></div>
           <div className="stat">{d.err ? <span className="red">{d.err}</span> : d.loading ? <span className="dim">CONNECTING…</span> : <><Dot c={C.green} pulse /><span className="mono">LIVE · {d.sync ? hhmm(d.sync) : ""}</span></>}</div>
           <div className="who mono dim">{t.email}</div><button className="btn sm" onClick={onOut}>SIGN OUT</button>
         </header>
+        {q.trim().length >= 2 ? <SearchResults d={d} q={q} now={now} mapGo={mapGo}
+            onGo={r => { setQ(""); setRoom(r); }}
+            onFocusOrder={id => { setQ(""); setRoom("orders"); setFocus(id); }} /> : null}
+        {q.trim().length >= 2 ? null : <>
         {room === "situation" ? <Situation d={d} now={now} go={go} mapNode={mapNode} /> : null}
         {room === "ledger" ? <Ledger d={d} q={q} t={t} /> : null}
         {room === "orders" ? <Orders d={d} now={now} t={t} q={q} focus={focus} clearFocus={() => setFocus(null)} onChanged={refresh} /> : null}
@@ -687,9 +691,48 @@ function Ops({ t, onOut }) {
         {room === "fleet" ? <Fleet d={d} now={now} q={q} mapNode={mapNode} mapGo={mapGo} /> : null}
         {room === "people" ? <People d={d} t={t} onChanged={refresh} /> : null}
         {room === "rules" ? <Rules d={d} t={t} onChanged={refresh} /> : null}
+        </>}
       </main>
     </div>);
 }
+/* ---------- GLOBAL SEARCH: one box, every room ---------- */
+function SearchResults({ d, q, now, onGo, onFocusOrder, mapGo }) {
+  const k = q.trim().toLowerCase(); const has = s => String(s || "").toLowerCase().includes(k);
+  const orders = (d.orders || []).filter(o => !o.is_practice && [o.req_no, o.po, o.foreman, o.jobsite, o.supervisor, o.provider, ...(o.lines || []).map(l => (l.code || "") + " " + (l.descr || ""))].some(has)).slice(0, 12);
+  const fuel = (d.fuel || []).filter(p => [p.po, p.who, p.plate, p.vehicle_id, p.vehicle_desc, p.jobsite, p.station].some(has)).slice(0, 12);
+  const fleet = (d.fleet || []).filter(u => [u.name, u.person, u.assigned_to, u.vehicle_id, u.plate, u.vin, u.last_geofence].some(has)).slice(0, 12);
+  const inv = (d.ledger || []).filter(i => [i.invoice, i.po, i.foreman, i.project, i.vendor, i.po_descr].some(has)).slice(0, 12);
+  const ppl = (d.ppl || []).filter(x => [x.name, x.role, x.supervisor, x.pm, x.same_as, x.notes].some(has)).slice(0, 12);
+  const tix = (d.tickets || []).filter(x => [x.po_raw, x.creator, x.plate, x.station, x.project].some(has)).slice(0, 8);
+  const total = orders.length + fuel.length + fleet.length + inv.length + ppl.length + tix.length;
+  const Sec = ({ label, n, room, children }) => n ? (
+    <Panel title={`${label} · ${n}`} right={<button className="btn sm" onClick={() => onGo(room)}>open {label.toLowerCase()} →</button>}>{children}</Panel>) : null;
+  const R = ({ onClick, children }) => <div className="recent srch" onClick={onClick} style={{ cursor: "pointer" }}>{children}</div>;
+  if (!total) return <div className="room"><Empty>Nothing matches “{q}” across orders, fuel POs, trucks, invoices, people or statement tickets.</Empty></div>;
+  return (
+    <div className="room">
+      <div className="dim xs" style={{ margin: "0 0 10px 2px" }}>{total} result{total === 1 ? "" : "s"} for <b className="ink">“{q}”</b> · Esc clears</div>
+      <Sec label="ORDERS" n={orders.length} room="orders">
+        {orders.map(o => <R key={o.id} onClick={() => onFocusOrder(o.id)}><span className="mono">{o.req_no}</span><span className="rf">{title(o.foreman)}</span><Tag c={PROV[o.provider] || C.dim}>{o.provider}</Tag><span className="dim">{o.jobsite || "—"}</span><span className="mono dim">{money0(o.est_total)}</span><Tag c={(ORDER_STATUS[o.status] || ["", C.dim])[1]} dim>{(ORDER_STATUS[o.status] || [o.status])[0]}</Tag>{o.po ? <span className="mono">PO {o.po}</span> : null}</R>)}
+      </Sec>
+      <Sec label="FUEL POs" n={fuel.length} room="fuel">
+        {fuel.map(p => <R key={p.id} onClick={() => onGo("fuel")}><span className="mono">{p.po}</span><span className="rf">{title(p.who)}</span><span className="mono">{p.vehicle_id || p.plate || "—"}</span><span className="dim">{p.jobsite}</span><Tag c={PROV[p.station] || C.dim}>{p.station}</Tag><span className="dim mono">{dt(p.ts)}</span></R>)}
+      </Sec>
+      <Sec label="FLEET" n={fleet.length} room="fleet">
+        {fleet.map(u => <R key={u.actsoft_id} onClick={() => { onGo("fleet"); if (u.last_lat) setTimeout(() => mapGo(u.last_lat, u.last_lon, title(u.person || u.assigned_to || u.name)), 250); }}><span className="rf">{title(u.person || u.assigned_to || (u.name || "").replace(/\s*VIN.*$/i, ""))}</span><span className="mono">{u.vehicle_id || "unlinked"}</span><span className="mono dim">{u.plate || ""}</span><span className="dim">{u.last_geofence || (u.last_lat ? `${(+u.last_lat).toFixed(4)}, ${(+u.last_lon).toFixed(4)}` : "—")}</span><span className="dim mono">{u.secs_since_seen != null ? ago(u.secs_since_seen) + " ago" : ""}</span></R>)}
+      </Sec>
+      <Sec label="INVOICES" n={inv.length} room="ledger">
+        {inv.map(i => <R key={i.vendor + i.invoice} onClick={() => onGo("ledger")}><Tag c={PROV[i.vendor] || C.dim}>{i.vendor}</Tag><span className="mono">{i.invoice}</span><span className="mono">PO {i.po || "—"}</span><span className="rf">{title(i.foreman)}</span><span className="dim">{i.project || ""}</span><span className="mono dim">{money0(i.total)}</span><span className={i.po_check === "OK" ? "dim" : "red"}>{i.po_check}</span></R>)}
+      </Sec>
+      <Sec label="STATEMENT TICKETS" n={tix.length} room="fuel">
+        {tix.map(x => <R key={x.id} onClick={() => onGo("fuel")}><Tag c={PROV[x.station] || C.dim}>{x.station}</Tag><span className="mono">{x.ticket_date}</span><span className="mono">PO {x.po_raw || "—"}</span><span className="rf">{title(x.creator)}</span><span className="dim">{x.fuel_type} · {x.gallons ? Math.round(x.gallons) + " gal" : ""}</span><span className="mono dim">{money0(x.amount)}</span></R>)}
+      </Sec>
+      <Sec label="PEOPLE" n={ppl.length} room="people">
+        {ppl.map(x => <R key={x.name} onClick={() => onGo("people")}><span className="rf">{title(x.name)}</span><Tag c={C.dim} dim>{x.role}</Tag><span className="dim">{x.supervisor ? "→ " + title(x.supervisor) : ""}</span><span className="dim">{x.pm ? "PM " + title(x.pm) : ""}</span>{x.same_as ? <span className="dim">= {title(x.same_as)}</span> : null}</R>)}
+      </Sec>
+    </div>);
+}
+
 function Gate({ onIn }) {
   const [e, setE] = useState(""); const [p, setP] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
   const go = async () => { setBusy(true); setErr(""); try { onIn(await login(e.trim(), p)); } catch (x) { setErr("Sign-in failed. Office accounts only."); } finally { setBusy(false); } };
