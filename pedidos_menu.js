@@ -1,5 +1,5 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v1.1
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v1.2
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -51,7 +51,19 @@
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }   // el wizard arranca en el paso 2 con el nombre puesto
       openFuel(name);
     };
-    overlay.querySelector("#mz-back").onclick = function () { hide(); clearSeen(); history.back(); };
+    overlay.querySelector("#mz-back").onclick = function () { hide(); clearSeen(); appBack(); };
+  }
+
+  /* el app no crea historial al tocar un nombre: para regresar, tocamos SU flecha ← (la de la pantalla de la tienda) */
+  function appBack() {
+    var btns = document.querySelectorAll("button, a");
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i]; if (overlay && overlay.contains(b)) continue; if (panel && panel.contains(b)) continue;
+      var txt = (b.textContent || "").trim(), lab = (b.getAttribute("aria-label") || "").toLowerCase();
+      if (txt === "←" || txt === "‹" || /atr[aá]s|regresar|volver|back/.test(lab)) { b.click(); return true; }
+    }
+    try { history.back(); } catch (e) { }
+    return false;
   }
 
   /* ---------- COMBUSTIBLE dentro del app: un panel con el wizard ---------- */
