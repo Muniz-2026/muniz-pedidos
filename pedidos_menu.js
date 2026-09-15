@@ -1,16 +1,17 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v1.0
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v1.1
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
-     ⛽ COMBUSTIBLE  → abre el app de combustible con tu nombre ya puesto
+     ⛽ COMBUSTIBLE  → el wizard de combustible se abre AQUÍ, en un panel encima del app,
+                       con tu nombre ya puesto. ← regresa a este menú. Nunca cambia de sitio.
    No toca app.js. Se carga en index.html después de pedidos_db.js.
    ===================================================================== */
 (function () {
   "use strict";
   var K_PED = "muniz_pedido", K_FUEL_ME = "muniz_fuel_me", K_SEEN = "muniz_menu_seen";
   var TITLE = /¿A QUÉ TIENDA VAS\?/i;
-  var FUEL_URL = "./fuel.html";
+  var FUEL_URL = "./fuel.html#embed";
 
   function ls(k) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
   function who() { var p = ls(K_PED); return p && p.name ? String(p.name).toUpperCase() : ""; }
@@ -18,9 +19,17 @@
   function markSeen(name) { try { sessionStorage.setItem(K_SEEN, name); } catch (e) { } }
   function clearSeen() { try { sessionStorage.removeItem(K_SEEN); } catch (e) { } }
 
+  /* ---------- el menú ---------- */
   var overlay = null;
   function hide() { if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay); overlay = null; }
-
+  function card(id, color, icon, title, sub, btn) {
+    return '<button id="' + id + '" style="text-align:left;background:#fff;border:3px solid ' + color + ';border-radius:22px;padding:22px 20px;cursor:pointer;display:block;width:100%">' +
+      '<div style="font-size:40px;line-height:1">' + icon + '</div>' +
+      '<div style="font:900 34px/1 system-ui,sans-serif;color:' + color + ';margin-top:10px;letter-spacing:.01em">' + title + '</div>' +
+      '<div style="font:600 15px/1.3 system-ui,sans-serif;color:#374151;margin-top:8px">' + sub + '</div>' +
+      '<div style="display:inline-block;margin-top:14px;background:' + color + ';color:#fff;font:900 15px/1 system-ui,sans-serif;padding:14px 18px;border-radius:14px;letter-spacing:.03em">' + btn + '</div>' +
+    '</button>';
+  }
   function show(name) {
     if (overlay) return;
     overlay = document.createElement("div");
@@ -39,38 +48,50 @@
     document.body.appendChild(overlay);
     overlay.querySelector("#mz-mat").onclick = function () { markSeen(name); hide(); };
     overlay.querySelector("#mz-fuel").onclick = function () {
-      markSeen(name);
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }   // el wizard arranca en el paso 2 con el nombre puesto
-      location.href = FUEL_URL;
+      openFuel(name);
     };
     overlay.querySelector("#mz-back").onclick = function () { hide(); clearSeen(); history.back(); };
   }
-  function card(id, color, icon, title, sub, btn) {
-    return '<button id="' + id + '" style="text-align:left;background:#fff;border:3px solid ' + color + ';border-radius:22px;padding:22px 20px;cursor:pointer;display:block;width:100%">' +
-      '<div style="font-size:40px;line-height:1">' + icon + '</div>' +
-      '<div style="font:900 34px/1 system-ui,sans-serif;color:' + color + ';margin-top:10px;letter-spacing:.01em">' + title + '</div>' +
-      '<div style="font:600 15px/1.3 system-ui,sans-serif;color:#374151;margin-top:8px">' + sub + '</div>' +
-      '<div style="display:inline-block;margin-top:14px;background:' + color + ';color:#fff;font:900 15px/1 system-ui,sans-serif;padding:14px 18px;border-radius:14px;letter-spacing:.03em">' + btn + '</div>' +
-    '</button>';
-  }
 
-  /* ¿estamos en la pantalla de la tienda? (aparece justo después del nombre) */
-  function onStoreScreen() {
-    var els = document.querySelectorAll("h1,h2,h3,div,span");
-    for (var i = 0; i < els.length; i++) { if (els[i].children.length === 0 && TITLE.test(els[i].textContent || "")) return true; }
-    return false;
+  /* ---------- COMBUSTIBLE dentro del app: un panel con el wizard ---------- */
+  var panel = null;
+  function openFuel(name) {
+    if (panel) return;
+    panel = document.createElement("div");
+    panel.setAttribute("role", "dialog");
+    panel.style.cssText = "position:fixed;inset:0;z-index:9995;background:#0B0F14;display:flex;flex-direction:column;";
+    panel.innerHTML =
+      '<div style="background:#fff;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 10px rgba(0,0,0,.15);flex:none">' +
+        '<button id="mz-fuel-back" aria-label="Regresar" style="width:48px;height:48px;border:0;border-radius:14px;background:#111;color:#fff;font-size:24px;line-height:1;cursor:pointer">←</button>' +
+        '<div><div style="font:900 18px/1.05 system-ui,sans-serif;letter-spacing:.02em;color:#111">COMBUSTIBLE</div>' +
+        '<div style="font:600 13px/1.2 system-ui,sans-serif;color:#6B7280;margin-top:2px">' + name + '</div></div>' +
+      '</div>' +
+      '<iframe id="mz-fuel-frame" title="Combustible" src="' + FUEL_URL + '" style="border:0;flex:1;width:100%;background:#0B0F14"></iframe>';
+    document.body.appendChild(panel);
+    document.body.style.overflow = "hidden";
+    panel.querySelector("#mz-fuel-back").onclick = closeFuel;
   }
-  function onNameScreen() {
-    var els = document.querySelectorAll("h1,h2,h3,div,p");
-    for (var i = 0; i < els.length; i++) { if (els[i].children.length === 0 && /Toca tu nombre/i.test(els[i].textContent || "")) return true; }
+  function closeFuel() {
+    if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
+    panel = null; document.body.style.overflow = "";
+    clearSeen(); check();                           // de vuelta al menú ¿QUÉ VAS A HACER?
+  }
+  window.addEventListener("message", function (ev) { if (ev && ev.data && ev.data.type === "muniz-fuel-close") closeFuel(); });
+
+  /* ---------- ¿en qué pantalla está el app? ---------- */
+  function hasText(re, sel) {
+    var els = document.querySelectorAll(sel);
+    for (var i = 0; i < els.length; i++) { if (els[i].children.length === 0 && re.test(els[i].textContent || "")) return true; }
     return false;
   }
   var t;
   function check() {
     clearTimeout(t);
     t = setTimeout(function () {
-      if (onNameScreen()) { clearSeen(); hide(); return; }          // volvió a la lista: la próxima vez pregunta otra vez
-      if (onStoreScreen()) { var n = who(); if (n && !seen(n)) show(n); }
+      if (panel) return;                                                          // combustible abierto encima: no tocar
+      if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { clearSeen(); hide(); return; }   // lista de nombres: la próxima vez pregunta otra vez
+      if (hasText(TITLE, "h1,h2,h3,div,span")) { var n = who(); if (n && !seen(n)) show(n); }
       else hide();
     }, 60);
   }

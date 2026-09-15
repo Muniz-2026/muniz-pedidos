@@ -15,6 +15,9 @@ const SB = CFG.SUPABASE || {};
 const SB_URL = String(SB.URL || "").trim().replace(/\/+$/, "").replace(/\/rest\/v1$/, "").replace(/\/auth\/v1$/, "");
 const SB_KEY = String(SB.ANON_KEY || "");
 const HAS_BACKEND = !!(SB_URL && SB_KEY);
+/* embebido dentro del app de pedidos (pedidos_menu.js lo abre en un panel): el nombre ya viene puesto y "atrás" regresa al menú */
+const EMBED = (() => { try { return window.parent !== window || /embed/.test(window.location.hash); } catch (e) { return false; } })();
+const closeEmbed = () => { try { window.parent.postMessage({ type: "muniz-fuel-close" }, "*"); } catch (e) {} };
 const K_TOKEN = "muniz_office_token", K_DEV = "muniz_device_id";
 const deviceId = () => { try { let d = localStorage.getItem(K_DEV); if (!d) { d = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2); localStorage.setItem(K_DEV, d); } return d; } catch (e) { return "nodev"; } };
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
@@ -59,7 +62,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "2.2";
+const VERSION = "2.3";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -502,7 +505,7 @@ function Wizard({ initialWho, onDone, onOffice }) {
     };
     return (
       <Shell>
-        <Top title="¿Qué vas a cargar?" sub={`${who} · el tipo de combustible lo pone el registro`} step={2} total={TOTAL} onBack={() => go(1)} />
+        <Top title="¿Qué vas a cargar?" sub={`${who} · el tipo de combustible lo pone el registro`} step={2} total={TOTAL} onBack={() => EMBED ? closeEmbed() : go(1)} />
         <div className="px-4 pb-8 space-y-2">
           {mine.length ? <><div className="text-[11px] font-black tracking-widest text-[#8B95A5] pt-2">TU VEHÍCULO</div>{mine.map(v => <VehCard key={v.id} v={v} />)}</> : null}
           <div className="text-[11px] font-black tracking-widest text-[#8B95A5] pt-3">EQUIPO COMPARTIDO</div>
@@ -910,6 +913,7 @@ function App() {
         <div className="display text-[28px] mt-5">PO registrado</div>
         <div className="text-[14px] text-[#B4BCC8] mt-2">{HAS_BACKEND ? "Quedó registrado en la oficina en el momento." : "Ya quedó en el registro de la oficina."}</div>
         <button onClick={() => setMode("wizard")} className="btn mt-8 w-full py-4 bg-[#F5B800] text-[#0B0F14] text-[17px]">OTRO PO</button>
+        {EMBED ? <button onClick={closeEmbed} className="btn mt-3 w-full py-4 bg-[#1A2230] text-white text-[17px]">← REGRESAR AL APP</button> : null}
         <a href="./index.html" className="mt-4 text-[13px] font-black text-[#8B95A5]">← Volver a pedidos</a>
         <div className="mt-10 text-[10px] text-[#3B4553]">Muñiz Combustible v{VERSION}</div>
       </div>
