@@ -2,18 +2,18 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v4.3
+   MUÑIZ COMBUSTIBLE · v4.4
    Lives INSIDE the orders app. One header, one back arrow, no messages:
    create_fuel_po issues the number on the spot.
    Screens, in the order of the pump:
      1 ¿Dónde vas a cargar?   TEX-CON (verde · rojo · gasolina) · LEO'S (verde · gasolina)
      2 ¿Qué vas a cargar?     what that station pumps, tap one or several.
                               Rojo / generator only → GENERAR PO right here.
-                              SKIPPED for project managers - they all drive
-                              gasolina pickups, so it is always gasolina.
+                              SKIPPED for anyone who only ever buys gasolina for
+                              their own truck: every project manager by role,
+                              plus anyone in COMBUSTIBLE.SOLO_GASOLINA.
      3 Tu camioneta           placa + odómetro when the truck itself gets fuel
-                              (diésel verde, gasolina on a gasolina truck, or
-                              any project manager) → GENERAR PO.
+                              → GENERAR PO.
    No jobsite question: the office assigns it from the daily crew location.
    ===================================================================== */
 
@@ -69,7 +69,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "4.3";
+const VERSION = "4.4";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -84,6 +84,7 @@ const PMS  = Object.keys(CFG.GERENTES || {}).map(up);
 const DRIVERS = Object.keys(CFG.CHOFERES || {}).map(up);
 const EXTRA = (FUEL.USUARIOS_EXTRA || []).map(up);
 const PERSONAL_CFG = (CFG.PERSONAL || []).map(up);
+const GAS_ONLY = (FUEL.SOLO_GASOLINA || []).map(up);   /* solo cargan gasolina en su camioneta */
 const OFICINA = (() => { const o = {}; const m = CFG.OFICINA || {};
   for (const k in m) o[up(k)] = String(m[k] || ""); return o; })();
 /* ---------- name key: the same person no matter how the name is spelled.
@@ -500,8 +501,9 @@ const plateClean = s => up(s).replace(/[^A-Z0-9]/g, "");
 /* ===================================================================== THE WIZARD
    est    ¿DÓNDE VAS A CARGAR?   TEX-CON · LEO'S            one tap, advances
    fuel   ¿QUÉ VAS A CARGAR?     what that station pumps    tap one or several
-                                 SKIPPED for project managers: they all drive
-                                 gasolina pickups, so it is always gasolina
+                                 SKIPPED for whoever only ever buys gasolina
+                                 for their own truck: every project manager,
+                                 plus anyone listed in COMBUSTIBLE.SOLO_GASOLINA
    veh    TU CAMIONETA           placa + odómetro           ONLY when the truck itself is being fueled
    po     the PO, registered the instant the server answers
    The jobsite is NOT asked: it is assigned in the office from the daily crew
@@ -529,8 +531,9 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const hist = LS.get(K_HIST, []);
   const plates = LS.get(K_PLATES, {});
   const lastEst = (LS.get(K_LASTEST, {}) || {})[nk(who)] || "";
-  /* gerentes de proyecto: siempre gasolina en su camioneta. Nada que escoger. */
-  const isPM = useMemo(() => /GERENTE|PROJECT|^PM$/.test(roleOf(who) || "") || nHas(PMS, who), [who, refTick]);
+  /* siempre gasolina en su camioneta: gerentes de proyecto y quien esté en
+     SOLO_GASOLINA (coordinador de operaciones, etc). Nada que escoger. */
+  const gasOnly = useMemo(() => nHas(GAS_ONLY, who) || /GERENTE|PROJECT|^PM$/.test(roleOf(who) || "") || nHas(PMS, who), [who, refTick]);
 
   useEffect(() => { logEvent("open", { who: who || null }); }, []);
   useEffect(() => { logEvent("step", { who: who || null, step: ["est", "fuel", "veh", "po"].indexOf(screen) + 1, meta: { screen, station, fuels } }); }, [screen]);
@@ -546,8 +549,8 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const has = f => fuels.indexOf(f) >= 0;
 
   /* the one rule: plate + odometer only when the truck itself gets fuel */
-  const fuelsTruck = isPM || has("VERDE") || (has("GAS") && myTruckIsGas);
-  const truckFuels = isPM ? ["GAS"] : fuels.filter(f => f === "VERDE" || (f === "GAS" && myTruckIsGas));
+  const fuelsTruck = gasOnly || has("VERDE") || (has("GAS") && myTruckIsGas);
+  const truckFuels = gasOnly ? ["GAS"] : fuels.filter(f => f === "VERDE" || (f === "GAS" && myTruckIsGas));
 
   /* ---------- truck: registry unit, never invented ---------- */
   const plateMatch = useMemo(() => { const p = plateClean(plate); if (p.length < 5) return null;
@@ -571,7 +574,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const vehOk = !fuelsTruck || (!!truck && effPlate.length >= 5 && odo !== "" && !(odoProblem && odoProblem.block) && !vehWait);
 
   /* ---------- navigation ---------- */
-  const steps = useMemo(() => isPM ? ["est", "veh"] : ["est", "fuel", ...(fuelsTruck ? ["veh"] : [])], [fuelsTruck, isPM]);
+  const steps = useMemo(() => gasOnly ? ["est", "veh"] : ["est", "fuel", ...(fuelsTruck ? ["veh"] : [])], [fuelsTruck, gasOnly]);
   const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
   const go = s => { setScreen(s); try { requestAnimationFrame(() => { document.querySelectorAll(".mzf-body").forEach(b => { b.scrollTop = 0; }); }); } catch (e) {} };
   const next = () => { const i = steps.indexOf(screen); if (i >= 0 && i < steps.length - 1) go(steps[i + 1]); };
@@ -579,7 +582,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
   const done = () => { if (embedded) onClose(); else if (onChangeWho) onChangeWho(true); };
   const another = () => { setScreen("est"); setFuels([]); setVeh(null); setPlate(""); setOdo(""); setPickOpen(false); setTicket(null); t0.current = Date.now(); go("est"); };
-  const pickStation = k => { setStation(k); if (isPM) { setFuels(["GAS"]); setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); return; } setFuels(f => f.filter(x => (PUMPS[k] || []).indexOf(x) >= 0)); go("fuel"); };
+  const pickStation = k => { setStation(k); if (gasOnly) { setFuels(["GAS"]); setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); return; } setFuels(f => f.filter(x => (PUMPS[k] || []).indexOf(x) >= 0)); go("fuel"); };
   const toggleFuel = f => setFuels(cur => cur.indexOf(f) >= 0 ? cur.filter(x => x !== f) : [...cur, f]);
   const afterFuel = () => { if (fuelsTruck) { setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); } else generate(); };
 
@@ -714,7 +717,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
                   <div className="s">{s.nombre}</div>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 10 }}>{(isPM ? ["GAS"] : (PUMPS[k] || [])).map(f => <Chip key={f} f={f} />)}</div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 10 }}>{(gasOnly ? ["GAS"] : (PUMPS[k] || [])).map(f => <Chip key={f} f={f} />)}</div>
             </button>);
         })}
         <div style={{ textAlign: "center", fontSize: 11, color: C.faint, fontWeight: 700, paddingTop: 6 }}>El PO lo da la oficina en el momento. No hay que llamar a nadie.</div>

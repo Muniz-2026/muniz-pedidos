@@ -61,6 +61,7 @@ window.MUNIZ_CONFIG = {
     "ABRAHAM GONZALES",
     "ULISES LARA",
     "HECTOR SEGURA",
+    "ENRIQUE CHAPA",          /* coordinador de operaciones */
   ],
 
   /* ===== GERENTES DE PROYECTO =====
@@ -112,6 +113,15 @@ window.MUNIZ_CONFIG = {
 
     /* Estaciones. Si "tel" tiene numero, el PO tambien le llega a la estacion
        en el mismo mensaje. Leo's colabora; Tex-Con se deja en blanco si no lo quiere. */
+    /* ===== SOLO GASOLINA =====
+       Gente que unicamente carga gasolina en SU camioneta. El app no les
+       pregunta que van a cargar: estacion -> placa y odometro -> PO.
+       Los gerentes de proyecto ya entran aqui solos por su puesto; esta lista
+       es para quien no es gerente. Escribe el nombre y una coma. */
+    SOLO_GASOLINA: [
+      "ENRIQUE CHAPA",
+    ],
+
     ESTACIONES: {
       LEOS:   { nombre: "Leo's Service Station", corto: "LEO'S",   tel: "", color: "#F5B800" },
       TEXCON: { nombre: "Tex-Con Oil",           corto: "TEX-CON", tel: "", color: "#1D4ED8" },
@@ -202,7 +212,7 @@ window.MUNIZ_CONFIG = {
       { id:"V-AGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ABRAHAM GONZALES" },
       { id:"V-ULA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ULISES LARA" },
       { id:"V-JLI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JOSE ANTONIO LICEA" },
-      { id:"V-ECH", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ENRIQUE CHAPA" },
+      { id:"V-ECH", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"ENRIQUE CHAPA" },   /* coordinador de operaciones */
       { id:"V-RPE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"RAFAEL PEREZ" },
       { id:"V-JCE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JOSE DE LA CERDA" },
       { id:"V-JRO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JESUS G RODRIGUEZ" },
