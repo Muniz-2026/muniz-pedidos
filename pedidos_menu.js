@@ -1,5 +1,5 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.0
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.2
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -144,16 +144,33 @@
 
   /* ---------- el toque en el nombre: el menú aparece EN ESE INSTANTE, antes de que el app cambie de pantalla ---------- */
   var tapped = "", tappedAt = 0;
+  /* ¿está la pantalla de la CLAVE (oficina) encima? */
+  function pinOpen() {
+    var els = document.querySelectorAll("div");
+    for (var i = 0; i < els.length; i++) { if (els[i].children.length === 0 && /^CLAVE$/.test((els[i].textContent || "").trim())) return true; }
+    return false;
+  }
+  /* un nombre son dos o más palabras de puras letras: "RUBEN CANO". Un dígito del
+     teclado, BORRAR, SALIR o MODO PRÁCTICA no son nombres y no abren el menú. */
+  var NAME_RE = /^[A-ZÁÉÍÓÚÜÑ]+(?: [A-ZÁÉÍÓÚÜÑ]+)+$/;
+  var NOT_NAME = /MIS PEDIDOS|CAMBIAR|PRÁCTICA|PRACTICA|CHOFER|CANCELAR|AGREGAR|QUITAR|BORRAR|SALIR|^EN$|^ES$|^←/;
   document.addEventListener("click", function (ev) {
     if (panel || overlay) return;
     if (!hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) return;
+    if (pinOpen()) return;                                                       // tecleando la clave: no es un nombre
     var b = ev.target && ev.target.closest ? ev.target.closest("button") : null; if (!b) return;
     var txt = (b.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
-    if (!txt || /MIS PEDIDOS|CAMBIAR|^EN$|^ES$|^←/.test(txt) || txt.length > 40) return;
+    if (!txt || NOT_NAME.test(txt) || txt.length > 40 || !NAME_RE.test(txt)) return;
     tapped = txt; tappedAt = Date.now();
     show(tapped);
-    // si el app NO pasó a la tienda (ej. pidió PIN a oficina), el menú se quita solo
-    setTimeout(function () { if (overlay && !panel && !hasText(TITLE, "h1,h2,h3,div,span")) { hide(); clearSeen(); } }, 450);
+    // si el app pidió la CLAVE (oficina) o no pasó a la tienda, el menú se quita solo - rápido
+    var tries = 0, w = setInterval(function () {
+      tries++;
+      if (!overlay || panel) { clearInterval(w); return; }
+      if (pinOpen()) { clearInterval(w); hide(); clearSeen(); return; }
+      if (hasText(TITLE, "h1,h2,h3,div,span")) { clearInterval(w); return; }
+      if (tries >= 10) { clearInterval(w); hide(); clearSeen(); }
+    }, 45);
   }, true);
 
   /* ---------- ¿en qué pantalla está el app? ---------- */
@@ -169,6 +186,7 @@
       if (panel) { hidePills(); hideTip(); return; }                                // combustible abierto encima: no tocar
       if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { clearSeen(); hide(); showTip(); return; }   // lista de nombres: la próxima vez pregunta otra vez
       hideTip();                                                                   // el aviso solo vive en la lista de nombres
+      if (pinOpen()) { hide(); return; }                                             // pantalla de la clave: nada encima
       if (hasText(TITLE, "h1,h2,h3,div,span")) { var n = who() || (Date.now() - tappedAt < 2000 ? tapped : ""); if (n && !seen(n)) show(n); }
       else hide();
     }, 60);

@@ -38,7 +38,7 @@ window.MUNIZ_CONFIG = {
      NO usar la misma clave que abre el telefono. */
   OFICINA: {
     "TITO CUETO":     "4605",
-    "CLAUDIA TAMAYO": "2718",
+    "CLAUDIA TAMAYO": "2025",
   },
 
   /* ===== PERSONAL QUE NO ES MAYORDOMO =====
