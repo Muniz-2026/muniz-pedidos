@@ -2,23 +2,22 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v4.0
+   MUÑIZ COMBUSTIBLE · v4.1
    Lives INSIDE the orders app. One header, one back arrow, no messages:
    create_fuel_po issues the number on the spot.
 
-   Order of the screens follows the pump:
+   Two or three taps, in the order of the pump:
      1 ¿Dónde vas a cargar?   TEX-CON (verde · rojo · gasolina) · LEO'S (verde · gasolina)
-     2 ¿Qué vas a cargar?     what that station pumps, tap one or several
-     3 Tu camioneta           placa + odómetro ONLY when the truck itself gets fuel:
-                              diésel verde, or gasolina when the person's registered
-                              truck runs on gasolina (the supervisors). Diésel rojo is
-                              machinery and gasolina on a diesel truck is the generator:
-                              no plate, no odometer, no machine number, no hours.
-     4 ¿En qué obra estás?    rol de la semana first · tap · GENERAR PO
-   vehicle_id is always a registry unit: the truck, or the TAMBO entries
-   (T-DSL / T-GAS) for machinery and generator fuel, exactly as v2 did.
-   Names are matched by key (nk), so Gonzales/Gonzalez never splits a person.
-   fuel.html still works on its own (office console at fuel.html#oficina).
+     2 ¿Qué vas a cargar?     what that station pumps, tap one or several.
+                              Rojo / generator only → GENERAR PO right here.
+     3 Tu camioneta           placa + odómetro ONLY when the truck itself gets fuel
+                              (diésel verde, or gasolina on a registered gasolina
+                              truck) → GENERAR PO.
+   No jobsite question: the office assigns it from the daily crew location.
+   The app sends this week's roster site silently as the best guess
+   ("POR ASIGNAR" + a flag when the person has no roster entry).
+   vehicle_id is always a registry unit: the truck, or T-DSL / T-GAS for
+   machinery and generator fuel.
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -73,7 +72,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "4.0";
+const VERSION = "4.1";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -502,8 +501,9 @@ const plateClean = s => up(s).replace(/[^A-Z0-9]/g, "");
    est    ¿DÓNDE VAS A CARGAR?   TEX-CON · LEO'S            one tap, advances
    fuel   ¿QUÉ VAS A CARGAR?     what that station pumps    tap one or several
    veh    TU CAMIONETA           placa + odómetro           ONLY when the truck itself is being fueled
-   obra   ¿EN QUÉ OBRA ESTÁS?    rol de la semana primero   tap → summary → GENERAR PO
    po     the PO, registered the instant the server answers
+   The jobsite is NOT asked: it is assigned in the office from the daily crew
+   location. The app quietly sends this week's roster site as the best guess.
 
    "Fueling the truck" = diésel verde was chosen, or gasolina was chosen by
    someone whose registered truck runs on gasolina (the supervisors).
@@ -518,9 +518,6 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const [plate, setPlate] = useState("");
   const [odo, setOdo] = useState("");
   const [pickOpen, setPickOpen] = useState(false);
-  const [obra, setObra] = useState("");
-  const [obraOtra, setObraOtra] = useState("");
-  const [otraOpen, setOtraOpen] = useState(false);
   const [srvVeh, setSrvVeh] = useState(null);
   const [vehWait, setVehWait] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -532,7 +529,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const lastEst = (LS.get(K_LASTEST, {}) || {})[nk(who)] || "";
 
   useEffect(() => { logEvent("open", { who: who || null }); }, []);
-  useEffect(() => { logEvent("step", { who: who || null, step: ["est", "fuel", "veh", "obra", "po"].indexOf(screen) + 1, meta: { screen, station, fuels } }); }, [screen]);
+  useEffect(() => { logEvent("step", { who: who || null, step: ["est", "fuel", "veh", "po"].indexOf(screen) + 1, meta: { screen, station, fuels } }); }, [screen]);
 
   /* ---------- registry ---------- */
   const mine = useMemo(() => FLOTA.filter(v => nEq(v.de, who) && (v.tipo === "CAMIONETA" || v.tipo === "PIPA")), [who, refTick]);
@@ -567,20 +564,19 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (d < 0) return { block: true, t: `El odómetro no puede bajar. Última carga: ${fmtNum(lastVeh.lectura)} mi` };
     if (d > 3000) return { block: false, t: `Son ${fmtNum(d)} millas desde la última carga. Revisa el número.` }; return null; })();
   const vehOk = !fuelsTruck || (!!truck && effPlate.length >= 5 && odo !== "" && !(odoProblem && odoProblem.block) && !vehWait);
-  const obraOk = !!(obraOtra || obra);
 
   /* ---------- navigation ---------- */
-  const steps = useMemo(() => ["est", "fuel", ...(fuelsTruck ? ["veh"] : []), "obra"], [fuelsTruck]);
+  const steps = useMemo(() => ["est", "fuel", ...(fuelsTruck ? ["veh"] : [])], [fuelsTruck]);
   const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
   const go = s => { setScreen(s); try { requestAnimationFrame(() => { document.querySelectorAll(".mzf-body").forEach(b => { b.scrollTop = 0; }); }); } catch (e) {} };
   const next = () => { const i = steps.indexOf(screen); if (i >= 0 && i < steps.length - 1) go(steps[i + 1]); };
   const back = () => { if (screen === "po") { done(); return; } if (failed) { setFailed(null); return; }
     const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
   const done = () => { if (embedded) onClose(); else if (onChangeWho) onChangeWho(true); };
-  const another = () => { setScreen("est"); setFuels([]); setVeh(null); setPlate(""); setOdo(""); setPickOpen(false); setObra(""); setObraOtra(""); setOtraOpen(false); setTicket(null); t0.current = Date.now(); go("est"); };
+  const another = () => { setScreen("est"); setFuels([]); setVeh(null); setPlate(""); setOdo(""); setPickOpen(false); setTicket(null); t0.current = Date.now(); go("est"); };
   const pickStation = k => { setStation(k); setFuels(f => f.filter(x => (PUMPS[k] || []).indexOf(x) >= 0)); go("fuel"); };
   const toggleFuel = f => setFuels(cur => cur.indexOf(f) >= 0 ? cur.filter(x => x !== f) : [...cur, f]);
-  const afterFuel = () => { if (fuelsTruck) { setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); } else go("obra"); };
+  const afterFuel = () => { if (fuelsTruck) { setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); } else generate(); };
 
   /* ---------- the PO ---------- */
   const primary = () => fuelsTruck ? truck : has("ROJO") ? tambo("DIESEL") : tambo("GASOLINA");
@@ -592,8 +588,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (has("GAS") && !(fuelsTruck && !has("VERDE"))) flags.push("Gasolina · generador");
     if (has("VERDE") && myTruckIsGas) flags.push("Diésel verde en camioneta registrada de gasolina");
     if (fuelsTruck && plateTyped) flags.push("Placa dictada por la persona");
-    if (obraOtra) flags.push("Obra escrita a mano");
-    if (obraSemana && (obraOtra || obra) !== obraSemana) flags.push(`Obra distinta al rol (${obraSemana})`);
+    if (!obraSemana) flags.push("Sin obra en el rol esta semana · asignar en oficina");
     if (fuelsTruck && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && main.tipo !== "PIPA") flags.push(`Mismo vehículo cargó hace ${Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h`);
     if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
     const row = {
@@ -602,7 +597,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
       plate: fuelsTruck ? effPlate : null, plate_typed: fuelsTruck ? plateTyped : false,
       equipo: null,
       reading: fuelsTruck ? Number(odo) : null,
-      jobsite: obraOtra || obra, jobsite_other: !!obraOtra, jobsite_week: obraSemana || null,
+      jobsite: obraSemana || "POR ASIGNAR", jobsite_other: false, jobsite_week: obraSemana || null,
       station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
       extra_gas_gal: null, extra_dyed_gal: null,
       flags,
@@ -629,7 +624,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     try {
       if (!saved) throw lastErr || new Error("no se pudo registrar");
       const e = { po: saved.po, ts: new Date(saved.created_at || Date.now()).getTime(), who, role: row.role, vid: row.vehicle_id, veh: row.vehicle_desc, tipo: row.tipo, comb: row.comb,
-        placa: row.plate || "", equipo: "", lectura: row.reading == null ? "" : String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other, obraSemana: row.jobsite_week || "",
+        placa: row.plate || "", equipo: "", lectura: row.reading == null ? "" : String(row.reading), obra: row.jobsite, obraOtra: false, obraSemana: row.jobsite_week || "",
         est: station, plateTyped: row.plate_typed, srv: true, v: 4, fuels: fuels.slice(), truck: fuelsTruck, flags: row.flags };
       const h = LS.get(K_HIST, []); h.push(e); LS.set(K_HIST, h.slice(-400));
       if (truck && fuelsTruck && !truck.placa && effPlate) { const p = LS.get(K_PLATES, {}); p[truck.id] = effPlate; LS.set(K_PLATES, p); }
@@ -646,7 +641,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const stColor = S ? S.color : C.fuel;
   const stDark = station === "LEOS";
   const strip = screen === "po" ? null : screen === "est" ? "COMBUSTIBLE" : `${S ? S.corto : "COMBUSTIBLE"} · PASO ${stepNo} DE ${TOTAL}`;
-  const titles = { est: "¿DÓNDE VAS A CARGAR?", fuel: "¿QUÉ VAS A CARGAR?", veh: "TU CAMIONETA", obra: "¿EN QUÉ OBRA ESTÁS?", po: "PO DE COMBUSTIBLE" };
+  const titles = { est: "¿DÓNDE VAS A CARGAR?", fuel: "¿QUÉ VAS A CARGAR?", veh: "TU CAMIONETA", po: "PO DE COMBUSTIBLE" };
   const fuelsLine = fuels.map(f => FUEL_LABEL[f]).join(" + ");
   const Chip = ({ f, big }) => <span className="mzf-badge" style={{ background: FUEL_COLOR[f], fontSize: big ? 12 : 10 }}>{FUEL_LABEL[f]}</span>;
 
@@ -663,7 +658,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
           <div style={{ fontSize: 15, marginTop: 8, lineHeight: 1.4, fontWeight: 700 }}>Mándale a Tito la placa <b className="mzf-mono">{effPlate || (failed.vehicle_id || "")}</b> para que la registre.</div>
         </div>
       </div>
-      <Bottom><button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={() => { setFailed(null); go(fuelsTruck ? "veh" : "obra"); }}>REGRESAR →</button></Bottom>
+      <Bottom><button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={() => { setFailed(null); go(fuelsTruck ? "veh" : "fuel"); }}>REGRESAR →</button></Bottom>
     </Shell>);
   if (failed && readingErr) {
     const nums = String(failed.__err).match(/\d[\d,.]*/g) || [];
@@ -740,10 +735,12 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
               <div className="ck" style={on ? { background: col } : {}}>{on ? "✓" : ""}</div>
             </button>); })}
           {fuelsTruck ? <div className="mzf-warn blue" style={{ marginTop: 4 }}>Vas a cargar la camioneta: te pido la placa y el odómetro en el siguiente paso.</div>
-            : fuels.length ? <div className="mzf-warn" style={{ marginTop: 4, background: C.paper, color: C.mute, border: `2px solid ${C.line}` }}>Sin placa ni odómetro. Solo la obra y listo.</div> : null}
+            : fuels.length ? <div className="mzf-warn" style={{ marginTop: 4, background: C.paper, color: C.mute, border: `2px solid ${C.line}` }}>Sin placa ni odómetro. Tu PO sale ahora mismo.</div> : null}
         </div>
-        <Bottom hint={fuels.length ? fuelsLine : "Toca lo que vas a cargar"}>
-          <button className="mzf-btn mzf-display" style={{ background: stDark ? C.ink : stColor }} disabled={!fuels.length} onClick={afterFuel}>CONTINUAR →</button>
+        <Bottom hint={!fuels.length ? "Toca lo que vas a cargar" : fuelsTruck ? fuelsLine : `${S.corto} · ${fuelsLine}`}>
+          {fuelsTruck
+            ? <button className="mzf-btn mzf-display" style={{ background: stDark ? C.ink : stColor }} disabled={!fuels.length} onClick={afterFuel}>CONTINUAR →</button>
+            : <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!fuels.length || busy} onClick={afterFuel}>{busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>}
         </Bottom>
       </Shell>);
   }
@@ -792,56 +789,12 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
         <input className="mzf-input num" value={odo ? fmtNum(odo) : ""} onChange={e => setOdo(digits(e.target.value).slice(0, 7))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
         {odoProblem ? <div className={`mzf-warn ${odoProblem.block ? "red" : "amber"}`} style={{ marginTop: 8 }}>{odoProblem.block ? "⛔ " : "⚠ "}{odoProblem.t}</div> : null}
       </div>
-      <Bottom hint={truck && vehWait ? "Revisando la última lectura de esta camioneta…" : "Después: la obra, y sale tu PO"}>
-        <button className="mzf-btn mzf-display" style={{ background: C.blue }} disabled={!vehOk} onClick={next}>{truck && vehWait ? "REVISANDO…" : "CONTINUAR →"}</button>
+      <Bottom hint={truck && vehWait ? "Revisando la última lectura de esta camioneta…" : vehOk ? [S ? S.corto : "", fuelsLine, effPlate, odo ? fmtNum(odo) + " mi" : ""].filter(Boolean).join(" · ") : "Placa y odómetro, y sale tu PO"}>
+        <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!vehOk || busy} onClick={generate}>{truck && vehWait ? "REVISANDO…" : busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>
       </Bottom>
     </Shell>);
 
-  /* -------- 4 · JOBSITE → GENERAR -------- */
-  if (screen === "obra") {
-    const chosen = obraOtra || obra;
-    const summary = [S ? S.corto : "", fuelsLine, fuelsTruck && effPlate ? effPlate : "", fuelsTruck && odo ? fmtNum(odo) + " mi" : ""].filter(Boolean).join(" · ");
-    return (
-      <Shell>
-        <Head title={titles.obra} who={who} onBack={back} strip={strip} stripColor={stColor} />
-        <div className="mzf-body">
-          {obraSemana ? (
-            <button className="mzf-choice" style={{ borderColor: C.orange, background: obra === obraSemana ? "#FFF4E8" : "#fff" }} onClick={() => { setObra(obraSemana); setObraOtra(""); setOtraOpen(false); }}>
-              <div className="mzf-label" style={{ color: C.orange, margin: 0 }}>SEGÚN EL ROL DE ESTA SEMANA</div>
-              <div className="mzf-display" style={{ fontSize: 24, lineHeight: 1.1, marginTop: 4 }}>{obraSemana}</div>
-              <div className="mzf-cta" style={{ background: obra === obraSemana ? C.green : C.orange }}>{obra === obraSemana ? "✓ AQUÍ ESTOY" : "AQUÍ ESTOY"}</div>
-            </button>) : null}
-          <div className="mzf-label" style={{ marginTop: 16 }}>{obraSemana ? "¿ESTÁS EN OTRA OBRA? TÓCALA" : "TOCA LA OBRA"}</div>
-          <div className="mzf-grid2">
-            {OBRAS.filter(o => o !== obraSemana).map(o => (
-              <button key={o} className={"mzf-pick" + (obra === o && !obraOtra ? " on" : "")} onClick={() => { setObra(o); setObraOtra(""); setOtraOpen(false); }}>{obra === o && !obraOtra ? "✓ " : ""}{o}</button>))}
-          </div>
-          <div className="mzf-card" style={{ padding: 10, marginTop: 12, borderColor: obraOtra ? C.orange : C.line }}>
-            {!otraOpen && !obraOtra ? <button style={{ width: "100%", textAlign: "center", fontSize: 12, fontWeight: 900, color: C.mute, padding: 6 }} onClick={() => { setOtraOpen(true); setObra(""); }}>¿NO ESTÁ TU OBRA? Escribe el lugar</button> : (
-              <>
-                <div className="mzf-label">OTRA UBICACIÓN · queda marcada para la oficina</div>
-                <input className="mzf-input" style={{ height: 48, fontSize: 16 }} value={obraOtra} onChange={e => { setObraOtra(e.target.value.slice(0, 40)); setObra(""); }} placeholder="Calle o lugar…" />
-              </>)}
-          </div>
-          {chosen ? (
-            <div className="mzf-card" style={{ padding: "8px 12px", marginTop: 14 }}>
-              <div className="mzf-label" style={{ margin: "4px 0 6px" }}>TU PO</div>
-              <div className="mzf-row"><span className="k">Estación</span><span className="v">{S.corto}</span></div>
-              <div className="mzf-row"><span className="k">Combustible</span><span className="v" style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>{fuels.map(f => <Chip key={f} f={f} />)}</span></div>
-              {fuelsTruck ? <div className="mzf-row"><span className="k">Camioneta</span><span className="v">{truck ? truck.desc : ""} · {effPlate}</span></div> : null}
-              {fuelsTruck ? <div className="mzf-row"><span className="k">Odómetro</span><span className="v">{fmtNum(odo)} mi</span></div> : null}
-              <div className="mzf-row"><span className="k">Obra</span><span className="v">{chosen}</span></div>
-            </div>) : null}
-          {fuelsTruck && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && truck && truck.tipo !== "PIPA" ? (
-            <div className="mzf-warn amber" style={{ marginTop: 10 }}>⚠ Esta camioneta cargó hace {Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h. Queda marcado para la oficina.</div>) : null}
-        </div>
-        <Bottom hint={!chosen ? "Toca la obra donde estás" : summary}>
-          <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!obraOk || busy || (obraOtra && obraOtra.trim().length < 3)} onClick={generate}>{busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>
-        </Bottom>
-      </Shell>);
-  }
-
-  /* -------- 5 · THE PO -------- */
+  /* -------- 4 · THE PO -------- */
   if (screen === "po" && ticket) {
     const s = STATIONS[ticket.est] || { nombre: ticket.est, corto: ticket.est, color: C.mute };
     const dark = ticket.est === "LEOS";
@@ -868,7 +821,6 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
                 {ticket.truck ? cell("ODÓMETRO", `${fmtNum(ticket.lectura)} mi`, true) : null}
                 <div style={{ gridColumn: "1 / -1" }}>{cell("NOMBRE", ticket.who)}</div>
                 {ticket.truck ? <div style={{ gridColumn: "1 / -1" }}>{cell("VEHÍCULO", ticket.veh)}</div> : null}
-                <div style={{ gridColumn: "1 / -1" }}>{cell("OBRA", ticket.obra)}</div>
               </div>
             </div>
             <div style={{ background: s.color, color: dark ? C.ink : "#fff", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
