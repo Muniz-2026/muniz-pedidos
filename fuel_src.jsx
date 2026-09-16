@@ -2,21 +2,16 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v4.5
-   Lives INSIDE the orders app. One header, one back arrow, no messages:
-   create_fuel_po issues the number on the spot.
-   Screens, in the order of the pump:
-     1 ¿Dónde vas a cargar?   TEX-CON (verde · rojo · gasolina) · LEO'S (verde · gasolina)
-     2 ¿Qué vas a cargar?     what that station pumps, tap one or several.
-                              Rojo / generator only → GENERAR PO right here.
-                              SKIPPED for anyone who only ever buys gasolina for
-                              their own truck: every project manager by role,
-                              plus anyone in COMBUSTIBLE.SOLO_GASOLINA.
-     3 Tu camioneta           placa + odómetro when the truck itself gets fuel
-                              → GENERAR PO.
-   The jobsite is never asked. The PO carries this week's roster site, and only
-   ever a name the jobsites table knows, because create_fuel_po validates it.
-   No roster row → the default jobsite plus a flag for the office.
+   MUÑIZ COMBUSTIBLE · v4.6
+   Lives INSIDE the orders app. create_fuel_po issues the number on the spot.
+     1 ¿Dónde vas a cargar?   TEX-CON · LEO'S
+     2 ¿Qué vas a cargar?     what that station pumps - SKIPPED for project
+                              managers and anyone in COMBUSTIBLE.SOLO_GASOLINA
+     3 Tu camioneta           placa + odómetro only when the truck gets fuel
+   The jobsite is never asked: the PO carries the roster site, and only ever a
+   name the jobsites table knows. The fleet table wins over config.js but does
+   not erase it: someone with a truck in config and none in the table keeps it.
+   Every PO carries app_version so a phone stuck on an old build is obvious.
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -71,7 +66,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "4.5";
+const VERSION = "4.6";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -126,13 +121,23 @@ const roleOf = n => { if (PEOPLE_DB) { const p = PEOPLE_DB.find(x => nEq(x.name,
 /* ---------- fleet / stations / jobsites ---------- */
 let FLOTA = (FUEL.FLOTA || []).map(v => ({ ...v, de: up(v.de), comb: up(v.comb), tipo: up(v.tipo), placa: up(v.placa) }));
 let STATIONS = FUEL.ESTACIONES || {};
+const FLOTA_CFG = FLOTA.slice();          /* la flota de config.js, para rellenar lo que falte en la tabla */
 let OBRAS = FUEL.OBRAS || [];
 let OBRA_SEMANA = (() => { const o = {}; const m = FUEL.OBRA_SEMANA || {}; for (const k in m) o[up(k)] = m[k]; return o; })();
 let PEOPLE_DB = null;
 const K_REF = "muniz_fuel_ref";
 function applyRef(ref) {
   if (!ref) return;
-  if (ref.vehicles && ref.vehicles.length) FLOTA = ref.vehicles.filter(v => v.active !== false).map(v => ({ id: v.id, placa: up(v.plate || ""), desc: v.descr, tipo: up(v.tipo), comb: up(v.comb), de: up(v.assigned_to || "") }));
+  if (ref.vehicles && ref.vehicles.length) {
+    /* la tabla manda, PERO no borra a quien todavía no está dado de alta ahí:
+       si config.js le tiene camioneta a alguien y la tabla no, se conserva.
+       Así nadie se queda sin unidad y nadie acaba cargando la troca de otro. */
+    const srv = ref.vehicles.filter(v => v.active !== false).map(v => ({ id: v.id, placa: up(v.plate || ""), desc: v.descr, tipo: up(v.tipo), comb: up(v.comb), de: up(v.assigned_to || "") }));
+    const byId = {}, byPerson = {};
+    srv.forEach(v => { byId[v.id] = 1; if (v.de) byPerson[nk(v.de)] = 1; });
+    const fill = FLOTA_CFG.filter(v => !byId[v.id] && v.de && !byPerson[nk(v.de)]);
+    FLOTA = srv.concat(fill);
+  }
   if (ref.stations && ref.stations.length) { const o = {}; ref.stations.filter(s => s.active !== false).forEach(s => { o[s.code] = { nombre: s.name, corto: s.short, tel: s.phone || "", color: s.color }; }); STATIONS = o; }
   if (ref.jobsites && ref.jobsites.length) OBRAS = ref.jobsites.filter(j => j.active !== false).map(j => j.name);
   if (ref.roster && ref.roster.length) { const o = {}; ref.roster.forEach(r => { o[up(r.person)] = r.jobsite; }); OBRA_SEMANA = o; }
@@ -602,10 +607,15 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
 
   /* ---------- the PO ---------- */
   const primary = () => fuelsTruck ? truck : has("ROJO") ? tambo("DIESEL") : tambo("GASOLINA");
+  /* quien solo carga gasolina: si el registro dice diésel/pipa, el PO va como
+     gasolina de todos modos y queda marcado para corregir la flota */
+  const regWrong = gasOnly && truck && (truck.comb !== "GASOLINA" || truck.tipo !== "CAMIONETA");
   const buildRow = (ref, shape, jobUsed) => {
     const main = primary();
     const comb = fuelsTruck ? (has("VERDE") ? "DIESEL" : "GASOLINA") : has("ROJO") ? "DIESEL" : "GASOLINA";
+    const desc = regWrong && main === truck ? "Camioneta gasolina" : main.desc;
     const flags = [];
+    if (regWrong) flags.push(`Flota dice ${truck.tipo} / ${truck.comb} · ${truck.id} es camioneta de gasolina · corregir`);
     if (has("ROJO")) flags.push("Diésel rojo · maquinaria");
     if (has("GAS") && !(fuelsTruck && !has("VERDE"))) flags.push("Gasolina · generador");
     if (has("VERDE") && myTruckIsGas) flags.push("Diésel verde en camioneta registrada de gasolina");
@@ -616,7 +626,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
     const row = {
       client_ref: ref, device_id: deviceId(), who, role: roleOf(who),
-      vehicle_id: main.id, vehicle_desc: main.desc, tipo: main.tipo, comb,
+      vehicle_id: main.id, vehicle_desc: desc, tipo: regWrong && main === truck ? "CAMIONETA" : main.tipo, comb,
       plate: fuelsTruck ? effPlate : null, plate_typed: fuelsTruck ? plateTyped : false,
       equipo: null,
       reading: fuelsTruck ? Number(odo) : null,
@@ -625,7 +635,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
       extra_gas_gal: null, extra_dyed_gal: null,
       flags,
     };
-    if (!shape) { row.fuels = fuels.slice(); row.extra_dyed = has("ROJO"); row.extra_gas = has("GAS") && !(fuelsTruck && !has("VERDE")); }
+    if (!shape) { row.app_version = VERSION; row.fuels = fuels.slice(); row.extra_dyed = has("ROJO"); row.extra_gas = has("GAS") && !(fuelsTruck && !has("VERDE")); }
     return row;
   };
   const generate = async () => {
