@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v3.5
+   MUÑIZ COMBUSTIBLE · v3.6
    Lives INSIDE the orders app. One header, one back arrow, no messages:
    create_fuel_po issues the number on the spot.
      · a truck's fuel type comes from the registry, so the plate must
@@ -67,7 +67,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "3.5";
+const VERSION = "3.6";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -872,7 +872,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
             })}
           </div>
 
-          <div className="mzf-label" style={{ marginTop: 16 }}>¿TAMBIÉN GASOLINA EN ESTE PO? · garrafas, equipo chico</div>
+          <div className="mzf-label" style={{ marginTop: 16 }}>¿NECESITAS GASOLINA PARA TU GENERADOR?</div>
           <div className="mzf-yn">
             <button className={gas === false ? "on" : ""} onClick={() => setGas(false)}>NO</button>
             <button className={gas === true ? "on" : ""} onClick={() => setGas(true)}>SÍ, GASOLINA</button>
@@ -888,7 +888,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
           {hasVeh && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && truck && truck.tipo !== "PIPA" ? (
             <div className="mzf-warn amber" style={{ marginTop: 10 }}>⚠ Esta camioneta cargó hace {Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h. Queda marcado para la oficina.</div>) : null}
         </div>
-        <Bottom hint={!station ? "Toca la estación" : gas === null ? "Contesta si también llevas gasolina" : "El PO se registra en la oficina en este instante"}>
+        <Bottom hint={!station ? "Toca la estación" : gas === null ? "Contesta si necesitas gasolina" : "El PO se registra en la oficina en este instante"}>
           <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!ready} onClick={generate}>{busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>
         </Bottom>
       </Shell>);
@@ -911,7 +911,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
               <div className="mzf-display" style={{ fontSize: 40, lineHeight: 1, marginTop: 4 }}>{FUEL_LABEL[mainComb]}</div>
               {(both || ticket.gas) ? <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>
                 {both ? <span className="mzf-badge" style={{ background: "rgba(0,0,0,.28)", fontSize: 12 }}>+ DIÉSEL ROJO · máquina {ticket.equipo}</span> : null}
-                {ticket.gas ? <span className="mzf-badge" style={{ background: "rgba(0,0,0,.28)", fontSize: 12 }}>+ GASOLINA · garrafas</span> : null}
+                {ticket.gas ? <span className="mzf-badge" style={{ background: "rgba(0,0,0,.28)", fontSize: 12 }}>+ GASOLINA · generador</span> : null}
               </div> : null}
             </div>
             <div style={{ padding: "14px 16px" }}>
