@@ -2,17 +2,23 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v3.6
+   MUÑIZ COMBUSTIBLE · v4.0
    Lives INSIDE the orders app. One header, one back arrow, no messages:
    create_fuel_po issues the number on the spot.
-     · a truck's fuel type comes from the registry, so the plate must
-       resolve to a real unit
-     · a machine is always diésel rojo, so the person just types the number
-       painted on it - first time included. That number IS the unit: its own
-       hour counter from day one, and two machines never share one
-     · the reading guard runs against the unit the PO will carry and waits
-       for the server's last reading ("REVISANDO…")
-     · if the server still rejects, plain Spanish and a button back to fix it
+
+   Order of the screens follows the pump:
+     1 ¿Dónde vas a cargar?   TEX-CON (verde · rojo · gasolina) · LEO'S (verde · gasolina)
+     2 ¿Qué vas a cargar?     what that station pumps, tap one or several
+     3 Tu camioneta           placa + odómetro ONLY when the truck itself gets fuel:
+                              diésel verde, or gasolina when the person's registered
+                              truck runs on gasolina (the supervisors). Diésel rojo is
+                              machinery and gasolina on a diesel truck is the generator:
+                              no plate, no odometer, no machine number, no hours.
+     4 ¿En qué obra estás?    rol de la semana first · tap · GENERAR PO
+   vehicle_id is always a registry unit: the truck, or the TAMBO entries
+   (T-DSL / T-GAS) for machinery and generator fuel, exactly as v2 did.
+   Names are matched by key (nk), so Gonzales/Gonzalez never splits a person.
+   fuel.html still works on its own (office console at fuel.html#oficina).
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -67,7 +73,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "3.6";
+const VERSION = "4.0";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -140,6 +146,7 @@ const LS = {
 };
 const K_ME = "muniz_fuel_me", K_HIST = "muniz_fuel_hist", K_LOG = "muniz_fuel_log", K_PLATES = "muniz_fuel_plates", K_OF = "muniz_oficina";
 const K_PEND = "muniz_fuel_pend";     /* POs generated but not yet registered */
+const K_LASTEST = "muniz_fuel_last_est"; /* la última estación de cada persona en este teléfono */
 const K_SHAPE = "muniz_fuel_shape";   /* que forma de payload acepta create_fuel_po en este servidor */
 const WEBHOOK = String(FUEL.WEBHOOK || "");
 const officeUnlocked = () => { try { return localStorage.getItem(K_OF) === "1"; } catch (e) { return false; } };
@@ -392,8 +399,10 @@ function Office({ whoOf, onExit, onNew, token }) {
    ===================================================================== */
 const C = { bg: "#EDEBE6", ink: "#17181A", line: "#D8D4CB", mute: "#6B675E", faint: "#8A867C", orange: "#FF5A00",
             blue: "#2E5C8A", green: "#1F8A3B", red: "#C81E1E", amber: "#FFB800", fuel: "#1E3A8A", paper: "#F5F3EE" };
-const FUEL_COLOR = { DIESEL: C.green, GASOLINA: C.orange, "DIESEL ROJO": C.red };
-const FUEL_LABEL = { DIESEL: "DIÉSEL", GASOLINA: "GASOLINA", "DIESEL ROJO": "DIÉSEL ROJO" };
+const FUEL_COLOR = { DIESEL: C.green, GASOLINA: C.orange, "DIESEL ROJO": C.red, VERDE: C.green, ROJO: C.red, GAS: C.orange };
+const FUEL_LABEL = { DIESEL: "DIÉSEL", GASOLINA: "GASOLINA", "DIESEL ROJO": "DIÉSEL ROJO", VERDE: "DIÉSEL VERDE", ROJO: "DIÉSEL ROJO", GAS: "GASOLINA" };
+/* what each station actually pumps - the fuel screen is built from this */
+const PUMPS = { TEXCON: ["VERDE", "ROJO", "GAS"], LEOS: ["VERDE", "GAS"] };
 const TIPO_LABEL = { CAMIONETA: "Camioneta", MAQUINARIA: "Maquinaria", TAMBO: "Tambo / tanque", PIPA: "Camión de combustible" };
 
 const CSS = `
@@ -423,6 +432,14 @@ const CSS = `
 .mzf .mzf-pick{display:block;width:100%;text-align:left;background:#fff;border:2px solid ${C.line};border-radius:12px;padding:12px;min-height:60px;font-size:14px;font-weight:900;line-height:1.2;transition:transform .08s}
 .mzf .mzf-pick:active{transform:scale(.98)}
 .mzf .mzf-pick.on{border-color:${C.orange};box-shadow:inset 0 0 0 2px ${C.orange}}
+.mzf .mzf-fuel{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:3px solid ${C.line};border-radius:16px;padding:14px;transition:transform .08s}
+.mzf .mzf-fuel:active{transform:scale(.98)}
+.mzf .mzf-fuel .dot{flex:none;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:900}
+.mzf .mzf-fuel .nm{font-size:22px;line-height:1;letter-spacing:-.02em}
+.mzf .mzf-fuel .sb{font-size:12px;font-weight:700;color:${C.mute};margin-top:4px;line-height:1.3}
+.mzf .mzf-fuel .ck{flex:none;width:30px;height:30px;border-radius:9px;border:3px solid ${C.line};display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:900}
+.mzf .mzf-fuel.on .ck{border-color:transparent}
+.mzf-tag{display:inline-block;font-size:9px;font-weight:900;letter-spacing:.08em;padding:3px 6px;border-radius:5px;background:${C.ink};color:#fff;margin-left:6px;vertical-align:2px}
 .mzf-input{width:100%;height:56px;border:2px solid ${C.ink};border-radius:12px;padding:0 12px;font-size:22px;font-weight:700;background:#fff;color:${C.ink};outline:none;appearance:none}
 .mzf-input::placeholder{color:#B9B4A9;font-weight:600}
 .mzf-input.big{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;text-align:center;font-size:30px;height:68px}
@@ -480,148 +497,124 @@ const numOr0 = v => { const n = Number(String(v).replace(/[^\d.]/g, "")); return
 const digits = s => String(s || "").replace(/\D/g, "");
 const plateClean = s => up(s).replace(/[^A-Z0-9]/g, "");
 
+
 /* ===================================================================== THE WIZARD
-   Screens (the list adapts to the choice; every screen is one decision):
-     what      ¿QUÉ VAS A CARGAR?      VEHÍCULO · MAQUINARIA · LOS DOS
-     veh       TU CAMIONETA            placa (+ odómetro)     — only if VEHÍCULO or LOS DOS
-     mach      LA MÁQUINA              número + horas         — only if MAQUINARIA or LOS DOS
-     obra      ¿EN QUÉ OBRA ESTÁS?     rol de la semana primero
-     est       ¿DÓNDE VAS A CARGAR?    estación + ¿también gasolina? SÍ/NO
-     po        the PO, registered the instant the server answers
+   est    ¿DÓNDE VAS A CARGAR?   TEX-CON · LEO'S            one tap, advances
+   fuel   ¿QUÉ VAS A CARGAR?     what that station pumps    tap one or several
+   veh    TU CAMIONETA           placa + odómetro           ONLY when the truck itself is being fueled
+   obra   ¿EN QUÉ OBRA ESTÁS?    rol de la semana primero   tap → summary → GENERAR PO
+   po     the PO, registered the instant the server answers
+
+   "Fueling the truck" = diésel verde was chosen, or gasolina was chosen by
+   someone whose registered truck runs on gasolina (the supervisors).
+   Diésel rojo is machinery, gasolina on a diesel truck is the generator:
+   no plate, no odometer, just the PO.
    ===================================================================== */
 function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
-  const [screen, setScreen] = useState("what");
-  const [mode, setMode] = useState("");              // VEH | MACH | BOTH
-  const [veh, setVeh] = useState(null);              // registry truck
+  const [screen, setScreen] = useState("est");
+  const [station, setStation] = useState("");
+  const [fuels, setFuels] = useState([]);              // subset of PUMPS[station]
+  const [veh, setVeh] = useState(null);                // registry truck
   const [plate, setPlate] = useState("");
   const [odo, setOdo] = useState("");
-  const [equipNo, setEquipNo] = useState("");
-  const [hrs, setHrs] = useState("");
+  const [pickOpen, setPickOpen] = useState(false);
   const [obra, setObra] = useState("");
   const [obraOtra, setObraOtra] = useState("");
   const [otraOpen, setOtraOpen] = useState(false);
-  const [station, setStation] = useState("");
-  const [gas, setGas] = useState(null);              // true | false | null (not answered)
-  const [srvVeh, setSrvVeh] = useState(null);        // server: last reading for the truck
-  const [srvMach, setSrvMach] = useState(null);      // server: last reading for the machine
-  const [equipKey, setEquipKey] = useState("");     // el número ya "asentado" (deja de teclear)
-  const [pickOpen, setPickOpen] = useState(false);   // solo para quien no tiene camioneta registrada
-  const [vehWait, setVehWait] = useState(false);    // esperando la última lectura del servidor
-  const [machWait, setMachWait] = useState(false);
+  const [srvVeh, setSrvVeh] = useState(null);
+  const [vehWait, setVehWait] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [ticket, setTicket] = useState(null);
   const t0 = useRef(Date.now());
   const hist = LS.get(K_HIST, []);
   const plates = LS.get(K_PLATES, {});
+  const lastEst = (LS.get(K_LASTEST, {}) || {})[nk(who)] || "";
 
   useEffect(() => { logEvent("open", { who: who || null }); }, []);
-  useEffect(() => { logEvent("step", { who: who || null, step: ["what", "veh", "mach", "obra", "est", "po"].indexOf(screen) + 1, meta: { screen, mode } }); }, [screen]);
+  useEffect(() => { logEvent("step", { who: who || null, step: ["est", "fuel", "veh", "obra", "po"].indexOf(screen) + 1, meta: { screen, station, fuels } }); }, [screen]);
 
-  /* registry: this person's truck (CAMIONETA or PIPA). Fuel type comes from here, never from the person. */
+  /* ---------- registry ---------- */
   const mine = useMemo(() => FLOTA.filter(v => nEq(v.de, who) && (v.tipo === "CAMIONETA" || v.tipo === "PIPA")), [who, refTick]);
-  /* todo lo que no es camioneta ni pipa: bobcat, rodillo, compactador, generador,
-     dump truck, tambo. Cada unidad lleva SU propio contador de horas. */
-  const machines = useMemo(() => FLOTA.filter(v => v.tipo !== "CAMIONETA" && v.tipo !== "PIPA"), [refTick]);
   const allTrucks = useMemo(() => FLOTA.filter(v => v.tipo === "CAMIONETA" || v.tipo === "PIPA"), [refTick]);
-  const hasVeh = mode === "VEH" || mode === "BOTH", hasMach = mode === "MACH" || mode === "BOTH";
-  const steps = useMemo(() => ["what", ...(hasVeh ? ["veh"] : []), ...(hasMach ? ["mach"] : []), "obra", "est"], [mode]);
-  const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
+  const tambo = comb => FLOTA.find(v => v.tipo === "TAMBO" && v.comb === comb) || { id: comb === "GASOLINA" ? "T-GAS" : "T-DSL", desc: comb === "GASOLINA" ? "Gasolina · generador" : "Diésel rojo · maquinaria", tipo: "TAMBO", comb, de: "" };
+  const myTruck = mine[0] || null;
+  const myTruckIsGas = !!myTruck && myTruck.comb === "GASOLINA";
   const obraSemana = nGet(OBRA_SEMANA, who) || "";
+  const pumps = PUMPS[station] || [];
+  const has = f => fuels.indexOf(f) >= 0;
 
-  /* plate typed by the person → is it a truck we know? (covers people without an assigned truck, or driving another one) */
+  /* the one rule: plate + odometer only when the truck itself gets fuel */
+  const fuelsTruck = has("VERDE") || (has("GAS") && myTruckIsGas);
+
+  /* ---------- truck: registry unit, never invented ---------- */
   const plateMatch = useMemo(() => { const p = plateClean(plate); if (p.length < 5) return null;
-    return FLOTA.find(v => (v.tipo === "CAMIONETA" || v.tipo === "PIPA") && (plateClean(v.placa) === p || plateClean(plates[v.id]) === p)) || null; }, [plate, refTick]);
-  const truck = veh || plateMatch || null;
-  const truckComb = truck ? truck.comb : "";
+    return allTrucks.find(v => plateClean(v.placa) === p || plateClean(plates[v.id]) === p) || null; }, [plate, refTick]);
+  const truck = plateMatch || veh || null;
   const regPlate = truck ? (truck.placa || plates[truck.id] || "") : "";
   const effPlate = plateClean(plate) || plateClean(regPlate);
   const plateTyped = !!truck && plateClean(plate) !== "" && plateClean(plate) !== plateClean(truck.placa);
-  const noTruck = hasVeh && !truck;          // no tiene camioneta en el registro y la placa no coincide
-
-  /* machine typed → known unit? */
-  /* El número que trae pintado la máquina ES la unidad. Si ya está en la flota
-     usamos su id para no partirle el historial; si no, el número mismo hace su
-     propia cuenta de horas desde la primera vez. Nunca se juntan dos máquinas. */
-  const machKey = n => "M-" + up(n).replace(/[^A-Z0-9]/g, "");
-  const findMach = q0 => { const q = up(q0).replace(/[^A-Z0-9]/g, ""); if (!q) return null; const d = digits(q);
-    return machines.find(v => up(v.id).replace(/[^A-Z0-9]/g, "") === q)
-      || (d ? machines.find(v => digits(v.desc) === d || digits(v.id) === d) : null)
-      || (d.length >= 3 ? machines.find(v => digits(v.desc).endsWith(d)) : null)
-      || (q.length >= 3 ? machines.find(v => up(v.desc).replace(/[^A-Z0-9]/g, "").indexOf(q) >= 0) : null)
-      || null; };
-  const machMatch = useMemo(() => findMach(equipKey), [equipKey, machines]);
-  const machine = useMemo(() => { const q = up(equipKey).replace(/[^A-Z0-9]/g, ""); if (!q) return null;
-    return machMatch || { id: machKey(equipKey), desc: "Máquina " + up(equipKey), tipo: "MAQUINARIA", comb: "DIESEL", de: "", nuevo: true }; }, [equipKey, machMatch]);
-  /* deja de teclear -> se asienta el número y se le pregunta al servidor por sus horas */
-  useEffect(() => { const t = setTimeout(() => setEquipKey(equipNo.trim()), 350); return () => clearTimeout(t); }, [equipNo]);
-  const typing = hasMach && up(equipNo).replace(/[^A-Z0-9]/g, "") !== up(equipKey).replace(/[^A-Z0-9]/g, "");
+  const noTruck = fuelsTruck && !truck;
 
   useEffect(() => { setSrvVeh(null); if (!HAS_BACKEND || !truck) { setVehWait(false); return; } let ok = true; setVehWait(true);
     sbRpc("vehicle_status", { vid: truck.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok) { if (x) setSrvVeh(x); setVehWait(false); } })
       .catch(() => { if (ok) setVehWait(false); }); return () => { ok = false; }; }, [truck && truck.id]);
-  useEffect(() => { setSrvMach(null); if (!HAS_BACKEND || !machine) { setMachWait(false); return; } let ok = true; setMachWait(true);
-    sbRpc("vehicle_status", { vid: machine.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok) { if (x) setSrvMach(x); setMachWait(false); } })
-      .catch(() => { if (ok) setMachWait(false); }); return () => { ok = false; }; }, [machine && machine.id]);
 
   const lastOf = (vid, srv) => { if (srv && srv.last_at) return { lectura: srv.last_reading == null ? "" : String(srv.last_reading), ts: new Date(srv.last_at).getTime() };
     return hist.filter(h => h.vid === vid).sort((a, b) => b.ts - a.ts)[0] || null; };
   const lastVeh = truck ? lastOf(truck.id, srvVeh) : null;
-  const lastMach = machine ? lastOf(machine.id, srvMach) : null;
-
-  const odoProblem = (() => { if (!hasVeh || odo === "" || !lastVeh || lastVeh.lectura === "") return null; const d = Number(odo) - Number(lastVeh.lectura);
+  const odoProblem = (() => { if (!fuelsTruck || odo === "" || !lastVeh || lastVeh.lectura === "") return null; const d = Number(odo) - Number(lastVeh.lectura);
     if (d < 0) return { block: true, t: `El odómetro no puede bajar. Última carga: ${fmtNum(lastVeh.lectura)} mi` };
     if (d > 3000) return { block: false, t: `Son ${fmtNum(d)} millas desde la última carga. Revisa el número.` }; return null; })();
-  const hrsProblem = (() => { if (!hasMach || hrs === "" || !lastMach || lastMach.lectura === "") return null;
-    if (Number(hrs) < Number(lastMach.lectura)) return { block: true, t: `Las horas no pueden bajar. Última carga: ${fmtNum(lastMach.lectura)} h` }; return null; })();
+  const vehOk = !fuelsTruck || (!!truck && effPlate.length >= 5 && odo !== "" && !(odoProblem && odoProblem.block) && !vehWait);
+  const obraOk = !!(obraOtra || obra);
 
-  const vehOk = !hasVeh || (!!truck && effPlate.length >= 5 && odo !== "" && !(odoProblem && odoProblem.block) && !vehWait);
-  const machOk = !hasMach || (!!machine && up(equipNo).trim().length >= 1 && hrs !== "" && !(hrsProblem && hrsProblem.block) && !machWait && !typing);
-
-  const pickTruck = v => { setVeh(v); setPlate(v ? (v.placa || plates[v.id] || "") : ""); };
+  /* ---------- navigation ---------- */
+  const steps = useMemo(() => ["est", "fuel", ...(fuelsTruck ? ["veh"] : []), "obra"], [fuelsTruck]);
+  const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
   const go = s => { setScreen(s); try { requestAnimationFrame(() => { document.querySelectorAll(".mzf-body").forEach(b => { b.scrollTop = 0; }); }); } catch (e) {} };
   const next = () => { const i = steps.indexOf(screen); if (i >= 0 && i < steps.length - 1) go(steps[i + 1]); };
   const back = () => { if (screen === "po") { done(); return; } if (failed) { setFailed(null); return; }
     const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
   const done = () => { if (embedded) onClose(); else if (onChangeWho) onChangeWho(true); };
-  const another = () => { setScreen("what"); setMode(""); setVeh(null); setPlate(""); setOdo(""); setEquipNo(""); setEquipKey(""); setHrs(""); setObra(""); setObraOtra(""); setOtraOpen(false); setStation(""); setGas(null); setTicket(null); t0.current = Date.now(); go("what"); };
+  const another = () => { setScreen("est"); setFuels([]); setVeh(null); setPlate(""); setOdo(""); setPickOpen(false); setObra(""); setObraOtra(""); setOtraOpen(false); setTicket(null); t0.current = Date.now(); go("est"); };
+  const pickStation = k => { setStation(k); setFuels(f => f.filter(x => (PUMPS[k] || []).indexOf(x) >= 0)); go("fuel"); };
+  const toggleFuel = f => setFuels(cur => cur.indexOf(f) >= 0 ? cur.filter(x => x !== f) : [...cur, f]);
+  const afterFuel = () => { if (fuelsTruck) { setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); } else go("obra"); };
 
-  /* -------- the PO: server assigns the number, the row is the record -------- */
+  /* ---------- the PO ---------- */
+  const primary = () => fuelsTruck ? truck : has("ROJO") ? tambo("DIESEL") : tambo("GASOLINA");
   const buildRow = (ref, shape) => {
-    const main = hasVeh ? truck : machine;
-    const comb = hasVeh ? main.comb : "DIESEL";
+    const main = primary();
+    const comb = fuelsTruck ? (has("VERDE") ? "DIESEL" : "GASOLINA") : has("ROJO") ? "DIESEL" : "GASOLINA";
     const flags = [];
-    if (hasVeh && plateTyped) flags.push("Placa dictada por la persona");
+    if (has("ROJO")) flags.push("Diésel rojo · maquinaria");
+    if (has("GAS") && !(fuelsTruck && !has("VERDE"))) flags.push("Gasolina · generador");
+    if (has("VERDE") && myTruckIsGas) flags.push("Diésel verde en camioneta registrada de gasolina");
+    if (fuelsTruck && plateTyped) flags.push("Placa dictada por la persona");
     if (obraOtra) flags.push("Obra escrita a mano");
     if (obraSemana && (obraOtra || obra) !== obraSemana) flags.push(`Obra distinta al rol (${obraSemana})`);
-    if (hasVeh && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && main.tipo !== "PIPA") flags.push(`Mismo vehículo cargó hace ${Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h`);
+    if (fuelsTruck && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && main.tipo !== "PIPA") flags.push(`Mismo vehículo cargó hace ${Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h`);
     if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
-    if (hasMach && hasVeh) flags.push(`+ Maquinaria ${up(equipNo)} · ${fmtNum(hrs)} h · diésel rojo`);
-    if (hasMach && machine && machine.nuevo) flags.push(`Máquina ${up(equipNo)} no está en la flota`);
-    if (gas) flags.push("+ Gasolina (garrafas / equipo chico)");
-    /* shape 0 = todo. shape 1 = solo las columnas que el servidor ya conocía
-       (la maquinaria y la gasolina siguen viajando en flags, que es texto). */
     const row = {
       client_ref: ref, device_id: deviceId(), who, role: roleOf(who),
       vehicle_id: main.id, vehicle_desc: main.desc, tipo: main.tipo, comb,
-      plate: hasVeh ? effPlate : null, plate_typed: hasVeh ? plateTyped : false,
-      equipo: hasMach ? up(equipNo) : null,
-      reading: hasVeh ? Number(odo) : Number(hrs),
+      plate: fuelsTruck ? effPlate : null, plate_typed: fuelsTruck ? plateTyped : false,
+      equipo: null,
+      reading: fuelsTruck ? Number(odo) : null,
       jobsite: obraOtra || obra, jobsite_other: !!obraOtra, jobsite_week: obraSemana || null,
       station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
       extra_gas_gal: null, extra_dyed_gal: null,
       flags,
     };
-    if (!shape) { row.extra_gas = !!gas; row.machine_id = hasMach && hasVeh ? machine.id : null;
-      row.machine_equipo = hasMach && hasVeh ? up(equipNo) : null; row.machine_hours = hasMach && hasVeh ? Number(hrs) : null; }
+    if (!shape) { row.fuels = fuels.slice(); row.extra_dyed = has("ROJO"); row.extra_gas = has("GAS") && !(fuelsTruck && !has("VERDE")); }
     return row;
   };
   const generate = async () => {
     if (!HAS_BACKEND) { setFailed({ __err: "Falta SUPABASE en config.js" }); return; }
-    if (hasVeh && !truck) { setFailed({ __err: "Escoge la camioneta de la flota antes de generar el PO." }); return; }
-    if (hasMach && !machine) { setFailed({ __err: "Escribe el número de la máquina antes de generar el PO." }); return; }
+    if (fuelsTruck && !truck) { setFailed({ __err: "Escoge la camioneta de la flota antes de generar el PO." }); return; }
     setBusy(true); setFailed(null);
-    const ref = uuid();                                   /* el mismo en los dos intentos: el servidor no duplica */
+    const ref = uuid();
     const order = Number(LS.get(K_SHAPE, 0)) ? [1, 0] : [0, 1];
     let row = null, saved = null, lastErr = null;
     for (const shape of order) {
@@ -636,11 +629,12 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     try {
       if (!saved) throw lastErr || new Error("no se pudo registrar");
       const e = { po: saved.po, ts: new Date(saved.created_at || Date.now()).getTime(), who, role: row.role, vid: row.vehicle_id, veh: row.vehicle_desc, tipo: row.tipo, comb: row.comb,
-        placa: row.plate || "", equipo: row.equipo || "", lectura: String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other, obraSemana: row.jobsite_week || "",
-        est: station, plateTyped: row.plate_typed, srv: true, v: 3, mode, gas: !!gas, hrs: hasMach ? String(hrs) : "", odo: hasVeh ? String(odo) : "", flags: row.flags };
-      const h = LS.get(K_HIST, []); h.push(e); if (hasMach && hasVeh) h.push({ ...e, vid: machine.id, lectura: String(hrs) }); LS.set(K_HIST, h.slice(-400));
-      if (truck && !truck.placa && effPlate) { const p = LS.get(K_PLATES, {}); p[truck.id] = effPlate; LS.set(K_PLATES, p); }
-      logEvent("po_created", { who, meta: { po: saved.po, seconds: row.seconds_to_po, station, mode } });
+        placa: row.plate || "", equipo: "", lectura: row.reading == null ? "" : String(row.reading), obra: row.jobsite, obraOtra: row.jobsite_other, obraSemana: row.jobsite_week || "",
+        est: station, plateTyped: row.plate_typed, srv: true, v: 4, fuels: fuels.slice(), truck: fuelsTruck, flags: row.flags };
+      const h = LS.get(K_HIST, []); h.push(e); LS.set(K_HIST, h.slice(-400));
+      if (truck && fuelsTruck && !truck.placa && effPlate) { const p = LS.get(K_PLATES, {}); p[truck.id] = effPlate; LS.set(K_PLATES, p); }
+      const le = LS.get(K_LASTEST, {}) || {}; le[nk(who)] = station; LS.set(K_LASTEST, le);
+      logEvent("po_created", { who, meta: { po: saved.po, seconds: row.seconds_to_po, station, fuels } });
       setTicket(e); go("po");
     } catch (err) {
       const q = LS.get("muniz_fuel_queue", []); q.push(row); LS.set("muniz_fuel_queue", q.slice(-50));
@@ -648,49 +642,47 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     } finally { setBusy(false); }
   };
 
-  const strip = screen === "po" ? null : screen === "what" ? "COMBUSTIBLE" : `COMBUSTIBLE · PASO ${stepNo} DE ${TOTAL}`;
-  const titles = { what: "¿QUÉ VAS A CARGAR?", veh: "TU CAMIONETA", mach: "LA MÁQUINA", obra: "¿EN QUÉ OBRA ESTÁS?", est: "¿DÓNDE VAS A CARGAR?", po: "PO DE COMBUSTIBLE" };
+  const S = STATIONS[station] || null;
+  const stColor = S ? S.color : C.fuel;
+  const stDark = station === "LEOS";
+  const strip = screen === "po" ? null : screen === "est" ? "COMBUSTIBLE" : `${S ? S.corto : "COMBUSTIBLE"} · PASO ${stepNo} DE ${TOTAL}`;
+  const titles = { est: "¿DÓNDE VAS A CARGAR?", fuel: "¿QUÉ VAS A CARGAR?", veh: "TU CAMIONETA", obra: "¿EN QUÉ OBRA ESTÁS?", po: "PO DE COMBUSTIBLE" };
+  const fuelsLine = fuels.map(f => FUEL_LABEL[f]).join(" + ");
+  const Chip = ({ f, big }) => <span className="mzf-badge" style={{ background: FUEL_COLOR[f], fontSize: big ? 12 : 10 }}>{FUEL_LABEL[f]}</span>;
 
-  /* -------- the server rejected the reading: send them back to fix it -------- */
+  /* -------- server said no: the reading -------- */
   const unknownUnit = failed && /foreign key|not present in table|no existe|unknown vehicle|vehicles/i.test(String(failed.__err || ""));
-  const readingErr = failed && !unknownUnit && /lectura|reading|menor|odom|hora/i.test(String(failed.__err || ""));
+  const readingErr = failed && !unknownUnit && /lectura|reading|menor|odom/i.test(String(failed.__err || ""));
   if (failed && unknownUnit) return (
     <Shell>
       <Head title="FALTA DAR DE ALTA" who={who} onBack={() => setFailed(null)} strip="COMBUSTIBLE" stripColor={C.amber} />
       <div className="mzf-body">
         <div className="mzf-card" style={{ padding: 18, textAlign: "center", borderColor: C.amber }}>
-          <div style={{ fontSize: 52 }}>🚜</div>
+          <div style={{ fontSize: 52 }}>🛻</div>
           <div className="mzf-display" style={{ fontSize: 22, marginTop: 8 }}>Esta unidad no está dada de alta</div>
-          <div style={{ fontSize: 15, marginTop: 8, lineHeight: 1.4, fontWeight: 700 }}>Mándale a Tito el número <b className="mzf-mono">{hasMach ? up(equipNo) : effPlate}</b> para que la registre. Mientras, usa otra unidad.</div>
+          <div style={{ fontSize: 15, marginTop: 8, lineHeight: 1.4, fontWeight: 700 }}>Mándale a Tito la placa <b className="mzf-mono">{effPlate || (failed.vehicle_id || "")}</b> para que la registre.</div>
         </div>
       </div>
-      <Bottom>
-        <button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={() => { setFailed(null); go(hasMach ? "mach" : "veh"); }}>REGRESAR →</button>
-      </Bottom>
+      <Bottom><button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={() => { setFailed(null); go(fuelsTruck ? "veh" : "obra"); }}>REGRESAR →</button></Bottom>
     </Shell>);
   if (failed && readingErr) {
     const nums = String(failed.__err).match(/\d[\d,.]*/g) || [];
     return (
       <Shell>
-        <Head title="REVISA LA LECTURA" who={who} onBack={() => setFailed(null)} strip="COMBUSTIBLE" stripColor={C.red} />
+        <Head title="REVISA EL ODÓMETRO" who={who} onBack={() => setFailed(null)} strip="COMBUSTIBLE" stripColor={C.red} />
         <div className="mzf-body">
           <div className="mzf-card" style={{ padding: 18, textAlign: "center", borderColor: C.red }}>
             <div style={{ fontSize: 52 }}>🔢</div>
             <div className="mzf-display" style={{ fontSize: 22, marginTop: 8 }}>El número no puede ir para atrás</div>
-            <div style={{ fontSize: 15, color: C.ink, marginTop: 8, lineHeight: 1.4, fontWeight: 700 }}>
-              {nums.length >= 2 ? <>Pusiste <b style={{ color: C.red }}>{nums[0]}</b> y la última carga fue <b>{nums[1]}</b>.</> : "La lectura que pusiste es menor que la última registrada."}
+            <div style={{ fontSize: 15, marginTop: 8, lineHeight: 1.4, fontWeight: 700 }}>
+              {nums.length >= 2 ? <>Pusiste <b style={{ color: C.red }}>{nums[0]}</b> y la última carga fue <b>{nums[1]}</b>.</> : "El odómetro que pusiste es menor que la última carga registrada."}
             </div>
-            <div style={{ fontSize: 13, color: C.mute, marginTop: 8, lineHeight: 1.4, fontWeight: 600 }}>Vuelve a ver el tablero y escríbelo otra vez. Si de veras marca menos, habla con Tito — no le des vuelta.</div>
+            <div style={{ fontSize: 13, color: C.mute, marginTop: 8, lineHeight: 1.4, fontWeight: 600 }}>Vuelve a ver el tablero y escríbelo otra vez. Si de veras marca menos, habla con Tito.</div>
           </div>
         </div>
-        <Bottom>
-          {hasVeh ? <button className="mzf-btn mzf-display" style={{ background: C.blue }} onClick={() => { setOdo(""); setFailed(null); go("veh"); }}>CORREGIR EL ODÓMETRO →</button> : null}
-          {hasMach ? <button className="mzf-btn mzf-display" style={{ background: C.red, marginTop: hasVeh ? 6 : 0 }} onClick={() => { setHrs(""); setFailed(null); go("mach"); }}>CORREGIR LAS HORAS →</button> : null}
-        </Bottom>
+        <Bottom><button className="mzf-btn mzf-display" style={{ background: C.blue }} onClick={() => { setOdo(""); setFailed(null); go("veh"); }}>CORREGIR EL ODÓMETRO →</button></Bottom>
       </Shell>);
   }
-
-  /* -------- no signal -------- */
   if (failed) return (
     <Shell>
       <Head title="SIN SEÑAL" who={who} onBack={back} strip="COMBUSTIBLE" />
@@ -703,41 +695,63 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
           {failed.__err ? <button className="mzf-btn lite" style={{ marginTop: 8 }} onClick={() => { try { navigator.clipboard.writeText("COMBUSTIBLE v" + VERSION + " · " + who + "\n" + String(failed.__err)); } catch (e) {} }}>COPIAR EL ERROR (para Tito)</button> : null}
         </div>
       </div>
-      <Bottom>
-        <button className="mzf-btn mzf-display" style={{ background: C.ink }} disabled={busy} onClick={() => { setFailed(null); generate(); }}>{busy ? <><span className="mzf-spin" />REINTENTANDO…</> : "REINTENTAR ↻"}</button>
-      </Bottom>
+      <Bottom><button className="mzf-btn mzf-display" style={{ background: C.ink }} disabled={busy} onClick={() => { setFailed(null); generate(); }}>{busy ? <><span className="mzf-spin" />REINTENTANDO…</> : "REINTENTAR ↻"}</button></Bottom>
     </Shell>);
 
-  /* -------- 1 · WHAT -------- */
-  if (screen === "what") {
-    const Choice = ({ color, icon, title, sub, cta, onClick }) => (
-      <button className="mzf-choice" style={{ borderColor: color }} onClick={onClick}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ fontSize: 34, lineHeight: 1 }}>{icon}</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="t mzf-display" style={{ color }}>{title}</div>
-            <div className="s">{sub}</div>
-          </div>
-        </div>
-        <div className="mzf-cta" style={{ background: color }}>{cta}</div>
-      </button>);
-    const truckSub = mine.length ? `${mine[0].desc}${mine[0].placa ? " · " + mine[0].placa : ""}` : "Pide la placa y el odómetro";
+  /* -------- 1 · STATION -------- */
+  if (screen === "est") return (
+    <Shell>
+      <Head title={titles.est} who={who} onBack={back} strip={strip} />
+      <div className="mzf-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {Object.entries(STATIONS).sort((a, b) => (a[0] === "TEXCON" ? 0 : a[0] === "LEOS" ? 1 : 2) - (b[0] === "TEXCON" ? 0 : b[0] === "LEOS" ? 1 : 2)).map(([k, s]) => {
+          const dark = k === "LEOS", last = k === lastEst;
+          return (
+            <button key={k} className="mzf-choice" style={{ borderColor: s.color }} onClick={() => pickStation(k)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: "none", width: 52, height: 52, borderRadius: 14, background: s.color, color: dark ? C.ink : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>⛽</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="t mzf-display" style={{ color: dark ? C.ink : s.color }}>{s.corto}{last ? <span className="mzf-tag">LA ÚLTIMA VEZ</span> : null}</div>
+                  <div className="s">{s.nombre}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 10 }}>{(PUMPS[k] || []).map(f => <Chip key={f} f={f} />)}</div>
+            </button>);
+        })}
+        <div style={{ textAlign: "center", fontSize: 11, color: C.faint, fontWeight: 700, paddingTop: 6 }}>El PO lo da la oficina en el momento. No hay que llamar a nadie.</div>
+      </div>
+    </Shell>);
+
+  /* -------- 2 · FUEL (one or several) -------- */
+  if (screen === "fuel") {
+    const sub = f => f === "VERDE" ? (myTruck && !myTruckIsGas ? "Tu camioneta" : "Camioneta") : f === "ROJO" ? "Maquinaria · sin placa" : (myTruckIsGas ? "Tu camioneta" : "Generador · sin placa");
+    const icon = f => f === "VERDE" ? "🛻" : f === "ROJO" ? "🚜" : (myTruckIsGas ? "🛻" : "⚡");
     return (
       <Shell>
-        <Head title={titles.what} who={who} onBack={back} strip={strip} />
-        <div className="mzf-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <Choice color={C.blue} icon="🛻" title="VEHÍCULO" sub={truckSub} cta="PLACA + ODÓMETRO →" onClick={() => { setMode("VEH"); pickTruck(mine[0] || null); go("veh"); }} />
-          <Choice color={C.red} icon="🚜" title="MAQUINARIA" sub="Bobcat, rodillo, compactador, generador… · diésel rojo" cta="NÚMERO + HORAS →" onClick={() => { setMode("MACH"); setVeh(null); go("mach"); }} />
-          <Choice color={C.ink} icon="🛻🚜" title="LOS DOS" sub="Camioneta y maquinaria en el mismo PO" cta="PLACA + HORAS →" onClick={() => { setMode("BOTH"); pickTruck(mine[0] || null); go("veh"); }} />
-          <div style={{ textAlign: "center", fontSize: 11, color: C.faint, fontWeight: 700, paddingTop: 8 }}>El tipo de combustible lo pone el registro de la flota, no la persona.</div>
+        <Head title={titles.fuel} who={who} onBack={back} strip={strip} stripColor={stColor} />
+        <div className="mzf-body" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="mzf-label">EN {S.corto} · TOCA UNO O VARIOS</div>
+          {pumps.map(f => { const on = has(f), col = FUEL_COLOR[f]; return (
+            <button key={f} className={"mzf-fuel" + (on ? " on" : "")} style={on ? { borderColor: col, background: "#fff" } : {}} onClick={() => toggleFuel(f)} aria-pressed={on}>
+              <div className="dot" style={{ background: col }}>{icon(f)}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="nm mzf-display" style={{ color: on ? col : C.ink }}>{FUEL_LABEL[f]}</div>
+                <div className="sb">{sub(f)}</div>
+              </div>
+              <div className="ck" style={on ? { background: col } : {}}>{on ? "✓" : ""}</div>
+            </button>); })}
+          {fuelsTruck ? <div className="mzf-warn blue" style={{ marginTop: 4 }}>Vas a cargar la camioneta: te pido la placa y el odómetro en el siguiente paso.</div>
+            : fuels.length ? <div className="mzf-warn" style={{ marginTop: 4, background: C.paper, color: C.mute, border: `2px solid ${C.line}` }}>Sin placa ni odómetro. Solo la obra y listo.</div> : null}
         </div>
+        <Bottom hint={fuels.length ? fuelsLine : "Toca lo que vas a cargar"}>
+          <button className="mzf-btn mzf-display" style={{ background: stDark ? C.ink : stColor }} disabled={!fuels.length} onClick={afterFuel}>CONTINUAR →</button>
+        </Bottom>
       </Shell>);
   }
 
-  /* -------- 2 · TRUCK: plate + odometer -------- */
+  /* -------- 3 · TRUCK (only when the truck gets fuel) -------- */
   if (screen === "veh") return (
     <Shell>
-      <Head title={titles.veh} who={who} onBack={back} strip={strip} />
+      <Head title={titles.veh} who={who} onBack={back} strip={strip} stripColor={stColor} />
       <div className="mzf-body">
         <div className="mzf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 52, height: 52, borderRadius: 12, background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flex: "none" }}>🛻</div>
@@ -748,7 +762,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
               : lastVeh ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastVeh.ts)}{lastVeh.lectura !== "" ? ` · ${fmtNum(lastVeh.lectura)} mi` : ""}</div>
               : <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Primera carga registrada</div>) : null}
           </div>
-          {truck ? <Badge comb={truck.comb} /> : null}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>{fuels.filter(f => f === "VERDE" || (f === "GAS" && myTruckIsGas)).map(f => <Chip key={f} f={f} />)}</div>
         </div>
 
         <div className="mzf-label" style={{ marginTop: 16 }}>PLACA</div>
@@ -758,11 +772,10 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
         {!regPlate && !plate && !noTruck ? <div style={{ fontSize: 12, color: C.mute, fontWeight: 700, marginTop: 6, textAlign: "center" }}>Como aparece en la placa. Se guarda para la próxima vez.</div> : null}
         {noTruck ? (
           <div style={{ marginTop: 12 }}>
-            <div className="mzf-warn blue">{plateClean(plate).length >= 5 ? "Esa placa no está en la flota." : "No tienes camioneta asignada."} Toca cuál es — el tipo de combustible lo pone el registro.</div>
+            <div className="mzf-warn blue">{plateClean(plate).length >= 5 ? "Esa placa no está en la flota." : "No tienes camioneta asignada."} Toca cuál es.</div>
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
               {(pickOpen || plateClean(plate).length >= 2 ? allTrucks : allTrucks.slice(0, 6)).map(v => (
-                <button key={v.id} className="mzf-pick" onClick={() => { setVeh(v); setPlate(v.placa || plates[v.id] || plate); }}
-                  style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button key={v.id} className="mzf-pick" onClick={() => { setVeh(v); setPlate(v.placa || plates[v.id] || plate); }} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 24 }}>{v.tipo === "PIPA" ? "🚛" : "🛻"}</span>
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: 15 }}>{v.de || v.desc}</span>
@@ -770,8 +783,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
                   </span>
                   <Badge comb={v.comb} />
                 </button>))}
-              {!pickOpen && plateClean(plate).length < 2 && allTrucks.length > 6 ?
-                <button className="mzf-btn lite" onClick={() => setPickOpen(true)}>VER TODA LA FLOTA ({allTrucks.length})</button> : null}
+              {!pickOpen && plateClean(plate).length < 2 && allTrucks.length > 6 ? <button className="mzf-btn lite" onClick={() => setPickOpen(true)}>VER TODA LA FLOTA ({allTrucks.length})</button> : null}
               {!allTrucks.length ? <div className="mzf-warn amber">La flota no cargó. Revisa la señal y vuelve a entrar.</div> : null}
             </div>
           </div>) : null}
@@ -780,150 +792,82 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
         <input className="mzf-input num" value={odo ? fmtNum(odo) : ""} onChange={e => setOdo(digits(e.target.value).slice(0, 7))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
         {odoProblem ? <div className={`mzf-warn ${odoProblem.block ? "red" : "amber"}`} style={{ marginTop: 8 }}>{odoProblem.block ? "⛔ " : "⚠ "}{odoProblem.t}</div> : null}
       </div>
-      <Bottom hint={truck && vehWait ? "Revisando la última lectura de esta camioneta…" : hasMach ? "Después: la máquina" : null}>
+      <Bottom hint={truck && vehWait ? "Revisando la última lectura de esta camioneta…" : "Después: la obra, y sale tu PO"}>
         <button className="mzf-btn mzf-display" style={{ background: C.blue }} disabled={!vehOk} onClick={next}>{truck && vehWait ? "REVISANDO…" : "CONTINUAR →"}</button>
       </Bottom>
     </Shell>);
 
-  /* -------- 3 · MACHINE: number + hours -------- */
-  if (screen === "mach") return (
-    <Shell>
-      <Head title={titles.mach} who={who} onBack={back} strip={strip} />
-      <div className="mzf-body">
-        <div className="mzf-card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 12, background: C.paper, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flex: "none" }}>🚜</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>{machine ? machine.desc : "Maquinaria"}</div>
-            <div style={{ fontSize: 11, color: C.mute, fontWeight: 700, marginTop: 2 }}>{!machine ? "Bobcat, rodillo, compactador, generador, dump truck…" : machMatch ? "Equipo de la flota" : "Máquina nueva · queda registrada con este número"}</div>
-            {machine ? ((machWait || typing) ? <div style={{ fontSize: 11, color: C.blue, fontWeight: 700, marginTop: 2 }}>Revisando sus horas…</div>
-              : lastMach && lastMach.lectura !== "" ? <div style={{ fontSize: 11, color: C.faint, fontWeight: 700, marginTop: 2 }}>Última carga {fmtDT(lastMach.ts)} · {fmtNum(lastMach.lectura)} h</div>
-              : <div style={{ fontSize: 11, color: C.green, fontWeight: 700, marginTop: 2 }}>Primera vez que se carga · pon las horas que marque</div>) : null}
-          </div>
-          <Badge comb="DIESEL ROJO" />
-        </div>
-
-        <div className="mzf-label" style={{ marginTop: 16 }}>NÚMERO DE LA MÁQUINA · el que trae pintado</div>
-        <input className="mzf-input big" value={equipNo} onChange={e => { setEquipNo(up(e.target.value).replace(/[^A-Z0-9 -]/g, "").slice(0, 12)); setHrs(""); }}
-          placeholder="EJ. 0415" autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
-
-        <div className="mzf-label" style={{ marginTop: 16 }}>HORAS · lo que marca el horómetro</div>
-        <input className="mzf-input num" value={hrs ? fmtNum(hrs) : ""} onChange={e => setHrs(digits(e.target.value).slice(0, 6))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
-        {hrsProblem ? <div className={`mzf-warn ${hrsProblem.block ? "red" : "amber"}`} style={{ marginTop: 8 }}>{hrsProblem.block ? "⛔ " : "⚠ "}{hrsProblem.t}</div> : null}
-      </div>
-      <Bottom hint={(typing || machWait) ? "Cada máquina lleva su propia cuenta de horas." : null}>
-        <button className="mzf-btn mzf-display" style={{ background: C.red }} disabled={!machOk} onClick={next}>{(typing || machWait) ? "REVISANDO…" : "CONTINUAR →"}</button>
-      </Bottom>
-    </Shell>);
-
-  /* -------- 4 · JOBSITE -------- */
-  if (screen === "obra") return (
-    <Shell>
-      <Head title={titles.obra} who={who} onBack={back} strip={strip} />
-      <div className="mzf-body">
-        {obraSemana ? (
-          <button className="mzf-choice" style={{ borderColor: C.orange }} onClick={() => { setObra(obraSemana); setObraOtra(""); next(); }}>
-            <div className="mzf-label" style={{ color: C.orange, margin: 0 }}>SEGÚN EL ROL DE ESTA SEMANA</div>
-            <div className="mzf-display" style={{ fontSize: 24, lineHeight: 1.1, marginTop: 4 }}>{obraSemana}</div>
-            <div className="mzf-cta" style={{ background: C.orange }}>AQUÍ ESTOY →</div>
-          </button>) : null}
-        <div className="mzf-label" style={{ marginTop: 16 }}>{obraSemana ? "¿ESTÁS EN OTRA OBRA? TÓCALA" : "TOCA LA OBRA"}</div>
-        <div className="mzf-grid2">
-          {OBRAS.filter(o => o !== obraSemana).map(o => (
-            <button key={o} className="mzf-pick" onClick={() => { setObra(o); setObraOtra(""); next(); }}>{o}</button>))}
-        </div>
-        <div className="mzf-card" style={{ padding: 10, marginTop: 12 }}>
-          {!otraOpen ? <button style={{ width: "100%", textAlign: "center", fontSize: 12, fontWeight: 900, color: C.mute, padding: 6 }} onClick={() => setOtraOpen(true)}>¿NO ESTÁ TU OBRA? Escribe el lugar</button> : (
-            <>
-              <div className="mzf-label">OTRA UBICACIÓN · queda marcada para la oficina</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                <input className="mzf-input" style={{ height: 48, fontSize: 16 }} value={obraOtra} onChange={e => setObraOtra(e.target.value.slice(0, 40))} placeholder="Calle o lugar…" />
-                <button className="mzf-btn mzf-display" style={{ width: "auto", padding: "0 18px", background: C.ink, fontSize: 15 }} disabled={obraOtra.trim().length < 3} onClick={() => { setObra(""); next(); }}>OK</button>
-              </div>
-            </>)}
-        </div>
-      </div>
-    </Shell>);
-
-  /* -------- 5 · STATION + gasolina? + review -------- */
-  if (screen === "est") {
-    const comb = hasVeh ? truckComb : "DIESEL";
-    const rows = [
-      hasVeh ? ["Camioneta", `${truck ? truck.desc : "Camioneta"} · ${effPlate}`] : null,
-      hasVeh ? ["Odómetro", `${fmtNum(odo)} mi`] : null,
-      hasMach ? ["Máquina", up(equipNo) + (machMatch ? " · " + machMatch.desc : "")] : null,
-      hasMach ? ["Horas", `${fmtNum(hrs)} h`] : null,
-      ["Obra", obraOtra || obra],
-    ].filter(Boolean);
-    const ready = !!station && gas !== null && !busy;
+  /* -------- 4 · JOBSITE → GENERAR -------- */
+  if (screen === "obra") {
+    const chosen = obraOtra || obra;
+    const summary = [S ? S.corto : "", fuelsLine, fuelsTruck && effPlate ? effPlate : "", fuelsTruck && odo ? fmtNum(odo) + " mi" : ""].filter(Boolean).join(" · ");
     return (
       <Shell>
-        <Head title={titles.est} who={who} onBack={back} strip={strip} />
+        <Head title={titles.obra} who={who} onBack={back} strip={strip} stripColor={stColor} />
         <div className="mzf-body">
-          <div className="mzf-label">ESTACIÓN</div>
+          {obraSemana ? (
+            <button className="mzf-choice" style={{ borderColor: C.orange, background: obra === obraSemana ? "#FFF4E8" : "#fff" }} onClick={() => { setObra(obraSemana); setObraOtra(""); setOtraOpen(false); }}>
+              <div className="mzf-label" style={{ color: C.orange, margin: 0 }}>SEGÚN EL ROL DE ESTA SEMANA</div>
+              <div className="mzf-display" style={{ fontSize: 24, lineHeight: 1.1, marginTop: 4 }}>{obraSemana}</div>
+              <div className="mzf-cta" style={{ background: obra === obraSemana ? C.green : C.orange }}>{obra === obraSemana ? "✓ AQUÍ ESTOY" : "AQUÍ ESTOY"}</div>
+            </button>) : null}
+          <div className="mzf-label" style={{ marginTop: 16 }}>{obraSemana ? "¿ESTÁS EN OTRA OBRA? TÓCALA" : "TOCA LA OBRA"}</div>
           <div className="mzf-grid2">
-            {Object.entries(STATIONS).map(([k, s]) => {
-              const on = station === k, dark = k === "LEOS";
-              return (
-                <button key={k} className="mzf-choice" style={{ borderColor: on ? C.ink : s.color, background: on ? s.color : "#fff", padding: "14px 12px" }} onClick={() => setStation(k)}>
-                  <div className="mzf-display" style={{ fontSize: 22, lineHeight: 1, color: on ? (dark ? C.ink : "#fff") : s.color }}>{s.corto}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4, color: on ? (dark ? C.ink : "#fff") : C.mute }}>{s.nombre}</div>
-                  <div style={{ fontSize: 11, fontWeight: 900, marginTop: 8, color: on ? (dark ? C.ink : "#fff") : s.color }}>{on ? "✓ AQUÍ CARGO" : "TOCAR"}</div>
-                </button>);
-            })}
+            {OBRAS.filter(o => o !== obraSemana).map(o => (
+              <button key={o} className={"mzf-pick" + (obra === o && !obraOtra ? " on" : "")} onClick={() => { setObra(o); setObraOtra(""); setOtraOpen(false); }}>{obra === o && !obraOtra ? "✓ " : ""}{o}</button>))}
           </div>
-
-          <div className="mzf-label" style={{ marginTop: 16 }}>¿NECESITAS GASOLINA PARA TU GENERADOR?</div>
-          <div className="mzf-yn">
-            <button className={gas === false ? "on" : ""} onClick={() => setGas(false)}>NO</button>
-            <button className={gas === true ? "on" : ""} onClick={() => setGas(true)}>SÍ, GASOLINA</button>
+          <div className="mzf-card" style={{ padding: 10, marginTop: 12, borderColor: obraOtra ? C.orange : C.line }}>
+            {!otraOpen && !obraOtra ? <button style={{ width: "100%", textAlign: "center", fontSize: 12, fontWeight: 900, color: C.mute, padding: 6 }} onClick={() => { setOtraOpen(true); setObra(""); }}>¿NO ESTÁ TU OBRA? Escribe el lugar</button> : (
+              <>
+                <div className="mzf-label">OTRA UBICACIÓN · queda marcada para la oficina</div>
+                <input className="mzf-input" style={{ height: 48, fontSize: 16 }} value={obraOtra} onChange={e => { setObraOtra(e.target.value.slice(0, 40)); setObra(""); }} placeholder="Calle o lugar…" />
+              </>)}
           </div>
-
-          <div className="mzf-card" style={{ padding: "6px 12px", marginTop: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0 4px" }}>
-              <div className="mzf-label" style={{ margin: 0 }}>RESUMEN</div>
-              <div style={{ display: "flex", gap: 4 }}><Badge comb={comb} />{hasMach && hasVeh ? <Badge comb="DIESEL ROJO" /> : null}{gas ? <Badge comb="GASOLINA" style={{ background: C.orange }} /> : null}</div>
-            </div>
-            {rows.map(([k, v]) => <div key={k} className="mzf-row"><span className="k">{k}</span><span className="v">{v}</span></div>)}
-          </div>
-          {hasVeh && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && truck && truck.tipo !== "PIPA" ? (
+          {chosen ? (
+            <div className="mzf-card" style={{ padding: "8px 12px", marginTop: 14 }}>
+              <div className="mzf-label" style={{ margin: "4px 0 6px" }}>TU PO</div>
+              <div className="mzf-row"><span className="k">Estación</span><span className="v">{S.corto}</span></div>
+              <div className="mzf-row"><span className="k">Combustible</span><span className="v" style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>{fuels.map(f => <Chip key={f} f={f} />)}</span></div>
+              {fuelsTruck ? <div className="mzf-row"><span className="k">Camioneta</span><span className="v">{truck ? truck.desc : ""} · {effPlate}</span></div> : null}
+              {fuelsTruck ? <div className="mzf-row"><span className="k">Odómetro</span><span className="v">{fmtNum(odo)} mi</span></div> : null}
+              <div className="mzf-row"><span className="k">Obra</span><span className="v">{chosen}</span></div>
+            </div>) : null}
+          {fuelsTruck && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && truck && truck.tipo !== "PIPA" ? (
             <div className="mzf-warn amber" style={{ marginTop: 10 }}>⚠ Esta camioneta cargó hace {Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h. Queda marcado para la oficina.</div>) : null}
         </div>
-        <Bottom hint={!station ? "Toca la estación" : gas === null ? "Contesta si necesitas gasolina" : "El PO se registra en la oficina en este instante"}>
-          <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!ready} onClick={generate}>{busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>
+        <Bottom hint={!chosen ? "Toca la obra donde estás" : summary}>
+          <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!obraOk || busy || (obraOtra && obraOtra.trim().length < 3)} onClick={generate}>{busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>
         </Bottom>
       </Shell>);
   }
 
-  /* -------- 6 · THE PO -------- */
+  /* -------- 5 · THE PO -------- */
   if (screen === "po" && ticket) {
     const s = STATIONS[ticket.est] || { nombre: ticket.est, corto: ticket.est, color: C.mute };
     const dark = ticket.est === "LEOS";
-    const both = ticket.mode === "BOTH", machOnly = ticket.mode === "MACH";
-    const mainComb = machOnly ? "DIESEL ROJO" : ticket.comb;
+    const fl = ticket.fuels && ticket.fuels.length ? ticket.fuels : [ticket.comb];
+    const head = FUEL_COLOR[fl[0]] || C.mute;
     const cell = (k, v, mono) => <div><div className="mzf-label" style={{ margin: "0 0 2px" }}>{k}</div><div className={mono ? "mzf-mono" : ""} style={{ fontSize: mono ? 22 : 16, fontWeight: 900, lineHeight: 1.1 }}>{v}</div></div>;
     return (
       <Shell>
         <Head title={titles.po} who={who} onBack={back} strip="✓ REGISTRADO EN LA OFICINA" stripColor={C.green} />
         <div className="mzf-body">
           <div className="mzf-card" style={{ overflow: "hidden", borderColor: C.ink, borderWidth: 3 }}>
-            <div style={{ background: FUEL_COLOR[mainComb] || C.mute, color: "#fff", padding: "14px 16px" }}>
-              <div className="mzf-label" style={{ color: "rgba(255,255,255,.85)", margin: 0 }}>TIPO DE COMBUSTIBLE</div>
-              <div className="mzf-display" style={{ fontSize: 40, lineHeight: 1, marginTop: 4 }}>{FUEL_LABEL[mainComb]}</div>
-              {(both || ticket.gas) ? <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 8 }}>
-                {both ? <span className="mzf-badge" style={{ background: "rgba(0,0,0,.28)", fontSize: 12 }}>+ DIÉSEL ROJO · máquina {ticket.equipo}</span> : null}
-                {ticket.gas ? <span className="mzf-badge" style={{ background: "rgba(0,0,0,.28)", fontSize: 12 }}>+ GASOLINA · generador</span> : null}
-              </div> : null}
+            <div style={{ background: head, color: "#fff", padding: "14px 16px" }}>
+              <div className="mzf-label" style={{ color: "rgba(255,255,255,.85)", margin: 0 }}>{fl.length > 1 ? "COMBUSTIBLES" : "COMBUSTIBLE"}</div>
+              {fl.map((f, i) => (
+                <div key={f} className="mzf-display" style={{ fontSize: fl.length > 1 ? 28 : 40, lineHeight: 1.05, marginTop: i === 0 ? 4 : 6, display: "flex", alignItems: "center", gap: 10 }}>
+                  {fl.length > 1 ? <span style={{ width: 22, height: 22, borderRadius: 6, background: FUEL_COLOR[f], border: "3px solid #fff", flex: "none", boxShadow: "0 0 0 1px rgba(0,0,0,.15)" }} /> : null}{FUEL_LABEL[f] || f}
+                </div>))}
             </div>
             <div style={{ padding: "14px 16px" }}>
               <div className="mzf-label" style={{ margin: 0 }}>NÚMERO DE PO</div>
               <div className="mzf-mono mzf-display" style={{ fontSize: 38, lineHeight: 1, marginTop: 4, letterSpacing: "-.02em" }}>{ticket.po}</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 10px", marginTop: 16 }}>
-                {!machOnly ? cell("PLACA", ticket.placa || "—", true) : cell("MÁQUINA", ticket.equipo || "—", true)}
-                {!machOnly ? cell("ODÓMETRO", `${fmtNum(ticket.odo)} mi`, true) : cell("HORAS", `${fmtNum(ticket.hrs)} h`, true)}
-                {both ? cell("MÁQUINA", ticket.equipo, true) : null}
-                {both ? cell("HORAS", `${fmtNum(ticket.hrs)} h`, true) : null}
+                {ticket.truck ? cell("PLACA", ticket.placa || "—", true) : null}
+                {ticket.truck ? cell("ODÓMETRO", `${fmtNum(ticket.lectura)} mi`, true) : null}
                 <div style={{ gridColumn: "1 / -1" }}>{cell("NOMBRE", ticket.who)}</div>
-                <div style={{ gridColumn: "1 / -1" }}>{cell(machOnly ? "EQUIPO" : "VEHÍCULO", ticket.veh)}</div>
+                {ticket.truck ? <div style={{ gridColumn: "1 / -1" }}>{cell("VEHÍCULO", ticket.veh)}</div> : null}
                 <div style={{ gridColumn: "1 / -1" }}>{cell("OBRA", ticket.obra)}</div>
               </div>
             </div>
@@ -932,7 +876,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
               <div style={{ textAlign: "right" }}><div className="mzf-label" style={{ color: "inherit", opacity: .8, margin: 0 }}>FECHA</div><div style={{ fontSize: 14, fontWeight: 900 }}>{fmtDT(ticket.ts)}</div></div>
             </div>
           </div>
-          <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: C.mute, marginTop: 14, lineHeight: 1.4 }}>Muestra esta pantalla en la bomba.<br />{machOnly ? "PO, número de máquina y nombre" : "PO, placa y nombre"} — aquí están. No hay que mandar nada.</div>
+          <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: C.mute, marginTop: 14, lineHeight: 1.4 }}>Muestra esta pantalla en la bomba.<br />{ticket.truck ? "PO, placa y nombre" : "PO y nombre"} — aquí están. No hay que mandar nada.</div>
         </div>
         <Bottom>
           <button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={done}>LISTO</button>
