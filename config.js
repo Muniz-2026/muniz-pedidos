@@ -65,7 +65,9 @@ window.MUNIZ_CONFIG = {
 
   /* ===== GERENTES DE PROYECTO =====
      Su pedido va DIRECTO a la oficina (no pasa por supervisor),
-     igual que los supervisores. Aparecen en su propia seccion. */
+     igual que los supervisores. Aparecen en su propia seccion.
+     COMBUSTIBLE: todos traen camioneta de gasolina, asi que el app no les
+     pregunta que van a cargar - solo donde, placa y odometro. */
   GERENTES: {
     "HECTOR MANZANARES":  "",
     "SIMON MARTINEZ":     "",
@@ -188,13 +190,13 @@ window.MUNIZ_CONFIG = {
       { id:"V-JLZ", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"JOSE LUIS ZAMARRIPA" },
       { id:"V-MGO", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"MARTIN GONZALEZ" },
       { id:"V-LJU", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"LUPE JUAREZ" },   /* supervisor, pero su camioneta es diésel */
-      /* --- gerentes: pipa (camion de combustible) --- */
-      { id:"P-HMA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"HECTOR MANZANARES" },
-      { id:"P-SMA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"SIMON MARTINEZ" },
-      { id:"P-MMU", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"MARIO MUNOZ" },
-      { id:"P-HCA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"HUGO CARLINO" },
-      { id:"P-EVA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"EDUARDO VALENZUELA" },
-      { id:"P-LPE", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"LUIS PEREZ" },
+      /* --- gerentes de proyecto: TODOS traen camioneta de GASOLINA --- */
+      { id:"P-HMA", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"HECTOR MANZANARES" },
+      { id:"P-SMA", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"SIMON MARTINEZ" },
+      { id:"P-MMU", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"MARIO MUNOZ" },
+      { id:"P-HCA", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"HUGO CARLINO" },
+      { id:"P-EVA", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"EDUARDO VALENZUELA" },
+      { id:"P-LPE", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"LUIS PEREZ" },
       /* --- choferes y otros (revisar tipo de combustible) --- */
       { id:"V-HSE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"HECTOR SEGURA" },
       { id:"V-AGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ABRAHAM GONZALES" },
