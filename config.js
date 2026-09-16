@@ -113,6 +113,12 @@ window.MUNIZ_CONFIG = {
 
     /* Estaciones. Si "tel" tiene numero, el PO tambien le llega a la estacion
        en el mismo mensaje. Leo's colabora; Tex-Con se deja en blanco si no lo quiere. */
+    /* ===== OBRA POR DEFECTO =====
+       El app NO le pregunta la obra a nadie: manda la del rol de la semana.
+       Si esa persona no trae rol, manda esta. Tiene que estar escrita IGUAL
+       que en la lista de OBRAS de abajo, porque el servidor la revisa. */
+    OBRA_POR_DEFECTO: "Yarda Muñiz · 7907 S FM 973",
+
     /* ===== SOLO GASOLINA =====
        Gente que unicamente carga gasolina en SU camioneta. El app no les
        pregunta que van a cargar: estacion -> placa y odometro -> PO.

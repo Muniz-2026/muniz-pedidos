@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v4.4
+   MUÑIZ COMBUSTIBLE · v4.5
    Lives INSIDE the orders app. One header, one back arrow, no messages:
    create_fuel_po issues the number on the spot.
    Screens, in the order of the pump:
@@ -14,7 +14,9 @@ import { createRoot } from "react-dom/client";
                               plus anyone in COMBUSTIBLE.SOLO_GASOLINA.
      3 Tu camioneta           placa + odómetro when the truck itself gets fuel
                               → GENERAR PO.
-   No jobsite question: the office assigns it from the daily crew location.
+   The jobsite is never asked. The PO carries this week's roster site, and only
+   ever a name the jobsites table knows, because create_fuel_po validates it.
+   No roster row → the default jobsite plus a flag for the office.
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -69,7 +71,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "4.4";
+const VERSION = "4.5";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -85,6 +87,16 @@ const DRIVERS = Object.keys(CFG.CHOFERES || {}).map(up);
 const EXTRA = (FUEL.USUARIOS_EXTRA || []).map(up);
 const PERSONAL_CFG = (CFG.PERSONAL || []).map(up);
 const GAS_ONLY = (FUEL.SOLO_GASOLINA || []).map(up);   /* solo cargan gasolina en su camioneta */
+
+/* ---------- la obra del PO ----------
+   create_fuel_po valida la obra contra la tabla jobsites: si no la conoce,
+   rechaza el PO ("Obra desconocida"). Asi que solo mandamos obras que vienen
+   de esa misma tabla (OBRAS). Orden: el rol de la semana -> la obra por
+   defecto de config -> la yarda -> la primera de la lista. Nunca un invento. */
+const obraKey = s => String(s || "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
+const obraReal = s => { const k = obraKey(s); if (!k) return ""; const hit = OBRAS.find(o => obraKey(o) === k); return hit || ""; };
+const obraFallback = () => obraReal(FUEL.OBRA_POR_DEFECTO) || OBRAS.find(o => /YARD|YARDA/i.test(o)) || OBRAS[0] || String(FUEL.OBRA_POR_DEFECTO || "");
+const obraFor = who => obraReal(nGet(OBRA_SEMANA, who)) || obraFallback();
 const OFICINA = (() => { const o = {}; const m = CFG.OFICINA || {};
   for (const k in m) o[up(k)] = String(m[k] || ""); return o; })();
 /* ---------- name key: the same person no matter how the name is spelled.
@@ -507,7 +519,9 @@ const plateClean = s => up(s).replace(/[^A-Z0-9]/g, "");
    veh    TU CAMIONETA           placa + odómetro           ONLY when the truck itself is being fueled
    po     the PO, registered the instant the server answers
    The jobsite is NOT asked: it is assigned in the office from the daily crew
-   location. The app quietly sends this week's roster site as the best guess.
+   location. The app quietly sends this week's roster site - and only ever a
+   name the jobsites table knows, because create_fuel_po validates it. With no
+   roster row it sends the default jobsite plus a flag for the office.
 
    "Fueling the truck" = diésel verde was chosen, or gasolina was chosen by
    someone whose registered truck runs on gasolina (the supervisors).
@@ -588,7 +602,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
 
   /* ---------- the PO ---------- */
   const primary = () => fuelsTruck ? truck : has("ROJO") ? tambo("DIESEL") : tambo("GASOLINA");
-  const buildRow = (ref, shape) => {
+  const buildRow = (ref, shape, jobUsed) => {
     const main = primary();
     const comb = fuelsTruck ? (has("VERDE") ? "DIESEL" : "GASOLINA") : has("ROJO") ? "DIESEL" : "GASOLINA";
     const flags = [];
@@ -597,6 +611,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (has("VERDE") && myTruckIsGas) flags.push("Diésel verde en camioneta registrada de gasolina");
     if (fuelsTruck && plateTyped) flags.push("Placa dictada por la persona");
     if (!obraSemana) flags.push("Sin obra en el rol esta semana · asignar en oficina");
+    if (jobUsed && obraSemana && obraKey(jobUsed) !== obraKey(obraSemana)) flags.push(`Obra del rol no reconocida (${obraSemana}) · asignar en oficina`);
     if (fuelsTruck && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && main.tipo !== "PIPA") flags.push(`Mismo vehículo cargó hace ${Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h`);
     if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
     const row = {
@@ -605,7 +620,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
       plate: fuelsTruck ? effPlate : null, plate_typed: fuelsTruck ? plateTyped : false,
       equipo: null,
       reading: fuelsTruck ? Number(odo) : null,
-      jobsite: obraSemana || "POR ASIGNAR", jobsite_other: false, jobsite_week: obraSemana || null,
+      jobsite: jobUsed, jobsite_other: false, jobsite_week: obraSemana || null,
       station, seconds_to_po: Math.round((Date.now() - t0.current) / 1000),
       extra_gas_gal: null, extra_dyed_gal: null,
       flags,
@@ -617,17 +632,26 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (!HAS_BACKEND) { setFailed({ __err: "Falta SUPABASE en config.js" }); return; }
     if (fuelsTruck && !truck) { setFailed({ __err: "Escoge la camioneta de la flota antes de generar el PO." }); return; }
     setBusy(true); setFailed(null);
-    const ref = uuid();
+    const ref = uuid();                                   /* el mismo en todos los intentos: el servidor no duplica */
     const order = Number(LS.get(K_SHAPE, 0)) ? [1, 0] : [0, 1];
+    /* la obra: la del rol; si el servidor no la reconoce, la obra por defecto */
+    const j1 = obraFor(who), j2 = obraFallback();
+    const jobs = [j1]; if (j2 && obraKey(j2) !== obraKey(j1)) jobs.push(j2);
     let row = null, saved = null, lastErr = null;
-    for (const shape of order) {
-      row = buildRow(ref, shape);
-      try {
-        const res = await sbRpc("create_fuel_po", { payload: row });
-        saved = Array.isArray(res) ? res[0] : res;
-        if (!saved || !saved.po) throw new Error("respuesta sin PO: " + JSON.stringify(res).slice(0, 160));
-        LS.set(K_SHAPE, shape); break;
-      } catch (err) { lastErr = err; saved = null; logEvent("error", { who, meta: { where: "insert", shape, msg: String((err && (err.body || err.message)) || err).slice(0, 180) } }); }
+    outer: for (const job of jobs) {
+      for (const shape of order) {
+        row = buildRow(ref, shape, job);
+        try {
+          const res = await sbRpc("create_fuel_po", { payload: row });
+          saved = Array.isArray(res) ? res[0] : res;
+          if (!saved || !saved.po) throw new Error("respuesta sin PO: " + JSON.stringify(res).slice(0, 160));
+          LS.set(K_SHAPE, shape); break outer;
+        } catch (err) { lastErr = err; saved = null;
+          const msg = String((err && (err.body || err.message)) || err);
+          logEvent("error", { who, meta: { where: "insert", shape, job, msg: msg.slice(0, 180) } });
+          if (/obra|jobsite/i.test(msg)) break;            /* esa obra no sirve: probar la siguiente */
+        }
+      }
     }
     try {
       if (!saved) throw lastErr || new Error("no se pudo registrar");
@@ -654,8 +678,22 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const Chip = ({ f, big }) => <span className="mzf-badge" style={{ background: FUEL_COLOR[f], fontSize: big ? 12 : 10 }}>{FUEL_LABEL[f]}</span>;
 
   /* -------- server said no: the reading -------- */
-  const unknownUnit = failed && /foreign key|not present in table|no existe|unknown vehicle|vehicles/i.test(String(failed.__err || ""));
-  const readingErr = failed && !unknownUnit && /lectura|reading|menor|odom/i.test(String(failed.__err || ""));
+  const badJob = failed && /obra desconocida|jobsite/i.test(String(failed.__err || ""));
+  if (failed && badJob) return (
+    <Shell>
+      <Head title="FALTA LA OBRA" who={who} onBack={() => setFailed(null)} strip="COMBUSTIBLE" stripColor={C.amber} />
+      <div className="mzf-body">
+        <div className="mzf-card" style={{ padding: 18, textAlign: "center", borderColor: C.amber }}>
+          <div style={{ fontSize: 52 }}>📍</div>
+          <div className="mzf-display" style={{ fontSize: 22, marginTop: 8 }}>La oficina no te tiene en una obra</div>
+          <div style={{ fontSize: 15, marginTop: 8, lineHeight: 1.4, fontWeight: 700 }}>Mándale un mensaje a Tito para que te ponga en el rol de esta semana. En cuanto lo haga, tu PO sale solo.</div>
+          <div className="mzf-mono" style={{ fontSize: 11, color: C.mute, marginTop: 10 }}>{String(failed.__err).slice(0, 160)}</div>
+        </div>
+      </div>
+      <Bottom><button className="mzf-btn mzf-display" style={{ background: C.ink }} disabled={busy} onClick={() => { setFailed(null); generate(); }}>{busy ? <><span className="mzf-spin" />REINTENTANDO…</> : "REINTENTAR ↻"}</button></Bottom>
+    </Shell>);
+  const unknownUnit = failed && !badJob && /foreign key|not present in table|no existe|unknown vehicle|vehicles/i.test(String(failed.__err || ""));
+  const readingErr = failed && !badJob && !unknownUnit && /lectura|reading|menor|odom/i.test(String(failed.__err || ""));
   if (failed && unknownUnit) return (
     <Shell>
       <Head title="FALTA DAR DE ALTA" who={who} onBack={() => setFailed(null)} strip="COMBUSTIBLE" stripColor={C.amber} />
