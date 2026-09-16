@@ -2,10 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v4.1
+   MUÑIZ COMBUSTIBLE · v4.2
    Lives INSIDE the orders app. One header, one back arrow, no messages:
    create_fuel_po issues the number on the spot.
-
    Two or three taps, in the order of the pump:
      1 ¿Dónde vas a cargar?   TEX-CON (verde · rojo · gasolina) · LEO'S (verde · gasolina)
      2 ¿Qué vas a cargar?     what that station pumps, tap one or several.
@@ -14,10 +13,8 @@ import { createRoot } from "react-dom/client";
                               (diésel verde, or gasolina on a registered gasolina
                               truck) → GENERAR PO.
    No jobsite question: the office assigns it from the daily crew location.
-   The app sends this week's roster site silently as the best guess
-   ("POR ASIGNAR" + a flag when the person has no roster entry).
-   vehicle_id is always a registry unit: the truck, or T-DSL / T-GAS for
-   machinery and generator fuel.
+   Names are matched by key (nk) and config ALIAS, so Gonzales/Gonzalez and
+   "Jose Guadalupe Juarez" / "Lupe Juarez" are one person everywhere.
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -72,7 +69,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "4.1";
+const VERSION = "4.2";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -93,10 +90,13 @@ const OFICINA = (() => { const o = {}; const m = CFG.OFICINA || {};
    Gonzales/González/Gonzalez, Nino/Niño, Perez/Peres, Hernandez/Ernandez,
    Vazquez/Bazquez all collapse to one key. Checked against the whole roster: no two different
    people collide. Lookups try the exact spelling first, then the key. -------- */
-const nk = s => String(s || "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+const nkb = s => String(s || "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^A-Z ]/g, " ").replace(/H/g, "").replace(/C([EI])/g, "S$1").replace(/Z/g, "S")
   .replace(/V/g, "B").replace(/Y/g, "I").replace(/(.)\1+/g, "$1").replace(/\s+/g, " ").trim()
   .split(" ").map(w => (w.length > 3 ? w.replace(/S$/, "") : w)).join(" ");
+/* config ALIAS: "JOSE GUADALUPE JUAREZ" -> "LUPE JUAREZ" - both keys resolve to the good name's key */
+const ALIAS_K = (() => { const o = {}, m = CFG.ALIAS; if (m && typeof m === "object") for (const k in m) { const kk = nkb(k), vv = nkb(m[k]); if (kk && vv && kk !== vv) o[kk] = vv; } return o; })();
+const nk = s => { const k = nkb(s); return ALIAS_K[k] || k; };
 const nEq = (a, b) => { const x = nk(a); return !!x && x === nk(b); };
 const nGet = (m, n) => { if (!m) return undefined; const k = up(n); if (Object.prototype.hasOwnProperty.call(m, k)) return m[k];
   const t = nk(n); if (!t) return undefined; for (const x in m) if (nk(x) === t) return m[x]; return undefined; };

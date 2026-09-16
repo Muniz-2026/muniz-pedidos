@@ -41,6 +41,14 @@ window.MUNIZ_CONFIG = {
     "CLAUDIA TAMAYO": "2025",
   },
 
+  /* ===== UNA PERSONA, DOS NOMBRES =====
+     Si alguien aparece con dos nombres distintos (en la flota, en el rol, en
+     las facturas), aqui se dice cual es el mismo. Izquierda: el otro nombre.
+     Derecha: el nombre bueno, el que sale en el app. */
+  ALIAS: {
+    "JOSE GUADALUPE JUAREZ": "LUPE JUAREZ",
+  },
+
   /* ===== PERSONAL QUE NO ES MAYORDOMO =====
      Gente que pide material o combustible pero no es mayordomo: choferes,
      taller, yarda, ayudantes. Aparecen en la MISMA lista de nombres que los
@@ -132,7 +140,7 @@ window.MUNIZ_CONFIG = {
       "CARLOS DIAZ": "Niels Thompson Dr @ Longhorn Blvd", "PEDRO LIMON": "North Cross Dr",
       "FRANCISCO BOCANEGRA": "Duval Rd",            "JUAN PEREZ": "Pleasant Valley Ph1",
       "DAVID MOLINA": "E 12th St @ Chestnut Ave",   "JOSE ZAMARRIPA": "CAUDI",
-      "HERVEY QUINTERO": "West 12th St",            "JOSE GUADALUPE JUAREZ": "Howard Ln",
+      "HERVEY QUINTERO": "West 12th St",            "LUPE JUAREZ": "Howard Ln",
       "IVAN MUNIZ": "Middle Fiskville SUP"
     },
 
@@ -159,7 +167,6 @@ window.MUNIZ_CONFIG = {
       { id:"V-CDI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"CARLOS DIAZ" },
       { id:"V-JGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"JULIAN GONZALEZ" },
       { id:"V-OHE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"OMAR ALFREDO HERNANDEZ" },
-      { id:"V-JGJ", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"JOSE GUADALUPE JUAREZ" },
       { id:"V-PLI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"PEDRO LIMON" },
       { id:"V-DMO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"DAVID MOLINA" },
       { id:"V-SNI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"SERGIO NINO" },
@@ -180,7 +187,7 @@ window.MUNIZ_CONFIG = {
       { id:"V-THE", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"TACHO HERNANDEZ" },
       { id:"V-JLZ", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"JOSE LUIS ZAMARRIPA" },
       { id:"V-MGO", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"MARTIN GONZALEZ" },
-      { id:"V-LJU", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"LUPE JUAREZ" },
+      { id:"V-LJU", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"LUPE JUAREZ" },   /* supervisor, pero su camioneta es diésel */
       /* --- gerentes: pipa (camion de combustible) --- */
       { id:"P-HMA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"HECTOR MANZANARES" },
       { id:"P-SMA", placa:"", desc:"Camión de combustible", tipo:"PIPA", comb:"DIESEL", de:"SIMON MARTINEZ" },
@@ -237,7 +244,6 @@ window.MUNIZ_CONFIG = {
     "CARLOS DIAZ":           "MIGUEL JUAREZ",
     "JULIAN GONZALEZ":       "JOSE LUIS ZAMARRIPA",
     "OMAR ALFREDO HERNANDEZ":"JOSE LUIS ZAMARRIPA",
-    "JOSE GUADALUPE JUAREZ": "LUPE JUAREZ",
     "PEDRO LIMON":           "MIGUEL JUAREZ",
     "DAVID MOLINA":          "JOSE LUIS ZAMARRIPA",
     "SERGIO NINO":           "MIGUEL JUAREZ",
