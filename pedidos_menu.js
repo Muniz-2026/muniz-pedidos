@@ -89,14 +89,16 @@
     panel.style.cssText = "position:fixed;inset:0;z-index:9995;background:#EDEBE6;overflow:hidden;";
     document.body.appendChild(panel);
     document.body.style.overflow = "hidden";
+    window.__mzBusy = true;                              // no recargar el app a la mitad de un PO
     hidePills();
     fuelHandle = window.MunizFuel.mount(panel, { who: name, onClose: closeFuel });
   }
   function closeFuel() {
     if (fuelHandle) { try { fuelHandle.unmount(); } catch (e) { } fuelHandle = null; }
     if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
-    panel = null; document.body.style.overflow = "";
-    if (overlay) hidePills(); else showPills();          // el menú sigue abierto debajo: la pastilla sigue escondida
+    panel = null; document.body.style.overflow = ""; window.__mzBusy = false;
+    if (overlay) hidePills(); else showPills();
+    if (window.__mzFlushReload) window.__mzFlushReload();   // si llegó una versión nueva mientras cargaba, ahora sí          // el menú sigue abierto debajo: la pastilla sigue escondida
     clearSeen(); check();                           // de vuelta al menú ¿QUÉ VAS A HACER?
   }
   /* la pastilla flotante "MIS PEDIDOS" (pedidos_db.js) no debe verse encima del combustible */
