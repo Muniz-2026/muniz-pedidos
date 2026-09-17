@@ -62,6 +62,10 @@ window.MUNIZ_CONFIG = {
     "ULISES LARA",
     "HECTOR SEGURA",
     "ENRIQUE CHAPA",          /* coordinador de operaciones */
+    "JOSE DE LA CERDA",       /* choferes de camion (dump truck): ver CHOFERES_CAMION abajo */
+    "ROGELIO LOPEZ",
+    "FRANCIS ECHEVESTRE",
+    "JOSE ANTONIO LICEA",
   ],
 
   /* ===== GERENTES DE PROYECTO =====
@@ -118,6 +122,22 @@ window.MUNIZ_CONFIG = {
        Si esa persona no trae rol, manda esta. Tiene que estar escrita IGUAL
        que en la lista de OBRAS de abajo, porque el servidor la revisa. */
     OBRA_POR_DEFECTO: "Yarda Muñiz · 7907 S FM 973",
+
+    /* ===== CHOFERES DE CAMION (dump truck) =====
+       Solo cargan DIESEL VERDE en su camion, en Tex-Con o Leo's. No piden
+       material. Al tocar su nombre el app va DIRECTO a combustible:
+       estacion -> placa y odometro -> PO. Sin menu, sin listas, sin escoger.
+       El camion se identifica por la PLACA que escriben. Si esa placa esta en
+       la tabla vehicles (columna plate de los D-####), el PO cae en esa fila;
+       si no, la placa hace su propia unidad CAM-PLACA con su propio odometro.
+       Para que caigan en los D-####: pon la placa de cada dump truck en la
+       tabla vehicles. El app recuerda la ultima placa de cada chofer. */
+    CHOFERES_CAMION: [
+      "JOSE DE LA CERDA",
+      "ROGELIO LOPEZ",
+      "FRANCIS ECHEVESTRE",
+      "JOSE ANTONIO LICEA",
+    ],
 
     /* ===== SOLO GASOLINA =====
        Gente que unicamente carga gasolina en SU camioneta. El app no les
@@ -217,14 +237,12 @@ window.MUNIZ_CONFIG = {
       { id:"V-HSE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"HECTOR SEGURA" },
       { id:"V-AGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ABRAHAM GONZALES" },
       { id:"V-ULA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ULISES LARA" },
-      { id:"V-JLI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JOSE ANTONIO LICEA" },
       { id:"V-ECH", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"ENRIQUE CHAPA" },   /* coordinador de operaciones */
       { id:"V-RPE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"RAFAEL PEREZ" },
-      { id:"V-JCE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JOSE DE LA CERDA" },
       { id:"V-JRO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JESUS G RODRIGUEZ" },
-      { id:"V-FEC", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"FRANCIS ECHEVESTRE" },
       { id:"V-AJI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"AVISAI JIMENEZ" },
-      { id:"V-RLO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ROGELIO LOPEZ" },
+      /* --- camiones (dump trucks): la tabla vehicles los tiene como D-####. Los choferes
+             escriben la placa; si la tabla tiene esa placa en la fila D-####, el PO cae ahi. --- */
       /* --- equipo compartido: cualquiera puede escogerlo, pide numero de equipo --- */
       { id:"M-GEN", placa:"", desc:"Maquinaria (bobcat, rodillo, compactador, generador…)", tipo:"MAQUINARIA", comb:"DIESEL",   de:"" },
       { id:"T-DSL", placa:"", desc:"Tambo / tanque de DIÉSEL",   tipo:"TAMBO", comb:"DIESEL",   de:"" },

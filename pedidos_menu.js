@@ -1,5 +1,5 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.3
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.4
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -58,8 +58,22 @@
       '<div style="display:inline-block;margin-top:14px;background:' + color + ';color:#fff;font:900 15px/1 system-ui,sans-serif;padding:14px 18px;border-radius:14px;letter-spacing:.03em">' + btn + '</div>' +
     '</button>';
   }
+  /* choferes de camión (config COMBUSTIBLE.CHOFERES_CAMION): solo combustible.
+     Sin menú, sin MATERIALES: el nombre abre la estación directo. */
+  function isDriver(name) {
+    try { var l = ((window.MUNIZ_CONFIG || {}).COMBUSTIBLE || {}).CHOFERES_CAMION || [], n = String(name || "").toUpperCase().trim();
+      for (var i = 0; i < l.length; i++) if (String(l[i]).toUpperCase().trim() === n) return true; } catch (e) { }
+    return false;
+  }
+  var directFuel = false;
   function show(name) {
-    if (overlay) return;
+    if (overlay || panel) return;
+    if (isDriver(name)) {
+      directFuel = true; markSeen(name);
+      try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }
+      openFuel(name);
+      return;
+    }
     overlay = document.createElement("div");
     overlay.setAttribute("role", "dialog");
     overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#EDEBE6;display:flex;flex-direction:column;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#111;";
@@ -118,7 +132,8 @@
     panel = null; document.body.style.overflow = ""; window.__mzBusy = false;
     if (overlay) { hidePills(); try { var sub = overlay.querySelector("#mz-fuel-sub"); if (sub) sub.innerHTML = fuelSubHTML(who() || tapped); var cta = overlay.querySelector("#mz-fuel > div:last-child"); if (cta && lastFuelPO(who() || tapped)) cta.textContent = "OTRO PO →"; } catch (e) { } }
     else showPills();
-    if (window.__mzFlushReload) window.__mzFlushReload();   // si llegó una versión nueva mientras cargaba, ahora sí          // el menú sigue abierto debajo: la pastilla sigue escondida
+    if (window.__mzFlushReload) window.__mzFlushReload();   // si llegó una versión nueva mientras cargaba, ahora sí
+    if (directFuel) { directFuel = false; clearSeen(); appBack(); return; }   // chofer: de regreso a la lista de nombres
     clearSeen(); check();                           // de vuelta al menú ¿QUÉ VAS A HACER?
   }
   /* la pastilla flotante "MIS PEDIDOS" (pedidos_db.js) no debe verse encima del combustible */
