@@ -2,16 +2,17 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v4.6
+   MUÑIZ COMBUSTIBLE · v4.7
    Lives INSIDE the orders app. create_fuel_po issues the number on the spot.
-     1 ¿Dónde vas a cargar?   TEX-CON · LEO'S
-     2 ¿Qué vas a cargar?     what that station pumps - SKIPPED for project
-                              managers and anyone in COMBUSTIBLE.SOLO_GASOLINA
+     1 ¿Dónde vas a cargar?   TEX-CON · LEO'S  (your last PO sits on top, tap to reopen)
+     2 ¿Qué vas a cargar?     what that station pumps - skipped for gasolina-only people
      3 Tu camioneta           placa + odómetro only when the truck gets fuel
-   The jobsite is never asked: the PO carries the roster site, and only ever a
-   name the jobsites table knows. The fleet table wins over config.js but does
-   not erase it: someone with a truck in config and none in the table keeps it.
-   Every PO carries app_version so a phone stuck on an old build is obvious.
+   The PO number is the whole point of the ticket: 64px, first, alone.
+   LISTO never leaves in one tap: it shows the number once more and asks if
+   the station wrote it down. A PO issued < 30 min ago stops GENERAR with
+   "you already have one" - reopen it, or say it is another trip.
+   The last 12 h of this person's POs stay one tap away on the first screen
+   and on the menu card, so a number is never lost and never re-issued.
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -66,7 +67,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "4.6";
+const VERSION = "4.7";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -550,6 +551,13 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const hist = LS.get(K_HIST, []);
   const plates = LS.get(K_PLATES, {});
   const lastEst = (LS.get(K_LASTEST, {}) || {})[nk(who)] || "";
+  /* los POs que ESTA persona sacó en este teléfono, el más nuevo primero */
+  const myPOs = useMemo(() => (LS.get(K_HIST, []) || []).filter(h => h && h.po && nEq(h.who, who)).sort((a, b) => b.ts - a.ts), [who, ticket, screen]);
+  const lastPO = myPOs[0] && Date.now() - myPOs[0].ts < 12 * 3600e3 ? myPOs[0] : null;
+  const todayPOs = myPOs.filter(h => new Date(h.ts).toDateString() === new Date().toDateString()).slice(0, 4);
+  const poPx = po => String(po || "").length > 7 ? 46 : 64;
+  const ago = ts => { const m = Math.max(0, Math.round((Date.now() - ts) / 60000)); return m < 1 ? "ahora mismo" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : fmtDT(ts); };
+  const [dupOk, setDupOk] = useState(false);            // "sí, este es otro viaje" ya contestado
   /* siempre gasolina en su camioneta: gerentes de proyecto y quien esté en
      SOLO_GASOLINA (coordinador de operaciones, etc). Nada que escoger. */
   const gasOnly = useMemo(() => nHas(GAS_ONLY, who) || /GERENTE|PROJECT|^PM$/.test(roleOf(who) || "") || nHas(PMS, who), [who, refTick]);
@@ -597,10 +605,11 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
   const go = s => { setScreen(s); try { requestAnimationFrame(() => { document.querySelectorAll(".mzf-body").forEach(b => { b.scrollTop = 0; }); }); } catch (e) {} };
   const next = () => { const i = steps.indexOf(screen); if (i >= 0 && i < steps.length - 1) go(steps[i + 1]); };
-  const back = () => { if (screen === "po") { done(); return; } if (failed) { setFailed(null); return; }
+  const back = () => { if (screen === "po") { go("bye"); return; } if (screen === "bye") { go("po"); return; } if (screen === "dup") { setScreen(steps[steps.length - 1]); return; } if (failed) { setFailed(null); return; }
     const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
   const done = () => { if (embedded) onClose(); else if (onChangeWho) onChangeWho(true); };
-  const another = () => { setScreen("est"); setFuels([]); setVeh(null); setPlate(""); setOdo(""); setPickOpen(false); setTicket(null); t0.current = Date.now(); go("est"); };
+  const another = () => { setScreen("est"); setFuels([]); setVeh(null); setPlate(""); setOdo(""); setPickOpen(false); setTicket(null); setDupOk(false); t0.current = Date.now(); go("est"); };
+  const reopen = h => { setTicket(h); go("po"); };
   const pickStation = k => { setStation(k); if (gasOnly) { setFuels(["GAS"]); setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); return; } setFuels(f => f.filter(x => (PUMPS[k] || []).indexOf(x) >= 0)); go("fuel"); };
   const toggleFuel = f => setFuels(cur => cur.indexOf(f) >= 0 ? cur.filter(x => x !== f) : [...cur, f]);
   const afterFuel = () => { if (fuelsTruck) { setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); } else generate(); };
@@ -638,8 +647,9 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (!shape) { row.app_version = VERSION; row.fuels = fuels.slice(); row.extra_dyed = has("ROJO"); row.extra_gas = has("GAS") && !(fuelsTruck && !has("VERDE")); }
     return row;
   };
-  const generate = async () => {
+  const generate = async (force) => {
     if (!HAS_BACKEND) { setFailed({ __err: "Falta SUPABASE en config.js" }); return; }
+    if (!force && !dupOk && myPOs[0] && Date.now() - myPOs[0].ts < 30 * 60e3) { go("dup"); return; }
     if (fuelsTruck && !truck) { setFailed({ __err: "Escoge la camioneta de la flota antes de generar el PO." }); return; }
     setBusy(true); setFailed(null);
     const ref = uuid();                                   /* el mismo en todos los intentos: el servidor no duplica */
@@ -682,8 +692,8 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const S = STATIONS[station] || null;
   const stColor = S ? S.color : C.fuel;
   const stDark = station === "LEOS";
-  const strip = screen === "po" ? null : screen === "est" ? "COMBUSTIBLE" : `${S ? S.corto : "COMBUSTIBLE"} · PASO ${stepNo} DE ${TOTAL}`;
-  const titles = { est: "¿DÓNDE VAS A CARGAR?", fuel: "¿QUÉ VAS A CARGAR?", veh: "TU CAMIONETA", po: "PO DE COMBUSTIBLE" };
+  const strip = screen === "po" || screen === "bye" || screen === "dup" ? null : screen === "est" ? "COMBUSTIBLE" : `${S ? S.corto : "COMBUSTIBLE"} · PASO ${stepNo} DE ${TOTAL}`;
+  const titles = { est: "¿DÓNDE VAS A CARGAR?", fuel: "¿QUÉ VAS A CARGAR?", veh: "TU CAMIONETA", po: "PO DE COMBUSTIBLE", bye: "ANTES DE SALIR", dup: "YA TIENES UN PO" };
   const fuelsLine = fuels.map(f => FUEL_LABEL[f]).join(" + ");
   const Chip = ({ f, big }) => <span className="mzf-badge" style={{ background: FUEL_COLOR[f], fontSize: big ? 12 : 10 }}>{FUEL_LABEL[f]}</span>;
 
@@ -754,6 +764,25 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     <Shell>
       <Head title={titles.est} who={who} onBack={back} strip={strip} />
       <div className="mzf-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {lastPO ? (
+          <button className="mzf-card" style={{ textAlign: "left", padding: 12, borderColor: C.orange, borderWidth: 3, display: "flex", alignItems: "center", gap: 12 }} onClick={() => reopen(lastPO)}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="mzf-label" style={{ color: C.orange, margin: 0 }}>TU ÚLTIMO PO · {ago(lastPO.ts)}</div>
+              <div className="mzf-mono mzf-display" style={{ fontSize: 34, lineHeight: 1.05, marginTop: 2 }}>{lastPO.po}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.mute, marginTop: 2 }}>{(STATIONS[lastPO.est] || {}).corto || lastPO.est} · {(lastPO.fuels && lastPO.fuels.length ? lastPO.fuels : [lastPO.comb]).map(f => FUEL_LABEL[f] || f).join(" + ")}{lastPO.placa ? " · " + lastPO.placa : ""}</div>
+            </div>
+            <div className="mzf-cta" style={{ background: C.orange, marginTop: 0, flex: "none" }}>VER →</div>
+          </button>) : null}
+        {todayPOs.length > 1 ? (
+          <div className="mzf-card" style={{ padding: "6px 12px" }}>
+            <div className="mzf-label" style={{ margin: "4px 0" }}>TAMBIÉN HOY</div>
+            {todayPOs.slice(1).map(h => (
+              <button key={h.po} className="mzf-row" style={{ width: "100%", textAlign: "left", padding: "8px 0" }} onClick={() => reopen(h)}>
+                <span className="k mzf-mono" style={{ fontWeight: 900, color: C.ink, fontSize: 14 }}>{h.po}</span>
+                <span className="v" style={{ color: C.mute, fontWeight: 700 }}>{(STATIONS[h.est] || {}).corto || h.est} · {ago(h.ts)}</span>
+              </button>))}
+          </div>) : null}
+        {lastPO ? <div className="mzf-label" style={{ marginTop: 4 }}>¿OTRA CARGA? ESCOGE LA ESTACIÓN</div> : null}
         {Object.entries(STATIONS).sort((a, b) => (a[0] === "TEXCON" ? 0 : a[0] === "LEOS" ? 1 : 2) - (b[0] === "TEXCON" ? 0 : b[0] === "LEOS" ? 1 : 2)).map(([k, s]) => {
           const dark = k === "LEOS", last = k === lastEst;
           return (
@@ -846,7 +875,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
         {odoProblem ? <div className={`mzf-warn ${odoProblem.block ? "red" : "amber"}`} style={{ marginTop: 8 }}>{odoProblem.block ? "⛔ " : "⚠ "}{odoProblem.t}</div> : null}
       </div>
       <Bottom hint={truck && vehWait ? "Revisando la última lectura de esta camioneta…" : vehOk ? [S ? S.corto : "", fuelsLine, effPlate, odo ? fmtNum(odo) + " mi" : ""].filter(Boolean).join(" · ") : "Placa y odómetro, y sale tu PO"}>
-        <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!vehOk || busy} onClick={generate}>{truck && vehWait ? "REVISANDO…" : busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>
+        <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} disabled={!vehOk || busy} onClick={() => generate()}>{truck && vehWait ? "REVISANDO…" : busy ? <><span className="mzf-spin" />REGISTRANDO…</> : "GENERAR PO ⛽"}</button>
       </Bottom>
     </Shell>);
 
@@ -855,24 +884,22 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     const s = STATIONS[ticket.est] || { nombre: ticket.est, corto: ticket.est, color: C.mute };
     const dark = ticket.est === "LEOS";
     const fl = ticket.fuels && ticket.fuels.length ? ticket.fuels : [ticket.comb];
-    const head = FUEL_COLOR[fl[0]] || C.mute;
-    const cell = (k, v, mono) => <div><div className="mzf-label" style={{ margin: "0 0 2px" }}>{k}</div><div className={mono ? "mzf-mono" : ""} style={{ fontSize: mono ? 22 : 16, fontWeight: 900, lineHeight: 1.1 }}>{v}</div></div>;
+    const cell = (k, v, mono) => <div><div className="mzf-label" style={{ margin: "0 0 2px" }}>{k}</div><div className={mono ? "mzf-mono" : ""} style={{ fontSize: mono ? 20 : 15, fontWeight: 900, lineHeight: 1.1 }}>{v}</div></div>;
     return (
       <Shell>
         <Head title={titles.po} who={who} onBack={back} strip="✓ REGISTRADO EN LA OFICINA" stripColor={C.green} />
         <div className="mzf-body">
           <div className="mzf-card" style={{ overflow: "hidden", borderColor: C.ink, borderWidth: 3 }}>
-            <div style={{ background: head, color: "#fff", padding: "14px 16px" }}>
-              <div className="mzf-label" style={{ color: "rgba(255,255,255,.85)", margin: 0 }}>{fl.length > 1 ? "COMBUSTIBLES" : "COMBUSTIBLE"}</div>
-              {fl.map((f, i) => (
-                <div key={f} className="mzf-display" style={{ fontSize: fl.length > 1 ? 28 : 40, lineHeight: 1.05, marginTop: i === 0 ? 4 : 6, display: "flex", alignItems: "center", gap: 10 }}>
-                  {fl.length > 1 ? <span style={{ width: 22, height: 22, borderRadius: 6, background: FUEL_COLOR[f], border: "3px solid #fff", flex: "none", boxShadow: "0 0 0 1px rgba(0,0,0,.15)" }} /> : null}{FUEL_LABEL[f] || f}
-                </div>))}
+            {/* the number, and nothing competing with it */}
+            <div style={{ padding: "18px 16px 14px", textAlign: "center", background: "#fff" }}>
+              <div className="mzf-label" style={{ margin: 0, fontSize: 12 }}>NÚMERO DE PO · DÁSELO A LA BOMBA</div>
+              <div className="mzf-mono mzf-display" style={{ fontSize: poPx(ticket.po), lineHeight: 1, marginTop: 6, letterSpacing: "-.03em", color: C.ink, wordBreak: "keep-all" }}>{ticket.po}</div>
+              <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
+                {fl.map(f => <span key={f} className="mzf-badge" style={{ background: FUEL_COLOR[f] || C.mute, fontSize: 14, padding: "7px 12px" }}>{FUEL_LABEL[f] || f}</span>)}
+              </div>
             </div>
-            <div style={{ padding: "14px 16px" }}>
-              <div className="mzf-label" style={{ margin: 0 }}>NÚMERO DE PO</div>
-              <div className="mzf-mono mzf-display" style={{ fontSize: 38, lineHeight: 1, marginTop: 4, letterSpacing: "-.02em" }}>{ticket.po}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 10px", marginTop: 16 }}>
+            <div style={{ padding: "12px 16px 14px", borderTop: `2px solid ${C.line}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 10px" }}>
                 {ticket.truck ? cell("PLACA", ticket.placa || "—", true) : null}
                 {ticket.truck ? cell("ODÓMETRO", `${fmtNum(ticket.lectura)} mi`, true) : null}
                 <div style={{ gridColumn: "1 / -1" }}>{cell("NOMBRE", ticket.who)}</div>
@@ -884,14 +911,53 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
               <div style={{ textAlign: "right" }}><div className="mzf-label" style={{ color: "inherit", opacity: .8, margin: 0 }}>FECHA</div><div style={{ fontSize: 14, fontWeight: 900 }}>{fmtDT(ticket.ts)}</div></div>
             </div>
           </div>
-          <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: C.mute, marginTop: 14, lineHeight: 1.4 }}>Muestra esta pantalla en la bomba.<br />{ticket.truck ? "PO, placa y nombre" : "PO y nombre"} — aquí están. No hay que mandar nada.</div>
+          <div style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: C.mute, marginTop: 14, lineHeight: 1.45 }}>
+            Muestra esta pantalla en la bomba y que anoten el <b style={{ color: C.ink }}>{ticket.po}</b>.<br />
+            Si sales, lo vuelves a ver en COMBUSTIBLE → <b style={{ color: C.ink }}>TU ÚLTIMO PO</b>.
+          </div>
         </div>
         <Bottom>
-          <button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={done}>LISTO</button>
-          <button className="mzf-btn lite" style={{ marginTop: 6 }} onClick={another}>OTRO PO DE COMBUSTIBLE</button>
+          <button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={() => go("bye")}>LISTO</button>
         </Bottom>
       </Shell>);
   }
+
+  /* -------- before leaving: the number one more time -------- */
+  if (screen === "bye" && ticket) return (
+    <Shell>
+      <Head title={titles.bye} who={who} onBack={back} strip="COMBUSTIBLE" />
+      <div className="mzf-body">
+        <div className="mzf-card" style={{ padding: 20, textAlign: "center", borderColor: C.orange, borderWidth: 3 }}>
+          <div className="mzf-label" style={{ margin: 0, fontSize: 12 }}>TU PO ES</div>
+          <div className="mzf-mono mzf-display" style={{ fontSize: poPx(ticket.po), lineHeight: 1, marginTop: 6, letterSpacing: "-.03em", wordBreak: "keep-all" }}>{ticket.po}</div>
+          <div className="mzf-display" style={{ fontSize: 22, marginTop: 16 }}>¿Ya lo anotaron en la bomba?</div>
+          <div style={{ fontSize: 14, color: C.mute, marginTop: 8, lineHeight: 1.45, fontWeight: 600 }}>No hace falta sacar otro. Si lo necesitas otra vez, está en COMBUSTIBLE → TU ÚLTIMO PO.</div>
+        </div>
+      </div>
+      <Bottom>
+        <button className="mzf-btn mzf-display" style={{ background: C.green, fontSize: 20 }} onClick={done}>SÍ, YA QUEDÓ</button>
+        <button className="mzf-btn lite" style={{ marginTop: 6 }} onClick={() => go("po")}>VOLVER AL PO</button>
+      </Bottom>
+    </Shell>);
+
+  /* -------- a PO was issued minutes ago: is this really another trip? -------- */
+  if (screen === "dup" && myPOs[0]) { const h = myPOs[0]; return (
+    <Shell>
+      <Head title={titles.dup} who={who} onBack={back} strip="COMBUSTIBLE" stripColor={C.orange} />
+      <div className="mzf-body">
+        <div className="mzf-card" style={{ padding: 20, textAlign: "center", borderColor: C.orange, borderWidth: 3 }}>
+          <div className="mzf-label" style={{ margin: 0, fontSize: 12, color: C.orange }}>SACASTE ESTE PO {ago(h.ts).toUpperCase()}</div>
+          <div className="mzf-mono mzf-display" style={{ fontSize: poPx(h.po), lineHeight: 1, marginTop: 6, letterSpacing: "-.03em", wordBreak: "keep-all" }}>{h.po}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.mute, marginTop: 8 }}>{(STATIONS[h.est] || {}).corto || h.est} · {(h.fuels && h.fuels.length ? h.fuels : [h.comb]).map(f => FUEL_LABEL[f] || f).join(" + ")}{h.placa ? " · " + h.placa : ""}</div>
+          <div className="mzf-display" style={{ fontSize: 20, marginTop: 16 }}>¿Es esa misma carga?</div>
+          <div style={{ fontSize: 13, color: C.mute, marginTop: 6, lineHeight: 1.45, fontWeight: 600 }}>Un PO sirve para una carga. Si es la misma, úsalo. Si de verdad vas a cargar otra vez, saca otro.</div>
+        </div>
+      </div>
+      <Bottom>
+        <button className="mzf-btn mzf-display" style={{ background: C.ink, fontSize: 20 }} onClick={() => reopen(h)}>SÍ · VER EL {h.po}</button>
+        <button className="mzf-btn lite" style={{ marginTop: 6 }} onClick={() => { setDupOk(true); setScreen(steps[steps.length - 1]); generate(true); }}>NO · ES OTRA CARGA, SACAR OTRO</button>
+      </Bottom>
+    </Shell>); }
   return null;
 }
 

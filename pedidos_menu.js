@@ -1,5 +1,5 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.2
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.3
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -31,11 +31,30 @@
     var el = overlay; overlay = null;
     if (el.parentNode) el.parentNode.removeChild(el); hiding = false; if (!panel) showPills();
   }
+  /* el último PO de combustible de esta persona en este teléfono (lo guarda fuel.js) */
+  function lastFuelPO(name) {
+    try {
+      var h = JSON.parse(localStorage.getItem("muniz_fuel_hist") || "[]"), n = String(name || "").toUpperCase().trim(), best = null;
+      for (var i = 0; i < h.length; i++) { var e = h[i]; if (e && e.po && String(e.who || "").toUpperCase().trim() === n && (!best || e.ts > best.ts)) best = e; }
+      if (!best || Date.now() - best.ts > 12 * 3600e3) return null;
+      var min = Math.round((Date.now() - best.ts) / 60000);
+      best.ago = min < 1 ? "ahora mismo" : min < 60 ? "hace " + min + " min" : "hace " + Math.round(min / 60) + " h";
+      return best;
+    } catch (e) { return null; }
+  }
+  function fuelSubHTML(name) {
+    var p = lastFuelPO(name);
+    if (!p) return "PO de diésel o gasolina · Tex-Con · Leo's";
+    return '<span style="display:inline-block;background:#FFF4E8;border:2px solid #FF5A00;border-radius:10px;padding:6px 10px;color:#17181A">' +
+      '<span style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.08em;color:#FF5A00">TU ÚLTIMO PO · ' + p.ago.toUpperCase() + '</span><br>' +
+      '<span style="font:900 26px/1.1 ui-monospace,Menlo,Consolas,monospace">' + p.po + '</span>' +
+      '<span style="font:700 12px/1 system-ui,sans-serif;color:#6B675E"> · ' + (p.est === "TEXCON" ? "TEX-CON" : p.est === "LEOS" ? "LEO\'S" : (p.est || "")) + (p.placa ? " · " + p.placa : "") + '</span></span>';
+  }
   function card(id, color, icon, title, sub, btn) {
     return '<button id="' + id + '" style="text-align:left;background:#fff;border:3px solid ' + color + ';border-radius:22px;padding:22px 20px;cursor:pointer;display:block;width:100%">' +
       '<div style="font-size:40px;line-height:1">' + icon + '</div>' +
       '<div style="font:900 34px/1 \'Archivo Black\',system-ui,sans-serif;color:' + color + ';margin-top:10px;letter-spacing:-.02em">' + title + '</div>' +
-      '<div style="font:600 15px/1.3 system-ui,sans-serif;color:#374151;margin-top:8px">' + sub + '</div>' +
+      '<div id="' + id + '-sub" style="font:600 15px/1.3 system-ui,sans-serif;color:#374151;margin-top:8px">' + sub + '</div>' +
       '<div style="display:inline-block;margin-top:14px;background:' + color + ';color:#fff;font:900 15px/1 system-ui,sans-serif;padding:14px 18px;border-radius:14px;letter-spacing:.03em">' + btn + '</div>' +
     '</button>';
   }
@@ -54,7 +73,7 @@
       '</div>' +
       '<div style="padding:18px 16px;display:flex;flex-direction:column;gap:16px;flex:1">' +
         card("mz-mat", "#FF5A00", "🧱", "MATERIALES", "Pedir a ACE · CMC · RSS · White Cap", "ENTRAR A PEDIDOS →") +
-        card("mz-fuel", "#1E3A8A", "⛽", "COMBUSTIBLE", "PO de diésel o gasolina · Tex-Con · Leo's", "PO PARA COMBUSTIBLE →") +
+        card("mz-fuel", "#1E3A8A", "⛽", "COMBUSTIBLE", fuelSubHTML(name), lastFuelPO(name) ? "OTRO PO →" : "PO PARA COMBUSTIBLE →") +
       '</div>';
     document.body.appendChild(overlay);
     hidePills();
@@ -97,7 +116,8 @@
     if (fuelHandle) { try { fuelHandle.unmount(); } catch (e) { } fuelHandle = null; }
     if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
     panel = null; document.body.style.overflow = ""; window.__mzBusy = false;
-    if (overlay) hidePills(); else showPills();
+    if (overlay) { hidePills(); try { var sub = overlay.querySelector("#mz-fuel-sub"); if (sub) sub.innerHTML = fuelSubHTML(who() || tapped); var cta = overlay.querySelector("#mz-fuel > div:last-child"); if (cta && lastFuelPO(who() || tapped)) cta.textContent = "OTRO PO →"; } catch (e) { } }
+    else showPills();
     if (window.__mzFlushReload) window.__mzFlushReload();   // si llegó una versión nueva mientras cargaba, ahora sí          // el menú sigue abierto debajo: la pastilla sigue escondida
     clearSeen(); check();                           // de vuelta al menú ¿QUÉ VAS A HACER?
   }
