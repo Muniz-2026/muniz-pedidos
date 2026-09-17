@@ -2,17 +2,17 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v4.7
+   MUÑIZ COMBUSTIBLE · v4.8
    Lives INSIDE the orders app. create_fuel_po issues the number on the spot.
-     1 ¿Dónde vas a cargar?   TEX-CON · LEO'S  (your last PO sits on top, tap to reopen)
-     2 ¿Qué vas a cargar?     what that station pumps - skipped for gasolina-only people
+     1 ¿Dónde vas a cargar?   TEX-CON · LEO'S  (your last PO sits on top)
+     2 ¿Qué vas a cargar?     skipped for gasolina-only people
      3 Tu camioneta           placa + odómetro only when the truck gets fuel
-   The PO number is the whole point of the ticket: 64px, first, alone.
-   LISTO never leaves in one tap: it shows the number once more and asks if
-   the station wrote it down. A PO issued < 30 min ago stops GENERAR with
-   "you already have one" - reopen it, or say it is another trip.
-   The last 12 h of this person's POs stay one tap away on the first screen
-   and on the menu card, so a number is never lost and never re-issued.
+   Odometer: six digits max; can't go down; a jump over 15,000 mi is a typo
+   and is blocked; the same number as last time is allowed but flagged.
+   Duplicates: a PO by this person, or on this truck by anyone, in the last
+   30 min stops GENERAR with "you already have one".
+   LISTO shows the number once more before leaving; the last 12 h of POs stay
+   one tap away. The office can correct a reading from Mando's drawer.
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -67,7 +67,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "4.7";
+const VERSION = "4.8";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -544,6 +544,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const [pickOpen, setPickOpen] = useState(false);
   const [srvVeh, setSrvVeh] = useState(null);
   const [vehWait, setVehWait] = useState(false);
+  const [vehTick, setVehTick] = useState(0);        // vuelve a preguntar la última lectura (tras un rechazo del servidor)
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(null);
   const [ticket, setTicket] = useState(null);
@@ -558,6 +559,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const poPx = po => String(po || "").length > 7 ? 46 : 64;
   const ago = ts => { const m = Math.max(0, Math.round((Date.now() - ts) / 60000)); return m < 1 ? "ahora mismo" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : fmtDT(ts); };
   const [dupOk, setDupOk] = useState(false);            // "sí, este es otro viaje" ya contestado
+  const [dupTruck, setDupTruck] = useState(null);       // otro PO en ESTA camioneta hace minutos (de quien sea)
   /* siempre gasolina en su camioneta: gerentes de proyecto y quien esté en
      SOLO_GASOLINA (coordinador de operaciones, etc). Nada que escoger. */
   const gasOnly = useMemo(() => nHas(GAS_ONLY, who) || /GERENTE|PROJECT|^PM$/.test(roleOf(who) || "") || nHas(PMS, who), [who, refTick]);
@@ -590,13 +592,15 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
 
   useEffect(() => { setSrvVeh(null); if (!HAS_BACKEND || !truck) { setVehWait(false); return; } let ok = true; setVehWait(true);
     sbRpc("vehicle_status", { vid: truck.id }).then(r => { const x = Array.isArray(r) ? r[0] : r; if (ok) { if (x) setSrvVeh(x); setVehWait(false); } })
-      .catch(() => { if (ok) setVehWait(false); }); return () => { ok = false; }; }, [truck && truck.id]);
+      .catch(() => { if (ok) setVehWait(false); }); return () => { ok = false; }; }, [truck && truck.id, vehTick]);
 
   const lastOf = (vid, srv) => { if (srv && srv.last_at) return { lectura: srv.last_reading == null ? "" : String(srv.last_reading), ts: new Date(srv.last_at).getTime() };
     return hist.filter(h => h.vid === vid).sort((a, b) => b.ts - a.ts)[0] || null; };
   const lastVeh = truck ? lastOf(truck.id, srvVeh) : null;
   const odoProblem = (() => { if (!fuelsTruck || odo === "" || !lastVeh || lastVeh.lectura === "") return null; const d = Number(odo) - Number(lastVeh.lectura);
-    if (d < 0) return { block: true, t: `El odómetro no puede bajar. Última carga: ${fmtNum(lastVeh.lectura)} mi` };
+    if (d < 0) return { block: true, t: `El odómetro no puede bajar. Última carga: ${fmtNum(lastVeh.lectura)} mi. Si el tablero marca menos, la lectura anterior está mal: avísale a Tito.` };
+    if (d === 0) return { block: false, t: `Es la misma lectura que la carga anterior (${fmtNum(lastVeh.lectura)} mi). ¿Seguro?` };
+    if (d > 15000) return { block: true, t: `Son ${fmtNum(d)} millas más que la última carga (${fmtNum(lastVeh.lectura)} mi). Eso no puede ser: revisa el número.` };
     if (d > 3000) return { block: false, t: `Son ${fmtNum(d)} millas desde la última carga. Revisa el número.` }; return null; })();
   const vehOk = !fuelsTruck || (!!truck && effPlate.length >= 5 && odo !== "" && !(odoProblem && odoProblem.block) && !vehWait);
 
@@ -605,10 +609,10 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const stepNo = steps.indexOf(screen) + 1, TOTAL = steps.length;
   const go = s => { setScreen(s); try { requestAnimationFrame(() => { document.querySelectorAll(".mzf-body").forEach(b => { b.scrollTop = 0; }); }); } catch (e) {} };
   const next = () => { const i = steps.indexOf(screen); if (i >= 0 && i < steps.length - 1) go(steps[i + 1]); };
-  const back = () => { if (screen === "po") { go("bye"); return; } if (screen === "bye") { go("po"); return; } if (screen === "dup") { setScreen(steps[steps.length - 1]); return; } if (failed) { setFailed(null); return; }
+  const back = () => { if (screen === "po") { go("bye"); return; } if (screen === "bye") { go("po"); return; } if (screen === "dup") { setDupTruck(null); setScreen(steps[steps.length - 1]); return; } if (failed) { setFailed(null); return; }
     const i = steps.indexOf(screen); if (i > 0) go(steps[i - 1]); else if (embedded) onClose(); else if (onChangeWho) onChangeWho(); };
   const done = () => { if (embedded) onClose(); else if (onChangeWho) onChangeWho(true); };
-  const another = () => { setScreen("est"); setFuels([]); setVeh(null); setPlate(""); setOdo(""); setPickOpen(false); setTicket(null); setDupOk(false); t0.current = Date.now(); go("est"); };
+  const another = () => { setScreen("est"); setFuels([]); setVeh(null); setPlate(""); setOdo(""); setPickOpen(false); setTicket(null); setDupOk(false); setDupTruck(null); t0.current = Date.now(); go("est"); };
   const reopen = h => { setTicket(h); go("po"); };
   const pickStation = k => { setStation(k); if (gasOnly) { setFuels(["GAS"]); setVeh(myTruck); setPlate(myTruck ? (myTruck.placa || plates[myTruck.id] || "") : ""); go("veh"); return; } setFuels(f => f.filter(x => (PUMPS[k] || []).indexOf(x) >= 0)); go("fuel"); };
   const toggleFuel = f => setFuels(cur => cur.indexOf(f) >= 0 ? cur.filter(x => x !== f) : [...cur, f]);
@@ -632,7 +636,8 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     if (!obraSemana) flags.push("Sin obra en el rol esta semana · asignar en oficina");
     if (jobUsed && obraSemana && obraKey(jobUsed) !== obraKey(obraSemana)) flags.push(`Obra del rol no reconocida (${obraSemana}) · asignar en oficina`);
     if (fuelsTruck && lastVeh && hoursBetween(Date.now(), lastVeh.ts) < AL.HORAS_MIN_ENTRE_CARGAS && main.tipo !== "PIPA") flags.push(`Mismo vehículo cargó hace ${Math.max(1, Math.round(hoursBetween(Date.now(), lastVeh.ts)))} h`);
-    if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
+    if (fuelsTruck && lastVeh && lastVeh.lectura !== "" && Number(odo) === Number(lastVeh.lectura)) flags.push(`Misma lectura que la carga anterior (${fmtNum(odo)} mi)`);
+    else if (odoProblem && !odoProblem.block) flags.push(`Salto de ${fmtNum(Number(odo) - Number(lastVeh.lectura))} mi`);
     const row = {
       client_ref: ref, device_id: deviceId(), who, role: roleOf(who),
       vehicle_id: main.id, vehicle_desc: desc, tipo: regWrong && main === truck ? "CAMIONETA" : main.tipo, comb,
@@ -650,6 +655,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const generate = async (force) => {
     if (!HAS_BACKEND) { setFailed({ __err: "Falta SUPABASE en config.js" }); return; }
     if (!force && !dupOk && myPOs[0] && Date.now() - myPOs[0].ts < 30 * 60e3) { go("dup"); return; }
+    if (!force && !dupOk && fuelsTruck && srvVeh && srvVeh.last_at && Date.now() - new Date(srvVeh.last_at).getTime() < 30 * 60e3) { setDupTruck({ po: srvVeh.last_po || "", ts: new Date(srvVeh.last_at).getTime(), est: "", placa: effPlate, truck: true }); go("dup"); return; }
     if (fuelsTruck && !truck) { setFailed({ __err: "Escoge la camioneta de la flota antes de generar el PO." }); return; }
     setBusy(true); setFailed(null);
     const ref = uuid();                                   /* el mismo en todos los intentos: el servidor no duplica */
@@ -741,7 +747,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
             <div style={{ fontSize: 13, color: C.mute, marginTop: 8, lineHeight: 1.4, fontWeight: 600 }}>Vuelve a ver el tablero y escríbelo otra vez. Si de veras marca menos, habla con Tito.</div>
           </div>
         </div>
-        <Bottom><button className="mzf-btn mzf-display" style={{ background: C.blue }} onClick={() => { setOdo(""); setFailed(null); go("veh"); }}>CORREGIR EL ODÓMETRO →</button></Bottom>
+        <Bottom><button className="mzf-btn mzf-display" style={{ background: C.blue }} onClick={() => { setOdo(""); setFailed(null); setVehTick(t => t + 1); go("veh"); }}>CORREGIR EL ODÓMETRO →</button></Bottom>
       </Shell>);
   }
   if (failed) return (
@@ -871,7 +877,7 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
           </div>) : null}
 
         <div className="mzf-label" style={{ marginTop: 16 }}>ODÓMETRO · millas que marca el tablero</div>
-        <input className="mzf-input num" value={odo ? fmtNum(odo) : ""} onChange={e => setOdo(digits(e.target.value).slice(0, 7))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
+        <input className="mzf-input num" value={odo ? fmtNum(odo) : ""} onChange={e => setOdo(digits(e.target.value).slice(0, 6))} placeholder="0" inputMode="numeric" pattern="[0-9]*" />
         {odoProblem ? <div className={`mzf-warn ${odoProblem.block ? "red" : "amber"}`} style={{ marginTop: 8 }}>{odoProblem.block ? "⛔ " : "⚠ "}{odoProblem.t}</div> : null}
       </div>
       <Bottom hint={truck && vehWait ? "Revisando la última lectura de esta camioneta…" : vehOk ? [S ? S.corto : "", fuelsLine, effPlate, odo ? fmtNum(odo) + " mi" : ""].filter(Boolean).join(" · ") : "Placa y odómetro, y sale tu PO"}>
@@ -941,21 +947,22 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
     </Shell>);
 
   /* -------- a PO was issued minutes ago: is this really another trip? -------- */
-  if (screen === "dup" && myPOs[0]) { const h = myPOs[0]; return (
+  if (screen === "dup" && (dupTruck || myPOs[0])) { const h = dupTruck || myPOs[0]; const mineDup = !dupTruck; return (
     <Shell>
       <Head title={titles.dup} who={who} onBack={back} strip="COMBUSTIBLE" stripColor={C.orange} />
       <div className="mzf-body">
         <div className="mzf-card" style={{ padding: 20, textAlign: "center", borderColor: C.orange, borderWidth: 3 }}>
-          <div className="mzf-label" style={{ margin: 0, fontSize: 12, color: C.orange }}>SACASTE ESTE PO {ago(h.ts).toUpperCase()}</div>
+          <div className="mzf-label" style={{ margin: 0, fontSize: 12, color: C.orange }}>{mineDup ? "SACASTE ESTE PO" : "ESTA CAMIONETA YA TIENE UN PO DE"} {ago(h.ts).toUpperCase()}</div>
           <div className="mzf-mono mzf-display" style={{ fontSize: poPx(h.po), lineHeight: 1, marginTop: 6, letterSpacing: "-.03em", wordBreak: "keep-all" }}>{h.po}</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.mute, marginTop: 8 }}>{(STATIONS[h.est] || {}).corto || h.est} · {(h.fuels && h.fuels.length ? h.fuels : [h.comb]).map(f => FUEL_LABEL[f] || f).join(" + ")}{h.placa ? " · " + h.placa : ""}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: C.mute, marginTop: 8 }}>{mineDup ? `${(STATIONS[h.est] || {}).corto || h.est} · ${(h.fuels && h.fuels.length ? h.fuels : [h.comb]).map(f => FUEL_LABEL[f] || f).join(" + ")}` : "Alguien ya cargó esta camioneta"}{h.placa ? " · " + h.placa : ""}</div>
           <div className="mzf-display" style={{ fontSize: 20, marginTop: 16 }}>¿Es esa misma carga?</div>
           <div style={{ fontSize: 13, color: C.mute, marginTop: 6, lineHeight: 1.45, fontWeight: 600 }}>Un PO sirve para una carga. Si es la misma, úsalo. Si de verdad vas a cargar otra vez, saca otro.</div>
         </div>
       </div>
       <Bottom>
-        <button className="mzf-btn mzf-display" style={{ background: C.ink, fontSize: 20 }} onClick={() => reopen(h)}>SÍ · VER EL {h.po}</button>
-        <button className="mzf-btn lite" style={{ marginTop: 6 }} onClick={() => { setDupOk(true); setScreen(steps[steps.length - 1]); generate(true); }}>NO · ES OTRA CARGA, SACAR OTRO</button>
+        {mineDup ? <button className="mzf-btn mzf-display" style={{ background: C.ink, fontSize: 20 }} onClick={() => reopen(h)}>SÍ · VER EL {h.po}</button>
+          : <button className="mzf-btn mzf-display" style={{ background: C.ink, fontSize: 20 }} onClick={() => { setDupTruck(null); done(); }}>SÍ · USAR EL {h.po}</button>}
+        <button className="mzf-btn lite" style={{ marginTop: 6 }} onClick={() => { setDupOk(true); setDupTruck(null); setScreen(steps[steps.length - 1]); generate(true); }}>NO · ES OTRA CARGA, SACAR OTRO</button>
       </Bottom>
     </Shell>); }
   return null;
