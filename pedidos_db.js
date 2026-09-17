@@ -22,7 +22,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.2";
+  var VERSION = "1.3";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -90,13 +90,21 @@
   function hashToken() { var h = location.hash || ""; var t = /^#([rtp])=([A-Za-z0-9_-]+)$/.exec(h); return t ? { kind: t[1], tok: b64urlJson(t[2]) } : null; }
 
   /* ---------- cola de salida: nunca se pierde un pedido ---------- */
-  var sentKeys = {};
+  /* lo que ya se mandó desde este teléfono, GUARDADO: sobrevive recargas y que se cierre el app.
+     Un pedido = mayordomo + tienda + su ts (que el app ya mantiene fijo por pedido). */
+  var K_SENT = "muniz_db_sent";
+  function sentMap() { return ls(K_SENT, {}) || {}; }
+  function markSent(id) { try { var m = sentMap(); m[id] = Date.now(); var ks = Object.keys(m); if (ks.length > 200) { ks.sort(function (a, b) { return m[a] - m[b]; }).slice(0, ks.length - 200).forEach(function (k) { delete m[k]; }); } lsSet(K_SENT, m); } catch (e) { } }
+  function wasSent(id) { return !!sentMap()[id]; }
   function enqueue(stage, payload, showToast) {
     var out = ls(K_OUT, []);
     var id = stage + "|" + (payload.f || "") + "|" + (payload.ts || payload.po || "") + "|" + (payload.p || "");
-    if (stage !== "TICKET" && sentKeys[id]) return;                 // el mismo toque dos veces (ej. "ABRIR MENSAJES OTRA VEZ")
-    sentKeys[id] = 1;
-    out.push({ id: id, stage: stage, payload: payload, dev: deviceId(), t: Date.now(), toast: !!showToast });
+    if (stage !== "TICKET") {
+      if (wasSent(id)) { if (showToast) toast(stage === "SOLICITADO" ? "\u2713 Este pedido ya est\u00e1 registrado \u2014 no se manda dos veces" : "\u2713 Ya estaba registrado", "gray", 4000); return; }
+      if (out.some(function (i) { return i.id === id; })) { if (showToast) toast("\u23f3 Ese pedido ya va en camino", "gray", 3000); return; }   // en la cola, esperando se\u00f1al
+    }
+    payload.client_ref = id;                                          // para que el servidor tambi\u00e9n pueda deduplicar
+    out.push({ id: id, stage: stage, payload: payload, dev: deviceId(), t: Date.now(), toast: !!showToast, tries: 0 });
     lsSet(K_OUT, out.slice(-60));
     if (stage === "SOLICITADO" || stage === "APROBADO") lsSet(K_LAST, { stage: stage, f: payload.f, ts: payload.ts, p: payload.p, t: Date.now() });
     flush();
@@ -107,6 +115,35 @@
     if (navigator.onLine === false) { if (out.some(function (i) { return i.toast; })) toast("⏳ Sin señal — el pedido se registra solo al tener señal", "amber", 4500); return; }
     flushing = true;
     var item = out[0];
+    /* si este pedido ya sali\u00f3 una vez y no supimos si lleg\u00f3 (se fue la se\u00f1al a medias), primero
+       preguntamos si ya est\u00e1 en la oficina; si est\u00e1, se da por registrado y no se repite */
+    var check = (item.stage === "SOLICITADO" && item.tries > 0) ? alreadyThere(item) : Promise.resolve(false);
+    check.then(function (there) {
+      if (there) {
+        var cur0 = ls(K_OUT, []).filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur0); markSent(item.id);
+        if (item.toast) toast("\u2713 Pedido registrado en la oficina", "green", 4000);
+        flushing = false; if (cur0.length) setTimeout(flush, 50); return;
+      }
+      sendItem(item);
+    });
+  }
+  function alreadyThere(item) {
+    var p = item.payload || {};
+    return fetch(URL_ + "/rest/v1/rpc/my_orders", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_device: item.dev, p_name: p.f || null }) })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) {
+        var n = (p.o || []).length, ts = Number(p.ts) || item.t;
+        return (rows || []).some(function (o) {
+          var same = String(o.prov || o.p || "").toUpperCase() === String(p.p || "").toUpperCase();
+          var at = o.created_at ? new Date(o.created_at).getTime() : 0;
+          var near = at && Math.abs(at - ts) < 10 * 60e3;                          /* creado a menos de 10 min del pedido */
+          var lines = o.n_lines != null ? Number(o.n_lines) === n : (Array.isArray(o.lines) ? o.lines.length === n : true);
+          return same && near && lines;
+        });
+      }).catch(function () { return false; });
+  }
+  function sendItem(item) {
+    var cur1 = ls(K_OUT, []).map(function (i) { if (i.id === item.id) i.tries = (i.tries || 0) + 1; return i; }); lsSet(K_OUT, cur1);
     fetch(URL_ + "/rest/v1/rpc/register_material_order", {
       method: "POST", keepalive: true,
       headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json", Accept: "application/json" },
@@ -117,7 +154,7 @@
       var cur = ls(K_OUT, []);
       if (res.ok) {
         var row = null; try { var j = JSON.parse(res.txt); row = Array.isArray(j) ? j[0] : j; } catch (e) { }
-        cur = cur.filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur);
+        cur = cur.filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur); markSent(item.id);
         setTimeout(refreshMine, 1500);
         if (item.toast) {
           var no = row && row.req_no ? " · " + row.req_no : "";
@@ -246,5 +283,5 @@
   setTimeout(function () { flush(); logEvent("open"); refreshMine(); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
   setInterval(refreshMine, 120e3);
 
-  window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; } };
+  window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; }, wasSent: wasSent };
 })();
