@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v92
+/* MUÑIZ Pedidos - service worker  ·  v93
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -13,9 +13,9 @@
      · Product photos (remote) stay network-then-cache.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v92";
+const CACHE = "muniz-pedidos-v93";
 const SHELL = [
-  "./","./index.html","./instalar.html","./updater.js","./app.js","./styles.css","./manifest.json","./config.js","./pedidos_db.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./mando.html","./mando.js","./mando.css","./bandeja.html","./bandeja.js","./bandeja.css",
+  "./","./index.html","./instalar.html","./updater.js","./app.js","./styles.css","./manifest.json","./config.js","./pedidos_db.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./mando.html","./mando.js","./mando.css","./bandeja.html","./bandeja.js","./bandeja.css","./mando.webmanifest",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
 ];
 const NET_TIMEOUT_MS = 3500;
@@ -50,6 +50,29 @@ self.addEventListener("activate", (e) => { e.waitUntil((async () => {
     try { await Promise.race([c.navigate(c.url), new Promise(r => setTimeout(r, 3000))]); } catch (err) { }   // the navigation happens; its promise may never settle
   }
 })()); });
+
+/* ---------- push notifications (Command Center) ----------
+   The database pings notify-po, which sends a Web Push to every office phone
+   that turned notifications on in Mando. We show it and, on tap, open Mando. */
+self.addEventListener("push", (e) => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: "Muñiz · Command Center", body: e.data ? e.data.text() : "" }; }
+  const title = d.title || "Muñiz · Command Center";
+  e.waitUntil(self.registration.showNotification(title, {
+    body: d.body || "", tag: d.tag || undefined, renotify: !!d.tag,
+    icon: "./icon-192.png", badge: "./icon-192.png", timestamp: d.ts || Date.now(),
+    data: { url: d.url || "./mando.html" }
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const target = new URL((e.notification.data && e.notification.data.url) || "./mando.html", self.registration.scope).href;
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const mando = wins.find(c => /mando\.html/.test(c.url));
+    if (mando) { try { await mando.focus(); if (typeof mando.navigate === "function") await mando.navigate(target); } catch (err) {} return; }
+    await self.clients.openWindow(target);
+  })());
+});
 
 self.addEventListener("message", (e) => {
   const d = e.data || {};
