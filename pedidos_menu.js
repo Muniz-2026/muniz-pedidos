@@ -1,5 +1,5 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.4
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.5
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -50,6 +50,26 @@
       '<span style="font:900 26px/1.1 ui-monospace,Menlo,Consolas,monospace">' + p.po + '</span>' +
       '<span style="font:700 12px/1 system-ui,sans-serif;color:#6B675E"> · ' + (p.est === "TEXCON" ? "TEX-CON" : p.est === "LEOS" ? "LEO\'S" : (p.est || "")) + (p.placa ? " · " + p.placa : "") + '</span></span>';
   }
+  /* el último PO de material de esta persona (lo guarda pedidos_db.js cuando la oficina lo asigna) */
+  function lastMatPO(name) {
+    try {
+      var p = JSON.parse(localStorage.getItem("muniz_db_lastpo") || "null"); if (!p || !p.po) return null;
+      if (String(p.name || "").toUpperCase().trim() !== String(name || "").toUpperCase().trim()) return null;
+      var at = new Date(p.at).getTime() || Date.now(); if (Date.now() - at > 3 * 86400e3) return null;   // tres días
+      var min = Math.round((Date.now() - at) / 60000);
+      p.ago = min < 1 ? "ahora mismo" : min < 60 ? "hace " + min + " min" : min < 1440 ? "hace " + Math.round(min / 60) + " h" : "hace " + Math.round(min / 1440) + " d";
+      return p;
+    } catch (e) { return null; }
+  }
+  function matSubHTML(name) {
+    var p = lastMatPO(name);
+    if (!p) return "Pedir a ACE · CMC · RSS · White Cap";
+    return '<span style="display:inline-block;background:#E6F5EA;border:2px solid #1F8A3B;border-radius:10px;padding:6px 10px;color:#17181A">' +
+      '<span style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.08em;color:#1F8A3B">TU ÚLTIMO PO · ' + p.ago.toUpperCase() + '</span><br>' +
+      '<span style="font:900 26px/1.1 ui-monospace,Menlo,Consolas,monospace">' + p.po + '</span>' +
+      '<span style="font:700 12px/1 system-ui,sans-serif;color:#6B675E"> · ' + (p.prov || "ACE") + ' ya lo tiene · pasa a recoger</span></span>';
+  }
+  window.__mzRefreshMenuCards = function () { try { if (!overlay) return; var n = who() || tapped; var a = overlay.querySelector("#mz-mat-sub"); if (a) a.innerHTML = matSubHTML(n); var b = overlay.querySelector("#mz-fuel-sub"); if (b) b.innerHTML = fuelSubHTML(n); } catch (e) { } };
   function card(id, color, icon, title, sub, btn) {
     return '<button id="' + id + '" style="text-align:left;background:#fff;border:3px solid ' + color + ';border-radius:22px;padding:22px 20px;cursor:pointer;display:block;width:100%">' +
       '<div style="font-size:40px;line-height:1">' + icon + '</div>' +
@@ -86,7 +106,7 @@
         '<div style="font:400 10px/1.25 system-ui,sans-serif;color:#6B675E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div></div>' +
       '</div>' +
       '<div style="padding:18px 16px;display:flex;flex-direction:column;gap:16px;flex:1">' +
-        card("mz-mat", "#FF5A00", "🧱", "MATERIALES", "Pedir a ACE · CMC · RSS · White Cap", "ENTRAR A PEDIDOS →") +
+        card("mz-mat", "#FF5A00", "🧱", "MATERIALES", matSubHTML(name), "ENTRAR A PEDIDOS →") +
         card("mz-fuel", "#1E3A8A", "⛽", "COMBUSTIBLE", fuelSubHTML(name), lastFuelPO(name) ? "OTRO PO →" : "PO PARA COMBUSTIBLE →") +
       '</div>';
     document.body.appendChild(overlay);

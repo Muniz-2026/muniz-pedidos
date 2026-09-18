@@ -22,7 +22,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.3";
+  var VERSION = "1.4";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -52,7 +52,7 @@
     if (CAT[prov]) return Promise.resolve(CAT[prov]);
     if (CAT_P[prov]) return CAT_P[prov];
     CAT_P[prov] = fetch("./catalog_" + prov.toLowerCase() + ".json").then(function (r) { return r.json(); }).then(function (j) {
-      var m = {}; ((j && j.items) || []).forEach(function (it) { if (it && it.c) m[String(it.c).trim()] = { es: String(it.es || it.en || "").slice(0, 110), p: (it.p != null && isFinite(Number(it.p))) ? Number(it.p) : null }; });
+      var m = {}; ((j && j.items) || []).forEach(function (it) { if (it && it.c) m[String(it.c).trim()] = { es: String(it.es || it.en || "").slice(0, 110), en: String(it.en || it.es || "").slice(0, 140), p: (it.p != null && isFinite(Number(it.p))) ? Number(it.p) : null }; });
       CAT[prov] = m; return m;
     }).catch(function () { CAT_P[prov] = null; return {}; });
     return CAT_P[prov];
@@ -66,7 +66,7 @@
       var o = (tok.o || []).map(function (l) {
         var code = String(l[0] || ""), qty = Number(l[1]) || 0;
         if (code.charAt(0) === "*") return [code, qty, String(l[2] || ""), null];           // fuera de catálogo
-        var it = look(code); return [code, qty, it ? it.es : String(l[2] || ""), it ? it.p : null];
+        var it = look(code); return [code, qty, it ? it.es : String(l[2] || ""), it ? it.p : null, it ? it.en : ""];   // [código, cant, español, precio, inglés para el correo a ACE]
       });
       var x = (tok.x || []).map(function (l) {                                                  // quitadas / no autorizadas
         var code = String(l[0] || ""), qty = Number(l[1]) || 0; var it = look(code);
@@ -268,7 +268,23 @@
     try {
       fetch(URL_ + "/rest/v1/rpc/my_orders", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_device: deviceId(), p_name: whoAmI() || null }) })
         .then(function (r) { return r.ok ? r.json() : []; })
-        .then(function (rows) { var n = (rows || []).filter(function (o) { return o.status === "SOLICITADO" || o.needs_justification; }).length; lsSet("muniz_db_mine_cache", { n: n, t: Date.now() }); misPedidosButton(); })
+        .then(function (rows) {
+          rows = rows || [];
+          var n = rows.filter(function (o) { return o.status === "SOLICITADO" || o.needs_justification; }).length; lsSet("muniz_db_mine_cache", { n: n, t: Date.now() }); misPedidosButton();
+          /* ---- el PO ya salió: el mayordomo se entera aquí, sin que nadie le mande texto ---- */
+          try {
+            var withPo = rows.filter(function (o) { return o.po && String(o.status || "").toUpperCase() === "PO_ASIGNADO"; })
+              .sort(function (a, b) { return new Date(b.po_at || b.updated_at || b.created_at || 0) - new Date(a.po_at || a.updated_at || a.created_at || 0); });
+            if (withPo.length) {
+              var top = withPo[0], key = String(top.req_no || top.id || top.po);
+              var seenPo = ls("muniz_db_po_seen", {});
+              lsSet("muniz_db_lastpo", { po: String(top.po), req: top.req_no || "", prov: String(top.prov || top.provider || "").toUpperCase(), at: top.po_at || top.updated_at || top.created_at || new Date().toISOString(), name: whoAmI() || (top.foreman || "") });
+              if (!seenPo[key]) { seenPo[key] = Date.now(); lsSet("muniz_db_po_seen", seenPo);
+                toast("\u2713 PO " + top.po + " \u00b7 " + String(top.prov || top.provider || "ACE").toUpperCase() + " ya lo tiene \u00b7 pasa a recoger", "green", 9000, "./bandeja.html#mis"); }
+              try { if (window.__mzRefreshMenuCards) window.__mzRefreshMenuCards(); } catch (e) { }
+            }
+          } catch (e) { }
+        })
         .catch(function () { });
     } catch (e) { }
   }
@@ -278,8 +294,9 @@
 
   /* ---------- reintentos y presencia ---------- */
   window.addEventListener("online", flush);
-  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { flush(); logEvent("open"); } });
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { flush(); logEvent("open"); refreshMine(); } });
   setInterval(flush, 60e3);
+  setInterval(function () { if (document.visibilityState === "visible" && navigator.onLine !== false) refreshMine(); }, 120e3);   // el PO llega solo, sin texto
   setTimeout(function () { flush(); logEvent("open"); refreshMine(); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
   setInterval(refreshMine, 120e3);
 
