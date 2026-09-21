@@ -2,21 +2,12 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 /* =====================================================================
-   MUÑIZ COMBUSTIBLE · v5.0
-   Lives INSIDE the orders app. create_fuel_po issues the number on the spot.
-     1 ¿Dónde vas a cargar?   TEX-CON · LEO'S  (your last PO sits on top)
-     2 ¿Qué vas a cargar?     skipped for gasolina-only people (PMs, SOLO_GASOLINA)
-                              and for dump-truck drivers (CHOFERES_CAMION: diésel verde)
-     3 Tu camioneta / camión  placa + odómetro only when the unit gets fuel
-   THE UNIT IS THE PLATE. Trucks change hands and get replaced constantly, so:
-     · a plate the fleet knows            -> that unit and its odometer history
-     · a registered unit with no plate    -> the first plate typed belongs to it
-     · a plate different from the one on file -> a different truck: new unit
-       PL-PLATE with a fresh odometer, flagged "actualizar flota"
-   Nobody ever picks from a list. The app remembers each person's last plate.
-   Odometer: six digits max; can't go down; >15,000 mi jump blocked; a repeat
-   is flagged. Duplicates by person or unit in 30 min stop GENERAR. LISTO
-   shows the number once more before leaving; last 12 h of POs one tap away.
+   MUÑIZ COMBUSTIBLE · v5.1
+   THE UNIT IS THE PLATE. A plate the fleet knows -> that unit. A plate one
+   keystroke away from a known one -> the app asks "¿quisiste escribir ésta?"
+   before treating it as a different truck. A genuinely new plate -> a new
+   unit, flagged for the office. Nobody picks from a list, and a typo at the
+   pump never dead-ends: the server's refusal offers CORREGIR LA PLACA.
    ===================================================================== */
 
 const CFG  = (typeof window !== "undefined" && window.MUNIZ_CONFIG) || {};
@@ -71,7 +62,7 @@ function logEvent(event, extra) {
   try { fetch(`${SB_URL}/rest/v1/events`, { method: "POST", headers: hdr(null), body: JSON.stringify({ device_id: deviceId(), app: "fuel", event, ...(extra || {}) }) }).catch(() => {}); } catch (e) {}
 }
 const APP_URL = "https://muniz-2026.github.io/muniz-pedidos/";
-const VERSION = "5.0";
+const VERSION = "5.1";
 
 const up = s => String(s || "").toUpperCase().trim();
 const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -619,6 +610,20 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const lastPlate = (LS.get(K_LASTPLATE, {}) || {})[nk(who)] || "";
   const plateMatch = useMemo(() => { const p = plateClean(plate); if (p.length < 5) return null;
     return allTrucks.find(v => plateClean(v.placa) === p || plateClean(plates[v.id]) === p) || null; }, [plate, refTick]);
+  /* ¿se equivocó de una tecla? LRJ2949 vs LRJ3949. Distancia 1 = casi seguro un dedazo. */
+  const dist1 = (a, b) => { if (Math.abs(a.length - b.length) > 1) return false;
+    let i = 0, j = 0, d = 0;
+    while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue; }
+      if (++d > 1) return false;
+      if (a.length > b.length) i++; else if (a.length < b.length) j++; else { i++; j++; } }
+    return d + (a.length - i) + (b.length - j) === 1; };
+  const nearMiss = useMemo(() => { const p = plateClean(plate); if (p.length < 5 || plateMatch) return null;
+    const known = []; allTrucks.forEach(v => { const q = plateClean(v.placa || plates[v.id] || ""); if (q.length >= 5) known.push({ v, q }); });
+    const hits = known.filter(k => dist1(p, k.q));
+    if (hits.length !== 1) return null;                                  /* si hay dudas, no adivinamos */
+    const hit = hits[0];
+    return { plate: hit.q, truck: hit.v, mine: !!(regTruck && hit.v.id === regTruck.id) };
+  }, [plate, plateMatch, refTick, regTruck && regTruck.id]);
   const synthTruck = useMemo(() => { if (typedPlate.length < 5) return null;
     const comb = gasOnly ? "GASOLINA" : dieselOnly ? "DIESEL" : has("VERDE") ? "DIESEL" : (regTruck ? regTruck.comb : "GASOLINA");
     const tipo = dieselOnly ? "CAMION" : "CAMIONETA";
@@ -771,15 +776,20 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
   const readingErr = failed && !badJob && !unknownUnit && /lectura|reading|menor|odom/i.test(String(failed.__err || ""));
   if (failed && unknownUnit) return (
     <Shell>
-      <Head title="FALTA DAR DE ALTA" who={who} onBack={() => setFailed(null)} strip="COMBUSTIBLE" stripColor={C.amber} />
+      <Head title="REVISA LA PLACA" who={who} onBack={() => setFailed(null)} strip="COMBUSTIBLE" stripColor={C.amber} />
       <div className="mzf-body">
-        <div className="mzf-card" style={{ padding: 18, textAlign: "center", borderColor: C.amber }}>
-          <div style={{ fontSize: 52 }}>🛻</div>
-          <div className="mzf-display" style={{ fontSize: 22, marginTop: 8 }}>Esta unidad no está dada de alta</div>
-          <div style={{ fontSize: 15, marginTop: 8, lineHeight: 1.4, fontWeight: 700 }}>Mándale a Tito la placa <b className="mzf-mono">{effPlate || (failed.vehicle_id || "")}</b> para que la registre.</div>
+        <div className="mzf-card" style={{ padding: 18, textAlign: "center", borderColor: C.amber, borderWidth: 3 }}>
+          <div style={{ fontSize: 52 }}>🔤</div>
+          <div className="mzf-display" style={{ fontSize: 22, marginTop: 8 }}>Esa placa no está en la flota</div>
+          <div className="mzf-mono mzf-display" style={{ fontSize: 34, marginTop: 10 }}>{effPlate || (failed.vehicle_id || "")}</div>
+          <div style={{ fontSize: 15, marginTop: 10, lineHeight: 1.4, fontWeight: 700 }}>Revisa que esté igualita a la de la camioneta — una letra o un número de diferencia y no la encuentra.</div>
+          {regPlateKnown ? <div style={{ fontSize: 13, color: C.mute, marginTop: 8, fontWeight: 700 }}>La que tienes registrada es <b className="mzf-mono" style={{ color: C.ink }}>{regPlateKnown}</b>.</div> : null}
         </div>
       </div>
-      <Bottom><button className="mzf-btn mzf-display" style={{ background: C.ink }} onClick={() => { setFailed(null); go(fuelsTruck ? "veh" : "fuel"); }}>REGRESAR →</button></Bottom>
+      <Bottom>
+        <button className="mzf-btn mzf-display" style={{ background: C.amber, color: C.ink, fontSize: 20 }} onClick={() => { setFailed(null); go("veh"); }}>CORREGIR LA PLACA →</button>
+        {regPlateKnown && plateClean(regPlateKnown) !== effPlate ? <button className="mzf-btn lite" style={{ marginTop: 6 }} onClick={() => { setPlate(regPlateKnown); setFailed(null); go("veh"); }}>USAR {regPlateKnown}</button> : null}
+      </Bottom>
     </Shell>);
   if (failed && readingErr) {
     const nums = String(failed.__err).match(/\d[\d,.]*/g) || [];
@@ -911,6 +921,17 @@ function Wizard({ who, embedded, onClose, onChangeWho, refTick }) {
         <div className="mzf-label" style={{ marginTop: 16 }}>PLACA</div>
         <input className="mzf-input big" value={plate} onChange={e => setPlate(up(e.target.value).replace(/[^A-Z0-9 -]/g, "").slice(0, 10))}
           placeholder={regPlate || "EJ. RTX4821"} autoCapitalize="characters" autoCorrect="off" spellCheck={false} inputMode="text" />
+        {nearMiss ? (
+          <button className="mzf-card" style={{ width: "100%", textAlign: "left", padding: 12, marginTop: 10, borderColor: C.amber, borderWidth: 3, display: "flex", alignItems: "center", gap: 10 }}
+            onClick={() => setPlate(nearMiss.plate)}>
+            <div style={{ fontSize: 26, flex: "none" }}>⚠️</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="mzf-label" style={{ color: C.amber, margin: 0 }}>¿QUISISTE ESCRIBIR ESTA?</div>
+              <div className="mzf-mono mzf-display" style={{ fontSize: 26, lineHeight: 1.1, marginTop: 2 }}>{nearMiss.plate}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.mute, marginTop: 2 }}>{nearMiss.mine ? "Tu camioneta" : (nearMiss.truck.de ? "De " + nearMiss.truck.de : nearMiss.truck.desc)} · se parece mucho a la que pusiste</div>
+            </div>
+            <div className="mzf-cta" style={{ background: C.amber, color: C.ink, marginTop: 0, flex: "none" }}>SÍ, ESA</div>
+          </button>) : null}
         {typedPlate && lastPlate && typedPlate === plateClean(lastPlate) ? <div style={{ fontSize: 12, color: C.mute, fontWeight: 700, marginTop: 6, textAlign: "center" }}>La misma placa de la última vez · si traes otr{dieselOnly ? "o camión" : "a camioneta"}, cámbiala</div>
           : typedPlate && regPlate && typedPlate === plateClean(regPlate) ? <div style={{ fontSize: 12, color: C.mute, fontWeight: 700, marginTop: 6, textAlign: "center" }}>Placa registrada · si traes otra camioneta, cámbiala</div>
           : newTruck && !dieselOnly ? <div className="mzf-warn blue" style={{ marginTop: 8 }}>Placa distinta a la del registro: el app la toma como <b>otra camioneta</b>, con su propio odómetro. Pon las millas que marque esa.</div> : null}
