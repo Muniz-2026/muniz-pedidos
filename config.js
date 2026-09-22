@@ -62,6 +62,7 @@ window.MUNIZ_CONFIG = {
     "ULISES LARA",
     "HECTOR SEGURA",
     "ENRIQUE CHAPA",          /* coordinador de operaciones */
+    "JULIO MARTINEZ",         /* mayordomo · cubre a Ruben Cano mientras está incapacitado */
     "JOSE DE LA CERDA",       /* choferes de camion (dump truck): ver CHOFERES_CAMION abajo */
     "ROGELIO LOPEZ",
     "FRANCIS ECHEVESTRE",
@@ -172,6 +173,7 @@ window.MUNIZ_CONFIG = {
     OBRA_SEMANA: {
       "ENRIQUE ALVARADO": "St Johns Ave",           "DANIEL ORTEGA": "Springdale Rd @ Lyons Rd",
       "RUBEN CANO": "Mokan Trail",                  "SERGIO NINO": "Metro Center Dr",
+      "JULIO MARTINEZ": "Mokan Trail",              /* cubriendo a Ruben Cano */
       "ISIDRO SANCHEZ": "North Lamar Blvd",         "GERARDO SANCHEZ": "North Lamar Blvd",
       "DIEGO VAZQUEZ": "Banister Area",             "FRANCISCO AGUIRRE": "Rundberg Rd",
       "VICTOR SANCHEZ": "RBJ Health Center",        "JULIAN GONZALEZ": "CapMetro",
@@ -204,6 +206,7 @@ window.MUNIZ_CONFIG = {
       { id:"V-EAL", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"ENRIQUE ALVARADO" },
       { id:"V-FBO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"FRANCISCO BOCANEGRA" },
       { id:"V-RCA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"RUBEN CANO" },
+      { id:"V-JMA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"JULIO MARTINEZ" },   /* cubriendo a Ruben Cano */
       { id:"V-CDI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"CARLOS DIAZ" },
       { id:"V-JGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"JULIAN GONZALEZ" },
       { id:"V-OHE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL",   de:"OMAR ALFREDO HERNANDEZ" },
@@ -281,6 +284,7 @@ window.MUNIZ_CONFIG = {
     "ENRIQUE ALVARADO":      "MIGUEL JUAREZ",
     "FRANCISCO BOCANEGRA":   "MARTIN GONZALEZ",
     "RUBEN CANO":            "LUPE JUAREZ",
+    "JULIO MARTINEZ":        "LUPE JUAREZ",       /* cubriendo a Ruben Cano */
     "CARLOS DIAZ":           "MIGUEL JUAREZ",
     "JULIAN GONZALEZ":       "JOSE LUIS ZAMARRIPA",
     "OMAR ALFREDO HERNANDEZ":"JOSE LUIS ZAMARRIPA",
