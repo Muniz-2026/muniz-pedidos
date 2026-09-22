@@ -1,5 +1,5 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.5
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.6
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -8,9 +8,6 @@
    v2.0: el combustible ya NO es un iframe ni otro sitio. fuel.js (window.MunizFuel)
    dibuja el wizard AQUÍ mismo, en este documento, con el mismo estilo que pedidos:
    una sola cabecera, una sola flecha ←. En el primer paso ← regresa a este menú.
-   v2.1: si el app se abrió en Safari (no desde el ícono), avisa en la pantalla
-   de los nombres. En Safari el iPhone borra todo a los 7 días sin abrirlo y
-   guarda el pedido en otro lado, así que un pedido hecho ahí se puede perder.
    No toca app.js. Se carga en index.html después de pedidos_db.js y fuel.js.
    ===================================================================== */
 (function () {
@@ -177,28 +174,6 @@
   }
 
 
-  /* ---------- aviso: esto se abrió en Safari, no desde el ícono ---------- */
-  var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  var standalone = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-  var inSafariTab = iOS && !standalone;
-  var tip = null;
-  function showTip() {
-    if (tip || !inSafariTab) return;
-    try { if (sessionStorage.getItem("muniz_tip_off") === "1") return; } catch (e) { }
-    tip = document.createElement("div");
-    tip.style.cssText = "background:#FF5A00;color:#fff;padding:10px 12px;display:flex;align-items:center;gap:10px;font-family:system-ui,-apple-system,sans-serif";
-    tip.innerHTML =
-      '<div style="flex:1;min-width:0">' +
-        '<div style="font:900 14px/1.2 system-ui,sans-serif">Ábrelo desde el ícono PEDIDOS</div>' +
-        '<div style="font:600 12px/1.3 system-ui,sans-serif;opacity:.95;margin-top:2px">Aquí en el internet el teléfono borra tus pedidos a los 7 días.</div>' +
-      '</div>' +
-      '<a href="./instalar.html" style="flex:none;background:#fff;color:#FF5A00;font:900 12px/1 system-ui,sans-serif;padding:10px 12px;border-radius:10px;text-decoration:none">CÓMO</a>' +
-      '<button id="mz-tip-x" aria-label="Cerrar" style="flex:none;width:34px;height:34px;border:0;border-radius:10px;background:rgba(0,0,0,.18);color:#fff;font-size:18px;line-height:1;cursor:pointer">✕</button>';
-    document.body.insertBefore(tip, document.body.firstChild);
-    tip.querySelector("#mz-tip-x").onclick = function () { try { sessionStorage.setItem("muniz_tip_off", "1"); } catch (e) { } hideTip(); };
-  }
-  function hideTip() { if (tip && tip.parentNode) tip.parentNode.removeChild(tip); tip = null; }
-
   /* ---------- el toque en el nombre: el menú aparece EN ESE INSTANTE, antes de que el app cambie de pantalla ---------- */
   var tapped = "", tappedAt = 0;
   /* ¿está la pantalla de la CLAVE (oficina) encima? */
@@ -240,9 +215,8 @@
   function check() {
     clearTimeout(t);
     t = setTimeout(function () {
-      if (panel) { hidePills(); hideTip(); return; }                                // combustible abierto encima: no tocar
-      if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { clearSeen(); hide(); showTip(); return; }   // lista de nombres: la próxima vez pregunta otra vez
-      hideTip();                                                                   // el aviso solo vive en la lista de nombres
+      if (panel) { hidePills(); return; }                                           // combustible abierto encima: no tocar
+      if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { clearSeen(); hide(); return; }               // lista de nombres: la próxima vez pregunta otra vez
       if (pinOpen()) { hide(); return; }                                             // pantalla de la clave: nada encima
       if (hasText(TITLE, "h1,h2,h3,div,span")) { var n = who() || (Date.now() - tappedAt < 2000 ? tapped : ""); if (n && !seen(n)) show(n); }
       else hide();
