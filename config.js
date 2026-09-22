@@ -146,6 +146,8 @@ window.MUNIZ_CONFIG = {
        es para quien no es gerente. Escribe el nombre y una coma. */
     SOLO_GASOLINA: [
       "ENRIQUE CHAPA",
+      "TITO CUETO",
+      "CLAUDIA TAMAYO",
     ],
 
     ESTACIONES: {
@@ -238,6 +240,8 @@ window.MUNIZ_CONFIG = {
       { id:"V-AGO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ABRAHAM GONZALES" },
       { id:"V-ULA", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"ULISES LARA" },
       { id:"V-ECH", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"ENRIQUE CHAPA" },   /* coordinador de operaciones */
+      { id:"V-TCU", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"TITO CUETO" },       /* oficina */
+      { id:"V-CTA", placa:"", desc:"Camioneta gasolina", tipo:"CAMIONETA", comb:"GASOLINA", de:"CLAUDIA TAMAYO" },   /* oficina */
       { id:"V-RPE", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"RAFAEL PEREZ" },
       { id:"V-JRO", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"JESUS G RODRIGUEZ" },
       { id:"V-AJI", placa:"", desc:"Camioneta diésel", tipo:"CAMIONETA", comb:"DIESEL", de:"AVISAI JIMENEZ" },
