@@ -22,7 +22,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.4";
+  var VERSION = "1.5";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -45,6 +45,24 @@
     } catch (e) { return null; }
   }
   function whoAmI() { var p = ls(K_PED, null); return p && p.name ? String(p.name).toUpperCase() : ""; }
+
+  /* ---------- la oficina pide a nombre de un mayordomo ---------- */
+  function isOfficeName(n) {
+    try { var o = (window.MUNIZ_CONFIG || {}).OFICINA || {}, t = String(n || "").toUpperCase().trim();
+      for (var k in o) if (String(k).toUpperCase().trim() === t) return true; } catch (e) { }
+    return false;
+  }
+  function paraQuien() {                                   // sólo cuenta si quien está en el teléfono ES de oficina
+    var me = whoAmI(); if (!isOfficeName(me)) return "";
+    var p = ""; try { p = sessionStorage.getItem("muniz_of_para") || ""; } catch (e) { }
+    p = String(p || window.__ofPara || "").toUpperCase().trim();
+    return p && p !== me ? p : "";
+  }
+  function obraDe(n) {
+    try { var o = ((window.MUNIZ_CONFIG || {}).COMBUSTIBLE || {}).OBRA_SEMANA || {}, t = String(n || "").toUpperCase().trim();
+      for (var k in o) if (String(k).toUpperCase().trim() === t) return String(o[k] || ""); } catch (e) { }
+    return "";
+  }
 
   /* ---------- catálogos: código -> {es, p}. Mismo archivo que usa el app (ya está en caché) ---------- */
   var CAT = {}, CAT_P = {};
@@ -159,6 +177,7 @@
         if (item.toast) {
           var no = row && row.req_no ? " · " + row.req_no : "";
           if (item.payload.dm) toast("🎓 Práctica registrada (no cuenta)" + no, "gray", 3500);
+          else if (item.payload.pb) toast("\u2713 Pedido de " + item.payload.f + no + " \u00b7 aprobado por la oficina \u00b7 el PO sale en segundos", "green", 7000);
           else if (item.stage === "SOLICITADO" && row && row.note) {
             // el motor de reglas ya decidió: verde (aprobado solo), rojo (rechazado / detenido) o amarillo (lo ve el supervisor)
             var lane = row.lane || "", tone = lane === "VERDE" ? "green" : lane === "ROJO" ? "red" : "amber";
@@ -238,6 +257,20 @@
 
     var stage = STAGE[sms.kind]; if (!stage) return;
     var tok = sms.tok; tok.to = sms.to;
+
+    // la oficina pide a nombre de un mayordomo: el pedido es de él, lo decide la oficina, sin texto a nadie
+    var para = stage === "SOLICITADO" ? paraQuien() : "";
+    if (para) {
+      ev.preventDefault();                                  // no abre Mensajes
+      tok.pb = whoAmI();                                    // quién lo pidió de verdad
+      tok.f  = para;                                        // de quién es el pedido
+      var obra = obraDe(para); tok.j = obra || null;        // su obra (si no, la decide el rol del servidor)
+      try { sessionStorage.setItem("muniz_para_sent", String(Date.now())); } catch (e) { }   // la pantalla de "listo" sale sólo tras un envío real
+      toast("\u23f3 Registrando el pedido de " + para + "\u2026", "gray", 3000);
+      enrich(tok).then(function (payload) { enqueue(stage, payload, true); });
+      logEvent("sent", { meta: { prov: tok.p, lines: (tok.o || []).length, para: para } });
+      return;
+    }
     if (stage === "APROBADO" && !tok.s) tok.s = whoAmI() || null;   // quien aprueba desde este teléfono
     enrich(tok).then(function (payload) { enqueue(stage, payload, true); });
     logEvent(stage === "SOLICITADO" ? "sent" : stage.toLowerCase(), { meta: { prov: tok.p, lines: (tok.o || []).length } });

@@ -1,5 +1,5 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.6
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.7
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -75,6 +75,133 @@
       '<div style="display:inline-block;margin-top:14px;background:' + color + ';color:#fff;font:900 15px/1 system-ui,sans-serif;padding:14px 18px;border-radius:14px;letter-spacing:.03em">' + btn + '</div>' +
     '</button>';
   }
+
+  /* ---------- la oficina pide a nombre de un mayordomo ----------
+     Tito y Claudia nunca piden para sí mismos: piden para alguien. Antes de
+     entrar a MATERIALES escogen para quién. Siguen con acceso de oficina
+     (lo bloqueado se puede pedir), pero el pedido sale a nombre de ese
+     mayordomo, con su obra, y lo registra/aprueba la oficina de un toque. */
+  var K_PARA = "muniz_of_para";
+  function upk(s) { return String(s || "").toUpperCase().trim(); }
+  function isOfficeName(n) {
+    try { var o = (window.MUNIZ_CONFIG || {}).OFICINA || {}, t = upk(n); for (var k in o) if (upk(k) === t) return true; } catch (e) { }
+    return false;
+  }
+  function getPara() { try { return sessionStorage.getItem(K_PARA) || ""; } catch (e) { return ""; } }
+  function setPara(p) { try { if (p) sessionStorage.setItem(K_PARA, p); else sessionStorage.removeItem(K_PARA); } catch (e) { } window.__ofPara = p || ""; window.__mzNeedOfOff = !!p; paraPill(); }
+  function peopleForPicker() {
+    var c = window.MUNIZ_CONFIG || {}, F = c.COMBUSTIBLE || {}, seen = {}, groups = { may: [], sup: [], pm: [] };
+    var office = {}; Object.keys(c.OFICINA || {}).forEach(function (k) { office[upk(k)] = 1; });
+    var drivers = {}; (F.CHOFERES_CAMION || []).forEach(function (k) { drivers[upk(k)] = 1; });
+    var sups = {}; Object.keys(c.SUPERVISORES || {}).forEach(function (k) { sups[upk(k)] = 1; });
+    var pms = {}; (Array.isArray(c.GERENTES) ? c.GERENTES : Object.keys(c.GERENTES || {})).forEach(function (k) { pms[upk(k)] = 1; });
+    function add(n, g) { n = upk(n); if (!n || seen[n] || office[n] || drivers[n]) return; seen[n] = 1; groups[g].push(n); }
+    Object.keys(sups).forEach(function (n) { add(n, "sup"); });
+    Object.keys(pms).forEach(function (n) { add(n, "pm"); });
+    Object.keys(c.ASIGNACIONES || {}).forEach(function (n) { add(n, "may"); });
+    (c.PERSONAL || []).forEach(function (n) { add(n, "may"); });
+    ["may", "sup", "pm"].forEach(function (g) { groups[g].sort(); });
+    return groups;
+  }
+  function showPara(name) {
+    if (!overlay) return;
+    var g = peopleForPicker();
+    function grid(title, color, list) {
+      if (!list.length) return "";
+      return '<div style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.1em;color:' + color + ';margin:16px 2px 8px">' + title + '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+        list.map(function (n) { return '<button data-para="' + n + '" style="min-height:52px;border-radius:12px;border:2px solid #D8D4CB;background:#fff;font:900 13px/1.15 system-ui,sans-serif;color:#17181A;padding:6px">' + n + '</button>'; }).join("") + '</div>';
+    }
+    overlay.innerHTML =
+      '<div style="position:fixed;inset:0;background:#EDEBE6;z-index:9997;overflow:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 24px)">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<button id="mz-para-back" style="width:52px;height:52px;border-radius:14px;background:#17181A;color:#fff;border:0;font:900 26px/1 system-ui">\u2190</button>' +
+          '<div><div style="font:900 22px/1.05 \'Archivo Black\',system-ui,sans-serif;color:#17181A">\u00bfPARA QUI\u00c9N ES?</div>' +
+          '<div style="font:700 12px/1.3 system-ui,sans-serif;color:#6B675E;margin-top:3px">Pides con acceso de oficina. El pedido sale a su nombre y t\u00fa lo apruebas.</div></div>' +
+        '</div>' +
+        grid("MAYORDOMOS", "#17181A", g.may) + grid("SUPERVISORES", "#2E5C8A", g.sup) + grid("GERENTES DE PROYECTO", "#7A4E1D", g.pm) +
+        '<button id="mz-para-me" style="margin-top:22px;width:100%;min-height:48px;border-radius:12px;border:2px dashed #BDB8AD;background:transparent;font:800 13px/1 system-ui,sans-serif;color:#6B675E">PARA LA OFICINA (a mi nombre)</button>' +
+      '</div>';
+    overlay.querySelector("#mz-para-back").onclick = function () { hide(); show(name); };
+    overlay.querySelector("#mz-para-me").onclick = function () { setPara(""); markSeen(name); hide(); };
+    Array.prototype.forEach.call(overlay.querySelectorAll("[data-para]"), function (b) {
+      b.onclick = function () { setPara(b.getAttribute("data-para")); markSeen(name); hide(); };
+    });
+  }
+  var paraEl = null;
+  function paraPill() {
+    var p = getPara(), me = who() || tapped;
+    var show = p && isOfficeName(me) && !overlay && !panel && !hasText(/Toca tu nombre/i, "h1,h2,h3,div,p");
+    if (!show) { if (paraEl) paraEl.style.display = "none"; return; }
+    if (!paraEl) {
+      paraEl = document.createElement("button");
+      paraEl.setAttribute("aria-label", "Cambiar para qui\u00e9n es el pedido");
+      paraEl.style.cssText = "position:fixed;left:10px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:9998;background:#2E5C8A;color:#fff;border:0;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:8px 11px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.35);letter-spacing:.03em;display:flex;align-items:center;gap:6px;max-width:58vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+      paraEl.onclick = function () { var n = who() || tapped; if (!overlay) { overlay = document.createElement("div"); document.body.appendChild(overlay); } showPara(n); };
+      document.body.appendChild(paraEl);
+    }
+    paraEl.innerHTML = "\ud83d\udccb PARA: " + p + " \u270e";
+    paraEl.style.display = "flex";
+    paraScreen(p);
+  }
+  var paraCss = false;
+  function paraScreen(p) {
+    if (!paraCss) {
+      var st = document.createElement("style");
+      st.textContent = "[data-mz-label]{font-size:0 !important}[data-mz-label]::after{content:attr(data-mz-label);font-size:17px;line-height:1.2}" +
+        "[data-mz-route]{font-size:0 !important}[data-mz-route]::after{content:attr(data-mz-route);font-size:11px;font-weight:800;color:#2E5C8A}";
+      document.head.appendChild(st); paraCss = true;
+    }
+    // 1) una sola vez por pedido: salir de MODO OFICINA para que aparezca el botón de mandar (el catálogo sigue sin bloqueos)
+    if (window.__mzNeedOfOff) {
+      var tg = Array.prototype.find.call(document.querySelectorAll("button"), function (b) { return (b.textContent || "").trim() === "OFICINA"; });
+      if (tg && /2E5C8A/i.test(tg.className || "")) { tg.click(); window.__mzNeedOfOff = false; }
+    }
+    // 2) el botón y el renglón de ruta dicen lo que de verdad pasa
+    Array.prototype.forEach.call(document.querySelectorAll("a[href^='sms:']"), function (a) {
+      var t = (a.textContent || "").replace(/\s+/g, " ").trim();
+      var m2 = /MANDAR A [A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1 ]+?\s*\u00b7\s*(.+)$/.exec(t);
+      if (m2) a.setAttribute("data-mz-label", "\u2705 PEDIR PARA " + p + " \u00b7 " + m2[1]);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("div"), function (d) {
+      if (d.children.length === 0 && /^SIN SUPERVISOR ASIGNADO/.test((d.textContent || "").trim()))
+        d.setAttribute("data-mz-route", "A nombre de " + p + " \u00b7 lo apruebas t\u00fa \u00b7 sale el PO al instante");
+    });
+    // 3) la pantalla de "toca la flecha en Mensajes" no aplica: no se abrió Mensajes. Se cubre con la verdad.
+    var sentAt = 0; try { sentAt = Number(sessionStorage.getItem("muniz_para_sent") || 0); } catch (e) { }
+    if (!paraDoneEl && sentAt && Date.now() - sentAt < 5 * 60e3 &&
+        Array.prototype.some.call(document.querySelectorAll("button"), function (b) { return /S[I\u00cd], YA LO MAND/i.test(b.textContent || ""); })) paraDone(p);
+  }
+  var paraDoneEl = null;
+  function paraDone(p) {
+    paraDoneEl = document.createElement("div");
+    paraDoneEl.style.cssText = "position:fixed;inset:0;z-index:9999;background:#17181A;color:#fff;display:flex;flex-direction:column;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 24px) 22px calc(env(safe-area-inset-bottom,0px) + 24px);font-family:system-ui,-apple-system,sans-serif;text-align:center";
+    paraDoneEl.innerHTML =
+      '<div style="width:88px;height:88px;border-radius:50%;background:#1F8A3B;margin:0 auto;display:flex;align-items:center;justify-content:center;font:900 48px/1 system-ui">\u2713</div>' +
+      '<div style="font:900 30px/1.05 \'Archivo Black\',system-ui,sans-serif;margin-top:22px">PEDIDO REGISTRADO</div>' +
+      '<div style="font:800 17px/1.35 system-ui,sans-serif;margin-top:14px;color:#E8E6E1">A nombre de <span style="color:#F5B800">' + p + '</span></div>' +
+      '<div style="font:700 14px/1.45 system-ui,sans-serif;margin-top:12px;color:#B4BCC8">Lo aprobaste t\u00fa. No hay que mandar nada.<br>El PO sale en segundos y le aparece a \u00e9l en <b style="color:#fff">MIS PEDIDOS</b>.</div>' +
+      '<button id="mz-para-fin" style="margin-top:34px;width:100%;min-height:62px;border-radius:16px;border:0;background:#1F8A3B;color:#fff;font:900 20px/1 \'Archivo Black\',system-ui,sans-serif">TERMINAR</button>' +
+      '<button id="mz-para-otro" style="margin-top:10px;width:100%;min-height:50px;border-radius:14px;border:2px solid #3C4046;background:transparent;color:#E8E6E1;font:800 14px/1 system-ui,sans-serif">OTRO PEDIDO PARA ' + p + '</button>';
+    document.body.appendChild(paraDoneEl);
+    function btn(re) { return Array.prototype.find.call(document.querySelectorAll("button"), function (b) { return re.test((b.textContent || "").trim()); }); }
+    function finish(keepPara) {
+      try { sessionStorage.removeItem("muniz_para_sent"); } catch (e) { }  // ya se vio: no vuelve a salir
+      if (!keepPara) setPara("");                                         // TERMINAR = ya acabé con este mayordomo
+      var yes = btn(/S[I\u00cd], YA LO MAND/i); if (yes) yes.click();     // el app cierra y registra el pedido a su manera
+      // su pantalla siguiente dice "para TITO · toca ENVIAR en Mensajes": no aplica, se salta
+      setTimeout(function () {
+        var again = btn(/^HACER OTRO PEDIDO$/i); if (again) again.click();
+        if (!keepPara) setTimeout(function () { for (var i = 0; i < 4; i++) { if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) break; appBack(); } }, 250);
+        if (paraDoneEl && paraDoneEl.parentNode) paraDoneEl.parentNode.removeChild(paraDoneEl);
+        paraDoneEl = null;
+      }, 350);
+    }
+    paraDoneEl.querySelector("#mz-para-fin").onclick = function () { finish(false); };
+    paraDoneEl.querySelector("#mz-para-otro").onclick = function () { finish(true); window.__mzNeedOfOff = true; };
+  }
+  setInterval(paraPill, 700);
+
   /* choferes de camión (config COMBUSTIBLE.CHOFERES_CAMION): solo combustible.
      Sin menú, sin MATERIALES: el nombre abre la estación directo. */
   function isDriver(name) {
@@ -108,7 +235,7 @@
       '</div>';
     document.body.appendChild(overlay);
     hidePills();
-    overlay.querySelector("#mz-mat").onclick = function () { markSeen(name); hide(); };
+    overlay.querySelector("#mz-mat").onclick = function () { if (isOfficeName(name)) { showPara(name); return; } markSeen(name); hide(); };
     overlay.querySelector("#mz-fuel").onclick = function () {
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }   // el wizard arranca en el paso 2 con el nombre puesto
       openFuel(name);
@@ -216,7 +343,7 @@
     clearTimeout(t);
     t = setTimeout(function () {
       if (panel) { hidePills(); return; }                                           // combustible abierto encima: no tocar
-      if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { clearSeen(); hide(); return; }               // lista de nombres: la próxima vez pregunta otra vez
+      if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { clearSeen(); hide(); if (getPara()) setPara(""); return; }   // lista de nombres: se olvida para quién era
       if (pinOpen()) { hide(); return; }                                             // pantalla de la clave: nada encima
       if (hasText(TITLE, "h1,h2,h3,div,span")) { var n = who() || (Date.now() - tappedAt < 2000 ? tapped : ""); if (n && !seen(n)) show(n); }
       else hide();
