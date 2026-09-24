@@ -232,7 +232,10 @@ function MzMfa({ses:S,onDone:D,onCancel:C}){
     let r=await fetch(`${vt}/auth/v1/factors`,{method:"POST",headers:H,body:JSON.stringify({factor_type:"totp",friendly_name:"Duo Mobile",issuer:"Mu\xF1iz Command Center"})});
     if(!r.ok)throw new Error(await msg(r)||"two-step sign-in is not turned on");
     let j=await r.json(),q=(j.totp&&j.totp.qr_code)||"";
-    if(q&&q.trim().startsWith("<svg"))q="data:image/svg+xml;utf8,"+encodeURIComponent(q);
+    // Supabase sends the QR as raw SVG text inside a data: address; its "#" colour codes cut the address short and the image breaks.
+    // Take the SVG out and re-encode it so every character survives.
+    if(q&&!/;base64,/i.test(q)){let sv=q.trim().startsWith("<svg")?q.trim():(/^data:image\/svg\+xml/i.test(q)?q.slice(q.indexOf(",")+1):"");
+      if(sv){try{if(/%3C/i.test(sv))sv=decodeURIComponent(sv)}catch(x){}q="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(sv)}}
     if(alive){sfid(j.id),sqr(q),skey(((j.totp&&j.totp.secret)||"").replace(/(.{4})/g,"$1 ").trim()),sst("enroll")}
   }catch(v){if(alive){se(String(v.message||v)),sst("fail")}}})();return()=>{alive=!1}},[]);
   let go=async()=>{sb(!0),se("");try{
