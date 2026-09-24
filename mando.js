@@ -217,10 +217,16 @@ function Jw({lk:L,onIn:e,onBack:b}){
     er?(0,s.jsx)("div",{className:"err",children:er}):null,
     (0,s.jsx)("button",{className:"btn green big",disabled:bz||!ok,onClick:go,children:bz?"SAVING\u2026":"SAVE AND ENTER"}),
     (0,s.jsx)("div",{className:"dim xs",children:"Only you will know this password."})]})})}
+function MzQrSvg(raw){try{raw=String(raw||"").trim();if(!raw)return"";
+  if(/^data:/i.test(raw)){let body=raw.slice(raw.indexOf(",")+1);if(/;base64,/i.test(raw.slice(0,raw.indexOf(",")+1)))raw=atob(body);else{raw=body;if(/%3C/i.test(raw)){try{raw=decodeURIComponent(raw)}catch(x){}}}}
+  let i=raw.search(/<svg[\s>]/i);if(i<0)return"";let svg=raw.slice(i),end=svg.indexOf(">"),tag=svg.slice(0,end);
+  if(!/viewBox=/i.test(tag)){let w=(tag.match(/\swidth="([\d.]+)/i)||[])[1],h=(tag.match(/\sheight="([\d.]+)/i)||[])[1];if(w&&h)svg=svg.replace(/<svg/i,'<svg viewBox="0 0 '+w+" "+h+'"')}
+  if(!/shape-rendering/i.test(tag))svg=svg.replace(/<svg/i,'<svg shape-rendering="crispEdges"');
+  return svg}catch(x){return""}}
 function MzAal(tk){try{let p=String(tk||"").split(".")[1].replace(/-/g,"+").replace(/_/g,"/");p+="===".slice((p.length+3)%4);return JSON.parse(atob(p)).aal||"aal1"}catch(x){return"aal1"}}
 function MzSm(){let v=Sm();if(v&&MzAal(v.access_token)!=="aal2"){try{localStorage.removeItem(_o)}catch(x){}_e.cur=null;return null}return v}
 function MzMfa({ses:S,onDone:D,onCancel:C}){
-  let[st,sst]=(0,M.useState)("loading"),[fid,sfid]=(0,M.useState)(""),[qr,sqr]=(0,M.useState)(""),[key,skey]=(0,M.useState)(""),[code,scode]=(0,M.useState)(""),[bz,sb]=(0,M.useState)(!1),[er,se]=(0,M.useState)("");
+  let[st,sst]=(0,M.useState)("loading"),[fid,sfid]=(0,M.useState)(""),[qr,sqr]=(0,M.useState)(""),[qf,sqf]=(0,M.useState)(!1),[key,skey]=(0,M.useState)(""),[code,scode]=(0,M.useState)(""),[bz,sb]=(0,M.useState)(!1),[er,se]=(0,M.useState)("");
   let H={apikey:So,Authorization:"Bearer "+S.access_token,"Content-Type":"application/json"};
   let msg=async r=>{let m="";try{let j=await r.json();m=j.msg||j.message||j.error_description||""}catch(x){}return m};
   (0,M.useEffect)(()=>{let alive=!0;(async()=>{try{
@@ -231,12 +237,8 @@ function MzMfa({ses:S,onDone:D,onCancel:C}){
     for(let f of fs){try{await fetch(`${vt}/auth/v1/factors/${f.id}`,{method:"DELETE",headers:H})}catch(x){}}   // a setup that was never finished
     let r=await fetch(`${vt}/auth/v1/factors`,{method:"POST",headers:H,body:JSON.stringify({factor_type:"totp",friendly_name:"Duo Mobile",issuer:"Mu\xF1iz Command Center"})});
     if(!r.ok)throw new Error(await msg(r)||"two-step sign-in is not turned on");
-    let j=await r.json(),q=(j.totp&&j.totp.qr_code)||"";
-    // Supabase sends the QR as raw SVG text inside a data: address; its "#" colour codes cut the address short and the image breaks.
-    // Take the SVG out and re-encode it so every character survives.
-    if(q&&!/;base64,/i.test(q)){let sv=q.trim().startsWith("<svg")?q.trim():(/^data:image\/svg\+xml/i.test(q)?q.slice(q.indexOf(",")+1):"");
-      if(sv){try{if(/%3C/i.test(sv))sv=decodeURIComponent(sv)}catch(x){}q="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(sv)}}
-    if(alive){sfid(j.id),sqr(q),skey(((j.totp&&j.totp.secret)||"").replace(/(.{4})/g,"$1 ").trim()),sst("enroll")}
+    let j=await r.json(),q=MzQrSvg(j.totp&&j.totp.qr_code);
+    if(alive){sfid(j.id),sqr(q),sqf(!1),skey(((j.totp&&j.totp.secret)||"").replace(/(.{4})/g,"$1 ").trim()),sst("enroll")}
   }catch(v){if(alive){se(String(v.message||v)),sst("fail")}}})();return()=>{alive=!1}},[]);
   let go=async()=>{sb(!0),se("");try{
     let c=await fetch(`${vt}/auth/v1/factors/${fid}/challenge`,{method:"POST",headers:H,body:"{}"});
@@ -265,7 +267,9 @@ function MzMfa({ses:S,onDone:D,onCancel:C}){
     (0,s.jsx)("div",{className:"dim xs",style:{textAlign:"center"},children:"Lost your phone? Ask Tito to reset your Duo."},"l"),back]);
   return card([(0,s.jsx)("div",{className:"bs",children:"SET UP DUO \xB7 ONE TIME"},"s"),
     (0,s.jsx)("div",{style:{display:"flex",flexDirection:"column",gap:4,fontSize:13,lineHeight:1.4},children:["1 \xB7 Open Duo Mobile and tap + (Add)","2 \xB7 Choose Use QR code and scan this","3 \xB7 Type the 6-digit code Duo shows"].map((x,i)=>(0,s.jsx)("div",{className:"dim",children:x},i))},"t1"),
-    qr?(0,s.jsx)("img",{src:qr,alt:"QR code for Duo Mobile",style:{width:190,height:190,background:"#fff",padding:10,borderRadius:8,alignSelf:"center",display:"block",margin:"4px auto"}},"q"):null,
+    qr&&!qf?(0,s.jsx)("img",{src:"data:image/svg+xml;charset=utf-8,"+encodeURIComponent(qr),alt:"QR code for Duo Mobile",onError:()=>sqf(!0),style:{width:190,height:190,boxSizing:"content-box",background:"#fff",padding:10,borderRadius:8,display:"block",margin:"4px auto"}},"q"):null,
+    qr&&qf?(0,s.jsx)("div",{"data-mzqr":"1",role:"img","aria-label":"QR code for Duo Mobile",style:{width:190,height:190,background:"#fff",padding:10,borderRadius:8,margin:"4px auto",lineHeight:0},
+      dangerouslySetInnerHTML:{__html:qr.replace(/<svg([^>]*?)\swidth="[^"]*"/i,"<svg$1").replace(/<svg([^>]*?)\sheight="[^"]*"/i,"<svg$1").replace(/<svg/i,'<svg width="190" height="190"')}},"qi"):null,
     key?(0,s.jsxs)("div",{className:"dim xs",style:{textAlign:"center"},children:["Can't scan? Enter this key in Duo: ",(0,s.jsx)("span",{className:"mono",style:{userSelect:"all",color:"inherit"},children:key})]},"k"):null,
     ...entry,back])}
 function Bm(){let[e,t]=(0,M.useState)(()=>MzSm()),[lk,slk]=(0,M.useState)(()=>MzLink()),[pd,spd]=(0,M.useState)(null),inn=v=>{MzAal(v&&v.access_token)==="aal2"?t(v):spd(v)};return(0,M.useEffect)(()=>{let n=()=>t(null);return window.addEventListener("muniz-signout",n),()=>window.removeEventListener("muniz-signout",n)},[]),!vt||!So?(0,s.jsx)("div",{className:"gate",children:(0,s.jsx)("div",{className:"err",children:"SUPABASE.URL / ANON_KEY missing in config.js"})}):lk?(0,s.jsx)(Jw,{lk:lk,onIn:v=>{slk(null),inn(v)},onBack:()=>slk(null)}):pd?(0,s.jsx)(MzMfa,{ses:pd,onDone:v=>{spd(null),t(v)},onCancel:()=>spd(null)}):e?(0,s.jsx)(Fm,{t:e,onOut:()=>{Hi(),t(null)}}):(0,s.jsx)(jm,{onIn:inn})}(0,$d.createRoot)(document.getElementById("root")).render((0,s.jsx)(Bm,{}));})();
