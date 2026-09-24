@@ -45,6 +45,13 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb{background:#C3CEDB}
 .panel.span2:has(.mapwrap)>div:last-child{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
 .panel.span2 .mapwrap{flex:1 1 auto;height:auto !important;min-height:440px;position:relative}
 .panel.span2 .mapwrap>.map{position:absolute !important;inset:0;width:100% !important;height:100% !important}
+.drawer .df{flex-wrap:wrap;row-gap:8px;justify-content:flex-end;align-items:stretch}
+.drawer .df>*{flex:0 0 auto}
+.drawer .df .btn{white-space:nowrap;margin-left:0}
+.drawer .df>:first-child{margin-right:auto}
+.drawer .db>*{min-width:0}
+.drawer .tags{display:flex;flex-wrap:wrap;gap:6px}
+.drawer .tags .tag{white-space:normal;margin-right:0;line-height:1.4;max-width:100%}
 `,MZapply=(t)=>{try{
    Object.keys(MZDARK).forEach(k=>{_[k]=(t==="light"?MZLIGHT:MZDARK)[k]});
    document.documentElement.setAttribute("data-theme",t);
