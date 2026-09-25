@@ -442,6 +442,16 @@ html[data-theme] .gcard{background:var(--card);border:1px solid var(--card-line)
 html[data-theme] .gcard .bn{font-size:22px;letter-spacing:.03em}
 html[data-theme] .gcard .bs{margin-bottom:12px}
 html[data-theme] .gcard .inp{height:44px;font-size:15px;border-radius:10px;background:var(--field);text-align:left;padding:0 14px}
+/* the card's single column never grows past the card (a big code field used to push everything off the right edge) */
+html[data-theme] .gcard{grid-template-columns:minmax(0,1fr)}
+html[data-theme] .gcard>*{min-width:0}
+html[data-theme] .gcard .inp{width:100%}
+html[data-theme] .gcard .mono{overflow-wrap:anywhere}
+/* the Duo code field: calm placeholder, large evenly spaced digits, truly centred */
+html[data-theme] .gcard .inp[inputmode="numeric"]{height:58px;padding:0 12px;border-radius:12px;text-align:center!important;
+  font:600 26px/1 var(--sans)!important;letter-spacing:.42em!important;font-variant-numeric:tabular-nums;caret-color:var(--accent)}
+html[data-theme] .gcard .inp[inputmode="numeric"]:not(:placeholder-shown){text-indent:.42em}
+html[data-theme] .gcard .inp[inputmode="numeric"]::placeholder{font:500 15px/1 var(--sans);letter-spacing:.02em;color:var(--ph)}
 
 /* ---------- map ---------- */
 html[data-theme] .map,html[data-theme] .leaflet-container{background:var(--map);font:12px var(--sans)}
