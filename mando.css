@@ -620,6 +620,10 @@ html[data-theme] .kv>div>b{min-width:0;white-space:normal;overflow:visible;text-
 html[data-theme] .drawer .db{overflow-x:hidden}
 @media (max-width:640px){html[data-theme] .kv{grid-template-columns:minmax(0,1fr)}}
 
+/* auto-charged jobsite marker (dump-truck fuel charged by GPS / rotation) */
+html[data-theme] .mz-auto{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;font:600 9.5px/1.5 var(--sans);letter-spacing:.04em;text-transform:uppercase;
+  color:var(--accent-ink,var(--accent));background:color-mix(in srgb,var(--accent) 12%,transparent);vertical-align:1px}
+
 /* ==========================================================================
    MOTION · v1
    One motion language for the whole app: things arrive with a soft
