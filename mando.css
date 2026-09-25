@@ -612,6 +612,14 @@ html[data-theme] .mz-combo-opt.on,html[data-theme] .kv .mz-combo-opt.on{backgrou
 html[data-theme] .kv b:has(.mz-combo),html[data-theme] .kv div:has(.mz-combo){overflow:visible}
 html[data-theme] .db>*:has(.mz-combo-list){position:relative;z-index:5}
 
+/* ---------- detail grids never push the drawer sideways: long values wrap ---------- */
+html[data-theme] .kv{grid-template-columns:repeat(2,minmax(0,1fr))}
+html[data-theme] .kv>div{min-width:0;align-items:flex-start}
+html[data-theme] .kv>div>span:first-child{flex:0 0 auto;white-space:nowrap}
+html[data-theme] .kv>div>b{min-width:0;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.4}
+html[data-theme] .drawer .db{overflow-x:hidden}
+@media (max-width:640px){html[data-theme] .kv{grid-template-columns:minmax(0,1fr)}}
+
 /* ==========================================================================
    MOTION · v1
    One motion language for the whole app: things arrive with a soft
