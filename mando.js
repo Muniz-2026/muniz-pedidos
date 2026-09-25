@@ -692,6 +692,48 @@ function MZshortcuts(){if(document.querySelector(".mz-modal"))return;
   setInterval(MZtitle,4000);MZtitle();
 }catch(e){}})();
 
+/* ===== iPhone sheet: drag down to dismiss, and the page behind never scrolls ===== */
+(function(){try{
+  var st=null;
+  var closeBtn=function(bg){return Array.prototype.find.call(bg.querySelectorAll(".df button"),function(b){return /^(close|cancel|cerrar|cancelar)$/i.test((b.textContent||"").trim())})};
+  document.addEventListener("touchstart",function(e){
+    if(innerWidth>640||e.touches.length!==1)return;
+    var t=e.target,d=t&&t.closest&&t.closest(".drawer");if(!d||!d.parentElement||d.parentElement.classList.contains("mz-closing"))return;
+    var db=d.querySelector(".db"),inBody=!!(db&&db.contains(t));
+    if(inBody&&db.scrollTop>0)return;                                   /* reading the list: let it scroll */
+    if(t.closest("select,input,textarea"))return;                       /* controls keep their own touch */
+    st={y:e.touches[0].clientY,t:performance.now(),d:d,db:db,inBody:inBody,dy:0,on:false};
+  },{passive:true});
+  document.addEventListener("touchmove",function(e){
+    if(!st)return;var dy=e.touches[0].clientY-st.y;
+    if(!st.on){
+      if(dy<-4){st=null;return}                                          /* pulling up: normal scroll */
+      if(dy<6)return;
+      if(st.inBody&&st.db.scrollTop>0){st=null;return}
+      st.on=true;st.d.style.animation="none";st.d.style.transition="none";
+    }
+    e.preventDefault();
+    st.dy=dy>0?dy:dy/4;                                                  /* a little rubber-band above the top */
+    st.d.style.transform="translate3d(0,"+st.dy+"px,0)";
+    var bg=st.d.parentElement;if(bg){bg.style.transition="none";bg.style.opacity=String(Math.max(.25,1-Math.max(0,st.dy)/520))}
+  },{passive:false});
+  var end=function(){
+    if(!st)return;var s=st;st=null;if(!s.on)return;
+    var ms=Math.max(1,performance.now()-s.t),v=s.dy/ms,bg=s.d.parentElement;
+    if(s.dy>110||(v>.55&&s.dy>30)){
+      s.d.style.transition="transform .24s cubic-bezier(.4,0,1,1)";s.d.style.transform="translate3d(0,105%,0)";
+      if(bg){bg.style.transition="opacity .24s ease";bg.style.opacity="0";bg.classList.add("mz-dragged")}
+      setTimeout(function(){if(bg&&bg.isConnected){var cb=closeBtn(bg);MZpass(cb||bg)}},230);
+    }else{
+      s.d.style.transition="transform .38s cubic-bezier(.2,.9,.25,1)";s.d.style.transform="";
+      if(bg){bg.style.transition="opacity .3s ease";bg.style.opacity=""}
+      setTimeout(function(){s.d.style.transition=""},400);
+    }
+  };
+  document.addEventListener("touchend",end,{passive:true});
+  document.addEventListener("touchcancel",end,{passive:true});
+}catch(e){}})();
+
 function Bm(){let[e,t]=(0,M.useState)(()=>MzSm()),[lk,slk]=(0,M.useState)(()=>MzLink()),[pd,spd]=(0,M.useState)(null),inn=v=>{MzAal(v&&v.access_token)==="aal2"?t(v):spd(v)};return(0,M.useEffect)(()=>{let n=()=>t(null);return window.addEventListener("muniz-signout",n),()=>window.removeEventListener("muniz-signout",n)},[]),!vt||!So?(0,s.jsx)("div",{className:"gate",children:(0,s.jsx)("div",{className:"err",children:"SUPABASE.URL / ANON_KEY missing in config.js"})}):lk?(0,s.jsx)(Jw,{lk:lk,onIn:v=>{slk(null),inn(v)},onBack:()=>slk(null)}):pd?(0,s.jsx)(MzMfa,{ses:pd,onDone:v=>{MZvt(()=>{spd(null),t(v)},"vt-gate",()=>!!document.querySelector(".ops"))},onCancel:()=>{MZvt(()=>spd(null),"vt-gate",()=>!!document.querySelector('.gate input[type="password"]'))}}):e?(0,s.jsx)(Fm,{t:e,onOut:()=>{MZvt(()=>{Hi(),t(null)},"vt-gate",()=>!!document.querySelector(".gate"))}}):(0,s.jsx)(jm,{onIn:v=>{MZvt(()=>inn(v),"vt-gate",()=>!document.querySelector('.gate input[type="password"]'))}})}(0,$d.createRoot)(document.getElementById("root")).render((0,s.jsx)(Bm,{}));})();
 /*! Bundled license information:
 

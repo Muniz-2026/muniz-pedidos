@@ -594,6 +594,13 @@ html[data-theme] :is(button,.btn,.rb,.segs button,.tbl tbody tr,.recent,.sig){-w
   html[data-theme] .tbl-fuel .tags{margin-top:4px}
 }
 
+/* iPhone: while a sheet is open the page behind stays put; only the sheet's own list scrolls */
+@media (max-width:640px){
+  html:has(.drawer-bg),html:has(.drawer-bg) body{overflow:hidden;overscroll-behavior:none}
+  html[data-theme] .drawer-bg{touch-action:none}
+  html[data-theme] .drawer .db{touch-action:pan-y;overscroll-behavior:contain}
+}
+
 /* ==========================================================================
    MOTION · v1
    One motion language for the whole app: things arrive with a soft
