@@ -1,8 +1,11 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · iPhone UI · v1
+   MUÑIZ PEDIDOS · iPhone UI · v2
    Same app, same flow — rebuilt to feel like a native iOS app:
    SF type, iOS light surfaces, soft depth, glass bars, springy presses,
    screens that glide in, sheets that rise, a real "sent" moment.
+   v2: never animate whole screens or long lists. The catalog draws 500+
+   cards; animating them (or the giant screen behind them) ran the iPhone
+   out of graphics memory and Safari killed the page.
    ===================================================================== */
 :root{
   --pz-bg:#F2F2F7; --pz-card:#FFFFFF; --pz-ink:#1C1C1E; --pz-ink2:#3A3A3C; --pz-dim:#6E6E73; --pz-faint:#8E8E93;
@@ -42,6 +45,10 @@ button.border-4 .rounded-lg{border-radius:999px!important;padding:9px 14px!impor
 button[style*="border:3px solid"]{border-width:0!important;box-shadow:var(--pz-shadow-lg)!important;border-radius:24px!important}
 button[style*="border:3px solid"] [style*="border-radius:14px"]{border-radius:999px!important;box-shadow:0 8px 18px -10px rgba(0,0,0,.45)}
 #root .border-2{border-width:0!important;border-radius:16px!important;box-shadow:var(--pz-shadow)!important}
+/* catalog product cards: 500+ of them, so keep them cheap (no blurred shadow)
+   and keep the border so the orange "added" state stays visible */
+#root .relative.rounded-xl.overflow-hidden.border-2{border-width:2px!important;border-radius:14px!important;box-shadow:none!important}
+#root .relative.rounded-xl.overflow-hidden.border-2.border-\[\#D8D4CB\]{border-color:rgba(60,60,67,.10)!important}
 #root .rounded-2xl.bg-white,#root .bg-white.rounded-2xl{box-shadow:var(--pz-shadow)}
 
 /* ---------- search + inputs: iOS fields (17 px → no zoom on focus) ---------- */
@@ -80,15 +87,13 @@ button[style*="border:3px solid"] [style*="border-radius:14px"]{border-radius:99
 @keyframes pzBurst{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
 
 @media (prefers-reduced-motion:no-preference){
-  #root>div{animation:pzScreen .45s var(--pz-ease) both}
-  #root>div>div:not(.sticky):not(.fixed){animation:pzRise .5s var(--pz-ease) both}
-  #root>div>div:nth-child(3){animation-delay:.04s}#root>div>div:nth-child(4){animation-delay:.08s}
-  #root>div>div:nth-child(5){animation-delay:.12s}#root>div>div:nth-child(n+6){animation-delay:.16s}
-  #root .grid>*{animation:pzRise .45s var(--pz-ease) both}
+  /* only the first 12 cards of a grid rise in; the rest just appear.
+     whole screens are never animated (the catalog screen is huge) */
+  #root .grid>*:nth-child(-n+12){animation:pzRise .45s var(--pz-ease) both}
   #root .grid>*:nth-child(2){animation-delay:.02s}#root .grid>*:nth-child(3){animation-delay:.04s}#root .grid>*:nth-child(4){animation-delay:.06s}
   #root .grid>*:nth-child(5){animation-delay:.08s}#root .grid>*:nth-child(6){animation-delay:.10s}#root .grid>*:nth-child(7){animation-delay:.12s}
   #root .grid>*:nth-child(8){animation-delay:.14s}#root .grid>*:nth-child(9){animation-delay:.16s}#root .grid>*:nth-child(10){animation-delay:.18s}
-  #root .grid>*:nth-child(n+11){animation-delay:.2s}
+  #root .grid>*:nth-child(11),#root .grid>*:nth-child(12){animation-delay:.2s}
   div[style^="position:fixed;inset:0"],div[style^="position: fixed; inset: 0px"]{animation:pzScreen .42s var(--pz-ease) both}
   div[style^="position:fixed;inset:0"]>*>*{animation:pzRise .5s var(--pz-ease) both}
   div[style^="position:fixed;inset:0"]>*>*:nth-child(2){animation-delay:.05s}
