@@ -473,3 +473,360 @@ html.mz-tx,html.mz-tx *,html.mz-tx *::before,html.mz-tx *::after{transition:back
 @media (max-width:1280px){
   html[data-theme] .crumb .dim,html[data-theme] .crumb .sep{display:none}
 }
+
+/* ---------- phones & small tablets ---------- */
+html[data-theme] .room>*{min-width:0}
+@media (max-width:900px){
+  html[data-theme] .rail{position:sticky;top:0;z-index:30;height:auto;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:2px;
+    padding:8px 10px;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--glass-line);background:var(--glass);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);scrollbar-width:none}
+  html[data-theme] .rail::-webkit-scrollbar{display:none}
+  html[data-theme] .rail .brand{padding:0 8px 0 2px;flex:0 0 auto}
+  html[data-theme] .rail .brand>div:last-child{display:none}
+  html[data-theme] .rail .bm{width:30px;height:30px;border-radius:8px;font-size:16px}
+  html[data-theme] .rail .rb{flex:0 0 auto;width:auto;padding:8px 12px;gap:8px;font-size:13.5px}
+  html[data-theme] .rail .grow,html[data-theme] .rail .rf{display:none}
+  html[data-theme] .cmd{position:static}
+}
+@media (max-width:640px){
+  html[data-theme] .cmd{flex-wrap:wrap;padding:10px 14px;gap:8px 4px}
+  html[data-theme] .crumb,html[data-theme] .stat,html[data-theme] .who{display:none}
+  html[data-theme] .cmd{justify-content:flex-end}
+  html[data-theme] .search{order:10;flex:1 1 100%;max-width:none;min-width:0}
+  html[data-theme] .cmd .btn{padding:6px 8px;font-size:12.5px}
+  html[data-theme] .room{padding:14px 12px 44px;gap:12px}
+  html[data-theme] .strip{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  html[data-theme] .strip .metric:first-child{grid-column:span 2}
+  html[data-theme] .metric{padding:14px 14px 13px;min-height:0;border-radius:14px}
+  html[data-theme] .mv{font-size:26px}html[data-theme] .mv.big{font-size:32px}
+  html[data-theme] .panel,html[data-theme] .card{border-radius:14px}
+  html[data-theme] .toolbar{flex-wrap:wrap;gap:8px}
+  html[data-theme] .segs{max-width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+  html[data-theme] .segs::-webkit-scrollbar{display:none}
+  html[data-theme] .segs button{flex:0 0 auto;white-space:nowrap}
+  html[data-theme] .ph{padding:14px 16px 6px}html[data-theme] .pb{padding:8px 16px 14px}
+  html[data-theme] .tbl tr>:first-child{padding-left:14px}html[data-theme] .tbl tr>:last-child{padding-right:14px}
+  html[data-theme] .drawer{width:100vw;max-width:100vw}
+  html[data-theme] .kv{grid-template-columns:1fr}
+  html[data-theme] .dh,html[data-theme] .db,html[data-theme] .df{padding-left:18px;padding-right:18px}
+  html[data-theme] .df{flex-wrap:wrap;gap:8px}
+  html[data-theme] .dn{font-size:26px}
+}
+
+/* ==========================================================================
+   MOTION · v1
+   One motion language for the whole app: things arrive with a soft
+   "expo-out" glide, presses give a little, navigation cross-fades while the
+   selection glides, and the theme switch reveals from where you clicked.
+   Everything here is gated by html.mz-motion (off for reduced-motion users).
+   ========================================================================== */
+html[data-theme]{--ease-out:cubic-bezier(.16,1,.3,1);--ease-snap:cubic-bezier(.2,.9,.25,1);--ease-in:cubic-bezier(.4,0,1,1);--spring:cubic-bezier(.34,1.56,.64,1)}
+html[data-theme="light"]{--sk-a:#EEEEF2;--sk-b:#F8F8FB;--toast-bg:rgba(29,29,31,.88);--toast-ink:#FFFFFF;--aurora-a:rgba(0,113,227,.10);--aurora-b:rgba(255,106,26,.09)}
+html[data-theme="dark"]{--sk-a:#212123;--sk-b:#2C2C2F;--toast-bg:rgba(58,58,60,.90);--toast-ink:#FFFFFF;--aurora-a:rgba(10,132,255,.26);--aurora-b:rgba(255,106,26,.17)}
+html[data-theme] body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+
+@keyframes mzRise{from{opacity:0;transform:translate3d(0,14px,0)}to{opacity:1;transform:none}}
+@keyframes mzFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes mzFadeOut{from{opacity:1}to{opacity:0}}
+@keyframes mzDrop{from{opacity:0;transform:translate3d(0,-8px,0)}to{opacity:1;transform:none}}
+@keyframes mzGrowY{from{transform:scaleY(0)}to{transform:none}}
+@keyframes mzGrowX{from{transform:scaleX(0)}to{transform:none}}
+@keyframes mzRing{from{stroke-dasharray:0 999}}
+@keyframes mzPop{from{opacity:0;transform:scale(.55)}to{opacity:1;transform:none}}
+@keyframes mzCardIn{from{opacity:0;transform:translate3d(0,22px,0) scale(.965);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+@keyframes mzSheetIn{from{transform:translate3d(100%,0,0)}to{transform:none}}
+@keyframes mzSheetOut{from{transform:none}to{transform:translate3d(100%,0,0)}}
+@keyframes mzSlideIn{from{opacity:0;transform:translate3d(0,-10px,0)}to{opacity:1;transform:none}}
+@keyframes mzShimmer{from{background-position:100% 0}to{background-position:0 0}}
+@keyframes mzBadge{0%{transform:scale(1)}35%{transform:scale(1.28)}70%{transform:scale(.94)}100%{transform:scale(1)}}
+@keyframes mzAurora{0%{transform:translate3d(-4%,-3%,0) rotate(0deg) scale(1)}50%{transform:translate3d(3%,2%,0) rotate(8deg) scale(1.06)}100%{transform:translate3d(-2%,4%,0) rotate(-6deg) scale(1.02)}}
+@keyframes mzToastIn{from{opacity:0;transform:translate3d(0,18px,0) scale(.96)}to{opacity:1;transform:none}}
+@keyframes mzToastOut{to{opacity:0;transform:translate3d(0,10px,0) scale(.97)}}
+@keyframes mzModalIn{from{opacity:0;transform:translate3d(0,10px,0) scale(.94)}to{opacity:1;transform:none}}
+@keyframes mzModalOut{to{opacity:0;transform:scale(.97)}}
+@keyframes mzReveal{from{clip-path:circle(0px at var(--vtx,90%) var(--vty,3%))}to{clip-path:circle(var(--vtr,150vmax) at var(--vtx,90%) var(--vty,3%))}}
+@keyframes mzPushOut{to{opacity:0;transform:translate3d(-28px,0,0) scale(.985)}}
+@keyframes mzPushIn{from{opacity:0;transform:translate3d(36px,0,0)}}
+@keyframes mzGateOut{to{opacity:0;transform:scale(1.06);filter:blur(6px)}}
+@keyframes mzGateIn{from{opacity:0;transform:scale(.94);filter:blur(6px)}}
+
+/* ---------- arrival: rooms, cards, rail ---------- */
+html.mz-motion .room>*:not(.strip):not(.drawer-bg){animation:mzRise .62s var(--ease-out) both}
+html.mz-motion .room>:nth-child(1):not(.strip):not(.drawer-bg){animation-delay:0.040s}
+html.mz-motion .room>:nth-child(2):not(.strip):not(.drawer-bg){animation-delay:0.090s}
+html.mz-motion .room>:nth-child(3):not(.strip):not(.drawer-bg){animation-delay:0.140s}
+html.mz-motion .room>:nth-child(4):not(.strip):not(.drawer-bg){animation-delay:0.190s}
+html.mz-motion .room>:nth-child(5):not(.strip):not(.drawer-bg){animation-delay:0.240s}
+html.mz-motion .room>:nth-child(6):not(.strip):not(.drawer-bg){animation-delay:0.290s}
+html.mz-motion .strip>.metric{animation:mzRise .7s var(--ease-out) both}
+html.mz-motion .strip>.metric:nth-child(1){animation-delay:0.000s}
+html.mz-motion .strip>.metric:nth-child(2){animation-delay:0.045s}
+html.mz-motion .strip>.metric:nth-child(3){animation-delay:0.090s}
+html.mz-motion .strip>.metric:nth-child(4){animation-delay:0.135s}
+html.mz-motion .strip>.metric:nth-child(5){animation-delay:0.180s}
+html.mz-motion .strip>.metric:nth-child(6){animation-delay:0.225s}
+html.mz-motion .strip>.metric:nth-child(7){animation-delay:0.270s}
+html.mz-motion .strip>.metric:nth-child(8){animation-delay:0.315s}
+html.mz-motion .strip>.metric:nth-child(9){animation-delay:0.360s}
+html.mz-motion .room>.mz-below{animation:none!important;opacity:0;transform:translate3d(0,26px,0)}
+html.mz-motion .room>.mz-below.mz-seen{opacity:1;transform:none;transition:opacity .75s var(--ease-out),transform .9s var(--ease-out)}
+html.mz-motion .brand .bm{animation:mzPop .8s .05s var(--spring) both}
+html.mz-motion .brand>div:last-child{animation:mzFadeIn .6s .18s ease both}
+html.mz-motion .rail>.rb{animation:mzRise .55s var(--ease-out) both}
+html.mz-motion .rail>.rb:nth-of-type(1){animation-delay:0.080s}
+html.mz-motion .rail>.rb:nth-of-type(2){animation-delay:0.115s}
+html.mz-motion .rail>.rb:nth-of-type(3){animation-delay:0.150s}
+html.mz-motion .rail>.rb:nth-of-type(4){animation-delay:0.185s}
+html.mz-motion .rail>.rb:nth-of-type(5){animation-delay:0.220s}
+html.mz-motion .rail>.rb:nth-of-type(6){animation-delay:0.255s}
+html.mz-motion .rail>.rb:nth-of-type(7){animation-delay:0.290s}
+html.mz-motion .rail>.rb:nth-of-type(8){animation-delay:0.325s}
+html.mz-motion .rail>.rb:nth-of-type(9){animation-delay:0.360s}
+html.mz-motion .rail .rf{animation:mzFadeIn .8s .5s ease both}
+html.mz-motion .cmd{animation:mzDrop .6s .05s var(--ease-out) both}
+html.mz-motion .feed>.sig{animation:mzSlideIn .5s var(--ease-out) both}
+html.mz-motion .feed>.sig:nth-child(1){animation-delay:0.150s}
+html.mz-motion .feed>.sig:nth-child(2){animation-delay:0.175s}
+html.mz-motion .feed>.sig:nth-child(3){animation-delay:0.200s}
+html.mz-motion .feed>.sig:nth-child(4){animation-delay:0.225s}
+html.mz-motion .feed>.sig:nth-child(5){animation-delay:0.250s}
+html.mz-motion .feed>.sig:nth-child(6){animation-delay:0.275s}
+html.mz-motion .feed>.sig:nth-child(7){animation-delay:0.300s}
+html.mz-motion .feed>.sig:nth-child(8){animation-delay:0.325s}
+html.mz-motion .feed>.sig:nth-child(9){animation-delay:0.350s}
+html.mz-motion .feed>.sig:nth-child(10){animation-delay:0.375s}
+html.mz-motion .feed>.sig:nth-child(11){animation-delay:0.400s}
+html.mz-motion .feed>.sig:nth-child(12){animation-delay:0.425s}
+html.mz-motion .recent{animation:mzRise .45s var(--ease-out) both}
+html.mz-motion .recent:nth-child(1){animation-delay:0.000s}
+html.mz-motion .recent:nth-child(2){animation-delay:0.030s}
+html.mz-motion .recent:nth-child(3){animation-delay:0.060s}
+html.mz-motion .recent:nth-child(4){animation-delay:0.090s}
+html.mz-motion .recent:nth-child(5){animation-delay:0.120s}
+html.mz-motion .recent:nth-child(6){animation-delay:0.150s}
+html.mz-motion .recent:nth-child(7){animation-delay:0.180s}
+html.mz-motion .recent:nth-child(8){animation-delay:0.210s}
+
+html.mz-motion .mz-num{transition:opacity .4s ease}
+html.mz-motion .mz-hold{opacity:0}
+
+/* ---------- charts draw themselves ---------- */
+html.mz-motion .bv{transform-origin:50% 100%;animation:mzGrowY .95s var(--ease-out) both;transition:height .6s var(--ease-out),filter .2s ease}
+html.mz-motion .bar:nth-child(1) .bv{animation-delay:0.050s}
+html.mz-motion .bar:nth-child(2) .bv{animation-delay:0.072s}
+html.mz-motion .bar:nth-child(3) .bv{animation-delay:0.094s}
+html.mz-motion .bar:nth-child(4) .bv{animation-delay:0.116s}
+html.mz-motion .bar:nth-child(5) .bv{animation-delay:0.138s}
+html.mz-motion .bar:nth-child(6) .bv{animation-delay:0.160s}
+html.mz-motion .bar:nth-child(7) .bv{animation-delay:0.182s}
+html.mz-motion .bar:nth-child(8) .bv{animation-delay:0.204s}
+html.mz-motion .bar:nth-child(9) .bv{animation-delay:0.226s}
+html.mz-motion .bar:nth-child(10) .bv{animation-delay:0.248s}
+html.mz-motion .bar:nth-child(11) .bv{animation-delay:0.270s}
+html.mz-motion .bar:nth-child(12) .bv{animation-delay:0.292s}
+html.mz-motion .bar:nth-child(13) .bv{animation-delay:0.314s}
+html.mz-motion .bar:nth-child(14) .bv{animation-delay:0.336s}
+html.mz-motion .bar:nth-child(15) .bv{animation-delay:0.358s}
+html.mz-motion .bar:nth-child(16) .bv{animation-delay:0.380s}
+html.mz-motion .bar:nth-child(17) .bv{animation-delay:0.402s}
+html.mz-motion .bar:nth-child(18) .bv{animation-delay:0.424s}
+html.mz-motion .bar:nth-child(19) .bv{animation-delay:0.446s}
+html.mz-motion .bar:nth-child(20) .bv{animation-delay:0.468s}
+html.mz-motion .bar:nth-child(21) .bv{animation-delay:0.490s}
+html.mz-motion .bar:nth-child(22) .bv{animation-delay:0.512s}
+html.mz-motion .bar:nth-child(23) .bv{animation-delay:0.534s}
+html.mz-motion .bar:nth-child(24) .bv{animation-delay:0.556s}
+html.mz-motion .bar:nth-child(25) .bv{animation-delay:0.578s}
+html.mz-motion .bar:nth-child(26) .bv{animation-delay:0.600s}
+html.mz-motion .bar:nth-child(27) .bv{animation-delay:0.622s}
+html.mz-motion .bar:nth-child(28) .bv{animation-delay:0.644s}
+html.mz-motion .bar:nth-child(29) .bv{animation-delay:0.666s}
+html.mz-motion .bar:nth-child(30) .bv{animation-delay:0.688s}
+html.mz-motion .bar:nth-child(31) .bv{animation-delay:0.700s}
+html.mz-motion .bnum{animation:mzFadeIn .45s ease both}
+html.mz-motion .bar:nth-child(1) .bnum{animation-delay:0.450s}
+html.mz-motion .bar:nth-child(2) .bnum{animation-delay:0.472s}
+html.mz-motion .bar:nth-child(3) .bnum{animation-delay:0.494s}
+html.mz-motion .bar:nth-child(4) .bnum{animation-delay:0.516s}
+html.mz-motion .bar:nth-child(5) .bnum{animation-delay:0.538s}
+html.mz-motion .bar:nth-child(6) .bnum{animation-delay:0.560s}
+html.mz-motion .bar:nth-child(7) .bnum{animation-delay:0.582s}
+html.mz-motion .bar:nth-child(8) .bnum{animation-delay:0.604s}
+html.mz-motion .bar:nth-child(9) .bnum{animation-delay:0.626s}
+html.mz-motion .bar:nth-child(10) .bnum{animation-delay:0.648s}
+html.mz-motion .bar:nth-child(11) .bnum{animation-delay:0.670s}
+html.mz-motion .bar:nth-child(12) .bnum{animation-delay:0.692s}
+html.mz-motion .bar:nth-child(13) .bnum{animation-delay:0.714s}
+html.mz-motion .bar:nth-child(14) .bnum{animation-delay:0.736s}
+html.mz-motion .bar:nth-child(15) .bnum{animation-delay:0.758s}
+html.mz-motion .bar:nth-child(16) .bnum{animation-delay:0.780s}
+html.mz-motion .bar:nth-child(17) .bnum{animation-delay:0.802s}
+html.mz-motion .bar:nth-child(18) .bnum{animation-delay:0.824s}
+html.mz-motion .bar:nth-child(19) .bnum{animation-delay:0.846s}
+html.mz-motion .bar:nth-child(20) .bnum{animation-delay:0.868s}
+html.mz-motion .bar:nth-child(21) .bnum{animation-delay:0.890s}
+html.mz-motion .bar:nth-child(22) .bnum{animation-delay:0.912s}
+html.mz-motion .bar:nth-child(23) .bnum{animation-delay:0.934s}
+html.mz-motion .bar:nth-child(24) .bnum{animation-delay:0.956s}
+html.mz-motion .bar:nth-child(25) .bnum{animation-delay:0.978s}
+html.mz-motion .bar:nth-child(26) .bnum{animation-delay:1.000s}
+html.mz-motion .bar:nth-child(27) .bnum{animation-delay:1.022s}
+html.mz-motion .bar:nth-child(28) .bnum{animation-delay:1.044s}
+html.mz-motion .bar:nth-child(29) .bnum{animation-delay:1.066s}
+html.mz-motion .bar:nth-child(30) .bnum{animation-delay:1.088s}
+html.mz-motion .bar:nth-child(31) .bnum{animation-delay:1.100s}
+html.mz-motion .dstk{transform-origin:50% 100%;animation:mzGrowY .95s var(--ease-out) both}
+html.mz-motion .dstk>div{transition:height .6s var(--ease-out)}
+html.mz-motion .dcol:nth-child(1) .dstk{animation-delay:0.050s}
+html.mz-motion .dcol:nth-child(2) .dstk{animation-delay:0.078s}
+html.mz-motion .dcol:nth-child(3) .dstk{animation-delay:0.106s}
+html.mz-motion .dcol:nth-child(4) .dstk{animation-delay:0.134s}
+html.mz-motion .dcol:nth-child(5) .dstk{animation-delay:0.162s}
+html.mz-motion .dcol:nth-child(6) .dstk{animation-delay:0.190s}
+html.mz-motion .dcol:nth-child(7) .dstk{animation-delay:0.218s}
+html.mz-motion .dcol:nth-child(8) .dstk{animation-delay:0.246s}
+html.mz-motion .dcol:nth-child(9) .dstk{animation-delay:0.274s}
+html.mz-motion .dcol:nth-child(10) .dstk{animation-delay:0.302s}
+html.mz-motion .dcol:nth-child(11) .dstk{animation-delay:0.330s}
+html.mz-motion .dcol:nth-child(12) .dstk{animation-delay:0.358s}
+html.mz-motion .dcol:nth-child(13) .dstk{animation-delay:0.386s}
+html.mz-motion .dcol:nth-child(14) .dstk{animation-delay:0.414s}
+html.mz-motion .dcol:nth-child(15) .dstk{animation-delay:0.442s}
+html.mz-motion .dcol:nth-child(16) .dstk{animation-delay:0.470s}
+html.mz-motion .hbar{transform-origin:0 50%;animation:mzGrowX 1s .12s var(--ease-out) both;transition:width .6s var(--ease-out)}
+html.mz-motion .split .sb{transform-origin:0 50%;animation:mzGrowX 1.05s .1s var(--ease-out) both}
+html.mz-motion .split .sb>div{transition:width .6s var(--ease-out)}
+html.mz-motion .ring svg circle:nth-child(2){animation:mzRing 1.2s .15s var(--ease-out) both;transition:stroke-dasharray .6s var(--ease-out)}
+
+/* ---------- the drawer is a sheet ---------- */
+html.mz-motion .drawer-bg{animation:mzFadeIn .3s ease both}
+html.mz-motion .drawer{animation:mzSheetIn .55s var(--ease-out) both;will-change:transform}
+html.mz-motion .drawer .dh{animation:mzRise .55s .08s var(--ease-out) both}
+html.mz-motion .drawer .db>*{animation:mzRise .55s var(--ease-out) both}
+html.mz-motion .drawer .db>:nth-child(1){animation-delay:0.120s}
+html.mz-motion .drawer .db>:nth-child(2){animation-delay:0.155s}
+html.mz-motion .drawer .db>:nth-child(3){animation-delay:0.190s}
+html.mz-motion .drawer .db>:nth-child(4){animation-delay:0.225s}
+html.mz-motion .drawer .db>:nth-child(5){animation-delay:0.260s}
+html.mz-motion .drawer .db>:nth-child(6){animation-delay:0.295s}
+html.mz-motion .drawer .db>:nth-child(7){animation-delay:0.330s}
+html.mz-motion .drawer .db>:nth-child(8){animation-delay:0.365s}
+html.mz-motion .drawer .df{animation:mzFadeIn .45s .22s ease both}
+html.mz-motion .drawer-bg.mz-closing{animation:mzFadeOut .24s ease both;pointer-events:none}
+html.mz-motion .drawer-bg.mz-closing .drawer{animation:mzSheetOut .26s cubic-bezier(.5,0,.75,0) both}
+
+/* ---------- sign-in ---------- */
+html.mz-motion .gcard{animation:mzCardIn .85s var(--ease-out) both}
+html.mz-motion .gcard>*{animation:mzRise .7s var(--ease-out) both}
+html.mz-motion .gcard>:nth-child(1){animation-delay:0.120s}
+html.mz-motion .gcard>:nth-child(2){animation-delay:0.165s}
+html.mz-motion .gcard>:nth-child(3){animation-delay:0.210s}
+html.mz-motion .gcard>:nth-child(4){animation-delay:0.255s}
+html.mz-motion .gcard>:nth-child(5){animation-delay:0.300s}
+html.mz-motion .gcard>:nth-child(6){animation-delay:0.345s}
+html.mz-motion .gcard>:nth-child(7){animation-delay:0.390s}
+html.mz-motion .gcard>:nth-child(8){animation-delay:0.435s}
+html.mz-motion .gcard>:nth-child(9){animation-delay:0.480s}
+html.mz-motion .gcard>:nth-child(10){animation-delay:0.525s}
+html.mz-motion .gcard>.bm.big{animation:mzPop .9s .1s var(--spring) both}
+html.mz-motion .mz-noanim,html.mz-motion .mz-noanim>*{animation:none!important}
+html[data-theme] .gate{position:relative;overflow:hidden;isolation:isolate}
+html[data-theme] .gate::before{content:"";position:absolute;inset:-25%;z-index:-1;pointer-events:none;
+  background:radial-gradient(34% 30% at 40% 38%,var(--aurora-a),transparent 70%),radial-gradient(30% 28% at 61% 63%,var(--aurora-b),transparent 70%);filter:blur(34px)}
+html.mz-motion .gate::before{animation:mzAurora 22s ease-in-out infinite alternate}
+
+/* ---------- presses give a little ---------- */
+html.mz-motion :is(.btn,.rb,.segs button,.sw,.recent){transition-property:background-color,border-color,color,box-shadow,transform,opacity;transition-duration:.2s;transition-timing-function:var(--ease-out)}
+html.mz-motion :is(.btn,.sw):active:not(:disabled){transform:scale(.965);transition-duration:.08s}
+html.mz-motion .rb:active{transform:scale(.975);transition-duration:.08s}
+html.mz-motion .segs button:active{transform:scale(.94);transition-duration:.08s}
+html.mz-motion .tbl tbody tr:active{background:var(--press-fill)}
+html.mz-motion .mz-theme::before{transition:transform .6s var(--spring)}
+html.mz-motion .mz-theme:hover::before{transform:rotate(-18deg) scale(1.08)}
+html.mz-motion .badge.mz-bump{animation:mzBadge .6s var(--ease-out)}
+
+/* ---------- the header settles when you scroll ---------- */
+html[data-theme] .cmd{transition:border-color .3s ease,box-shadow .3s ease,background-color .3s ease}
+html[data-theme]:not(.mz-scrolled) .cmd{border-bottom-color:transparent}
+html[data-theme].mz-scrolled .cmd{box-shadow:0 10px 30px -18px rgba(0,0,0,.35)}
+
+/* ---------- gliding selection: rail pill + segmented thumb ---------- */
+html.mz-pill-on .rail .rb{position:relative;z-index:1}
+html.mz-pill-on .rail .rb.on{background:transparent}
+html.mz-pill-on .rail .rb.on:hover{background:transparent}
+.mz-pill{position:absolute;left:0;top:0;width:0;height:0;border-radius:8px;background:var(--sel-fill);pointer-events:none;z-index:0;opacity:0}
+html.mz-motion .mz-pill{transition:transform .45s var(--ease-snap),width .45s var(--ease-snap),height .45s var(--ease-snap),opacity .25s ease}
+html[data-theme] .segs{position:relative}
+html[data-theme] .segs.mz-has-ind>button{position:relative;z-index:1}
+html[data-theme] .segs.mz-has-ind>button.on{background:transparent;box-shadow:none}
+.mz-seg{position:absolute;left:0;top:0;width:0;height:0;border-radius:7px;background:var(--seg-on);box-shadow:var(--seg-on-shadow);pointer-events:none;z-index:0;opacity:0}
+html.mz-motion .mz-seg{transition:transform .38s var(--ease-snap),width .38s var(--ease-snap),height .38s var(--ease-snap),opacity .2s ease}
+html.vt .mz-pill,html.vt .mz-seg{transition:none!important}
+
+/* ---------- first load: quiet skeletons instead of zeros ---------- */
+html[data-theme] .mz-boot .metric .mv,html[data-theme] .mz-boot .metric .ms{color:transparent!important;border-radius:8px;
+  background:linear-gradient(90deg,var(--sk-a) 30%,var(--sk-b) 50%,var(--sk-a) 70%);background-size:300% 100%;animation:mzShimmer 1.6s ease-in-out infinite}
+html[data-theme] .mz-boot .metric .mv{max-width:58%}
+html[data-theme] .mz-boot .metric .ms{max-width:86%;min-height:14px}
+html[data-theme] .mz-boot .metric :is(.mv,.ms) *{visibility:hidden}
+html[data-theme] .mz-boot :is(.empty,.bars,.dual,.split,.feed,.tbl tbody,.row,.recent){visibility:hidden}
+
+/* ---------- toasts ---------- */
+.mz-toasts{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;width:max-content;max-width:92vw}
+.mz-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;max-width:min(560px,92vw);padding:11px 16px 11px 12px;border-radius:14px;background:var(--toast-bg);color:var(--toast-ink);
+  font:500 13.5px/1.35 var(--sans,Inter,system-ui,sans-serif);letter-spacing:-.005em;box-shadow:0 14px 44px rgba(0,0,0,.28),inset 0 0 0 .5px rgba(255,255,255,.10);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);cursor:pointer;animation:mzToastIn .55s var(--ease-out,ease) both}
+.mz-toast.out{animation:mzToastOut .3s var(--ease-in,ease) both}
+.mz-ti{width:20px;height:20px;flex:0 0 20px;border-radius:50%;background:#8E8E93;position:relative}
+.mz-ti::after{content:"";position:absolute;inset:0;background:#fff;-webkit-mask:var(--mz-ti) center/12px no-repeat;mask:var(--mz-ti) center/12px no-repeat}
+.mz-toast{--mz-ti:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 7.5v.5M12 11v6'/%3E%3C/svg%3E")}
+.mz-toast.ok .mz-ti{background:#30D158}
+.mz-toast.ok{--mz-ti:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 12.5l4.2 4.2L18.5 8'/%3E%3C/svg%3E")}
+.mz-toast.err .mz-ti{background:#FF453A}
+.mz-toast.err{--mz-ti:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M12 6.5v7M12 17.3v.2'/%3E%3C/svg%3E")}
+.mz-toast.info .mz-ti{background:#0A84FF}
+
+/* ---------- confirm / prompt sheet (replaces the browser's dialogs) ---------- */
+.mz-modal{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:16px;background:var(--scrim,rgba(0,0,0,.3));
+  -webkit-backdrop-filter:blur(10px) saturate(120%);backdrop-filter:blur(10px) saturate(120%);animation:mzFadeIn .22s ease both}
+.mz-modal.out{animation:mzFadeOut .2s ease both}
+.mz-mcard{width:min(420px,100%);background:var(--card,#fff);color:var(--ink,#1D1D1F);border-radius:18px;padding:22px 22px 18px;
+  box-shadow:0 30px 90px rgba(0,0,0,.30),0 0 0 .5px var(--card-line,rgba(0,0,0,.08));animation:mzModalIn .5s var(--spring,ease) both}
+.mz-modal.out .mz-mcard{animation:mzModalOut .2s ease both}
+.mz-mt{font:600 16px/1.35 var(--sans,Inter,system-ui,sans-serif);letter-spacing:-.012em}
+.mz-mb{margin-top:8px;font:400 13.5px/1.5 var(--sans,Inter,system-ui,sans-serif);color:var(--dim,#6E6E73);white-space:pre-wrap}
+.mz-mcard .mz-mi{display:block;width:100%;margin-top:16px;height:42px;font-size:15px;border-radius:10px}
+.mz-mr{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.mz-mr .btn{min-width:98px;padding:10px 16px;font-size:13px;border-radius:10px;letter-spacing:0}
+html[data-theme] .mz-mr .btn.mz-ok{background:var(--accent);border-color:transparent;color:#fff;box-shadow:var(--accent-shadow)}
+html[data-theme] .mz-mr .btn.mz-ok:hover{background:var(--accent-hover)}
+html[data-theme] .mz-mr .btn.mz-ok.mz-danger{background:var(--red-f)}
+
+/* ---------- view transitions ---------- */
+::view-transition{pointer-events:none}
+::view-transition-group(*){animation-timing-function:var(--ease-out)}
+html.vt-nav .stage{view-transition-name:mz-stage}
+html.vt-nav .cmd{view-transition-name:mz-cmd}
+html.vt-nav::view-transition-old(root),html.vt-nav::view-transition-new(root){animation:none}
+html.vt-nav::view-transition-group(mz-stage){animation-duration:.34s}
+html.vt-nav::view-transition-old(mz-stage){animation:mzFadeOut .2s ease both}
+html.vt-nav::view-transition-new(mz-stage){animation:mzFadeIn .3s ease both}
+html.vt-nav::view-transition-group(mz-cmd){animation-duration:.26s}
+html.vt-nav::view-transition-group(mz-pill),html.vt-nav::view-transition-group(mz-seg){animation-duration:.4s;animation-timing-function:var(--ease-snap)}
+html.vt-close .drawer{view-transition-name:mz-drawer}
+html.vt-close::view-transition-old(mz-drawer){animation:mzSheetOut .34s cubic-bezier(.5,0,.75,0) both}
+html.vt-close::view-transition-old(root),html.vt-close::view-transition-new(root){animation-duration:.34s}
+html.vt-theme::view-transition-old(root){animation:none}
+html.vt-theme::view-transition-new(root){animation:mzReveal .75s cubic-bezier(.65,0,.35,1) both}
+html.vt-gate .gcard{view-transition-name:mz-gcard}
+html.vt-gate::view-transition-group(mz-gcard){animation-duration:.5s}
+html.vt-gate::view-transition-old(mz-gcard){animation:mzPushOut .3s var(--ease-in) both}
+html.vt-gate::view-transition-new(mz-gcard){animation:mzPushIn .55s var(--ease-out) both}
+html.vt-gate::view-transition-old(mz-gcard):only-child{animation:mzGateOut .5s cubic-bezier(.4,0,.2,1) both}
+html.vt-gate::view-transition-new(mz-gcard):only-child{animation:mzGateIn .6s var(--ease-out) both}
+html.vt-gate::view-transition-old(root){animation:mzFadeOut .45s ease both}
+html.vt-gate::view-transition-new(root){animation:mzFadeIn .55s ease both}
+
+@media (prefers-reduced-motion:reduce){
+  ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
+}
