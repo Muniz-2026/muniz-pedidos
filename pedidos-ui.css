@@ -1,0 +1,109 @@
+/* =====================================================================
+   MUÑIZ PEDIDOS · iPhone UI · v1
+   Same app, same flow — rebuilt to feel like a native iOS app:
+   SF type, iOS light surfaces, soft depth, glass bars, springy presses,
+   screens that glide in, sheets that rise, a real "sent" moment.
+   ===================================================================== */
+:root{
+  --pz-bg:#F2F2F7; --pz-card:#FFFFFF; --pz-ink:#1C1C1E; --pz-ink2:#3A3A3C; --pz-dim:#6E6E73; --pz-faint:#8E8E93;
+  --pz-sep:rgba(60,60,67,.14); --pz-fill:#E9E9EE; --pz-blue:#0071E3; --pz-orange:#FF5A00; --pz-green:#248A3D;
+  --pz-ease:cubic-bezier(.16,1,.3,1); --pz-spring:cubic-bezier(.34,1.56,.64,1);
+  --pz-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px -14px rgba(0,0,0,.22);
+  --pz-shadow-lg:0 2px 6px rgba(0,0,0,.05),0 18px 40px -18px rgba(0,0,0,.30);
+}
+html,body{background:var(--pz-bg)!important}
+body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+#root>div,.mzf,[id^="mz-"]{font-family:-apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif!important}
+#root>div.min-h-screen{background:var(--pz-bg)!important}
+
+/* display type: SF Pro Display, heavy and tight, instead of Archivo Black */
+[style*="Archivo Black"],[style*="Archivo+Black"]{font-family:-apple-system,"SF Pro Display",system-ui,sans-serif!important;font-weight:800!important;letter-spacing:-.024em!important}
+#root .font-black{letter-spacing:-.01em}
+
+/* the hazard stripe becomes a quiet brand line */
+.h-2.w-full[style*="repeating-linear-gradient"],.mzf-stripe,div[style^="height:8px;background:repeating-linear-gradient"],div[style^="height: 8px; background: repeating-linear-gradient"]{height:3px!important;background:linear-gradient(90deg,#FF5A00 0%,#FF8A3D 60%,#FFB36B 100%)!important}
+
+/* ---------- navigation bar: iOS glass ---------- */
+.sticky.top-0{z-index:40!important}
+.sticky.top-0>.bg-white{background:rgba(255,255,255,.80)!important;-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:.5px solid var(--pz-sep)!important;padding-top:8px!important;padding-bottom:8px!important}
+.sticky.top-0 [style*="Archivo Black"]{font-size:17px!important;letter-spacing:-.02em!important}
+
+/* back buttons: round, light, blue chevron — like every iPhone app */
+button[aria-label="Atras"],#mz-back,#mz-para-back,.mzf-back{width:38px!important;height:38px!important;min-width:38px!important;border-radius:999px!important;
+  background:var(--pz-fill)!important;color:var(--pz-blue)!important;font-size:19px!important;font-weight:700!important;border:0!important;box-shadow:none!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important}
+
+/* ---------- cards ---------- */
+#root .grid.grid-cols-2>button{background:var(--pz-card)!important;border:0!important;border-radius:14px!important;box-shadow:var(--pz-shadow)!important;
+  color:var(--pz-ink)!important;font-weight:700!important;letter-spacing:.005em!important;font-size:12.5px!important}
+button.border-4{border-width:0!important;border-radius:22px!important;box-shadow:var(--pz-shadow-lg)!important;padding:18px 18px 16px!important}
+button.border-4 .rounded-lg{border-radius:999px!important;padding:9px 14px!important;letter-spacing:.02em!important;box-shadow:0 6px 14px -8px rgba(0,0,0,.45)}
+button[style*="border:3px solid"]{border-width:0!important;box-shadow:var(--pz-shadow-lg)!important;border-radius:24px!important}
+button[style*="border:3px solid"] [style*="border-radius:14px"]{border-radius:999px!important;box-shadow:0 8px 18px -10px rgba(0,0,0,.45)}
+#root .border-2{border-width:0!important;border-radius:16px!important;box-shadow:var(--pz-shadow)!important}
+#root .rounded-2xl.bg-white,#root .bg-white.rounded-2xl{box-shadow:var(--pz-shadow)}
+
+/* ---------- search + inputs: iOS fields (17 px → no zoom on focus) ---------- */
+#root input[type="search"],#root input[placeholder*="Buscar"],#root input[placeholder*="buscar"]{background:var(--pz-fill)!important;border:0!important;border-radius:12px!important;
+  min-height:44px;font-size:17px!important;box-shadow:none!important;transition:box-shadow .2s var(--pz-ease),background-color .2s}
+#root input:focus,.mzf input:focus,.mzf-input:focus{outline:none!important;box-shadow:0 0 0 3.5px rgba(0,113,227,.28)!important;background:#fff!important}
+#root input,#root textarea,.mzf input,.mzf textarea,.mzf-input{font-size:max(16px,1em)!important}
+
+/* ---------- presses give a little ---------- */
+#root button,.mzf button,button[id^="mz-"],[id^="mz-"] button{transition:transform .2s var(--pz-ease),box-shadow .25s var(--pz-ease),background-color .2s,opacity .2s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#root button:active:not(:disabled),.mzf button:active:not(:disabled),button[id^="mz-"]:active,[id^="mz-"] button:active{transform:scale(.965)!important;transition-duration:.08s!important}
+#root button:disabled{opacity:.45}
+
+/* ---------- bottom bar + sheets ---------- */
+.fixed.bottom-0.left-0.right-0.z-30{box-shadow:0 -10px 30px -18px rgba(0,0,0,.28);animation:pzBarIn .55s var(--pz-ease) both}
+.fixed.bottom-0.left-0.right-0.z-30 button{border-radius:14px!important}
+.rounded-t-2xl{border-radius:22px 22px 0 0!important;animation:pzSheetUp .5s var(--pz-ease) both;position:relative}
+.rounded-t-2xl::before{content:"";position:absolute;top:7px;left:50%;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:rgba(60,60,67,.22)}
+.fixed.inset-0[class*="bg-black"]{animation:pzFade .25s ease both}
+
+/* ---------- fuel wizard ---------- */
+.mzf-card,.mzf-choice{border-width:2px!important;border-radius:18px!important;box-shadow:var(--pz-shadow)!important;transition:transform .2s var(--pz-ease),box-shadow .2s,border-color .2s}
+.mzf-cta{border-radius:14px!important;min-height:54px;letter-spacing:.01em!important;box-shadow:0 10px 22px -12px rgba(0,0,0,.45)!important}
+.mzf-input{border-radius:12px!important}
+.mzf-head{-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
+
+/* ---------- motion ---------- */
+@keyframes pzScreen{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}
+@keyframes pzRise{from{opacity:0;transform:translate3d(0,12px,0)}to{opacity:1;transform:none}}
+@keyframes pzFade{from{opacity:0}to{opacity:1}}
+@keyframes pzSheetUp{from{transform:translate3d(0,100%,0)}to{transform:none}}
+@keyframes pzBarIn{from{transform:translate3d(0,100%,0)}to{transform:none}}
+@keyframes pzPop{0%{opacity:0;transform:scale(.4)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes pzRing{0%{box-shadow:0 0 0 0 rgba(36,138,61,.40)}100%{box-shadow:0 0 0 26px rgba(36,138,61,0)}}
+@keyframes pzBump{0%{transform:scale(1)}35%{transform:scale(1.32)}70%{transform:scale(.92)}100%{transform:scale(1)}}
+@keyframes pzBurst{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
+
+@media (prefers-reduced-motion:no-preference){
+  #root>div{animation:pzScreen .45s var(--pz-ease) both}
+  #root>div>div:not(.sticky):not(.fixed){animation:pzRise .5s var(--pz-ease) both}
+  #root>div>div:nth-child(3){animation-delay:.04s}#root>div>div:nth-child(4){animation-delay:.08s}
+  #root>div>div:nth-child(5){animation-delay:.12s}#root>div>div:nth-child(n+6){animation-delay:.16s}
+  #root .grid>*{animation:pzRise .45s var(--pz-ease) both}
+  #root .grid>*:nth-child(2){animation-delay:.02s}#root .grid>*:nth-child(3){animation-delay:.04s}#root .grid>*:nth-child(4){animation-delay:.06s}
+  #root .grid>*:nth-child(5){animation-delay:.08s}#root .grid>*:nth-child(6){animation-delay:.10s}#root .grid>*:nth-child(7){animation-delay:.12s}
+  #root .grid>*:nth-child(8){animation-delay:.14s}#root .grid>*:nth-child(9){animation-delay:.16s}#root .grid>*:nth-child(10){animation-delay:.18s}
+  #root .grid>*:nth-child(n+11){animation-delay:.2s}
+  div[style^="position:fixed;inset:0"],div[style^="position: fixed; inset: 0px"]{animation:pzScreen .42s var(--pz-ease) both}
+  div[style^="position:fixed;inset:0"]>*>*{animation:pzRise .5s var(--pz-ease) both}
+  div[style^="position:fixed;inset:0"]>*>*:nth-child(2){animation-delay:.05s}
+  div[style^="position:fixed;inset:0"]>*>*:nth-child(3){animation-delay:.10s}
+  div[style^="position:fixed;inset:0"]>*>*:nth-child(n+4){animation-delay:.15s}
+  .mzf-body>*{animation:pzRise .45s var(--pz-ease) both}
+  .mzf-body>*:nth-child(2){animation-delay:.04s}.mzf-body>*:nth-child(3){animation-delay:.08s}.mzf-body>*:nth-child(n+4){animation-delay:.12s}
+  .w-24.h-24.rounded-full,.mzf .ck{animation:pzPop .75s var(--pz-spring) both,pzRing 1.3s .35s ease-out 2}
+  .text-8xl{animation:pzRise .7s .15s var(--pz-ease) both}
+  .pz-bump{animation:pzBump .55s var(--pz-ease)}
+}
+.pz-burst{position:fixed;width:9px;height:9px;border-radius:3px;pointer-events:none;z-index:100000;animation:pzBurst .9s cubic-bezier(.2,.7,.3,1) forwards}
+
+/* ---------- toast ---------- */
+.pz-toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 90px);transform:translateX(-50%);z-index:100001;max-width:88vw;
+  background:rgba(28,28,30,.9);color:#fff;font:600 15px/1.3 -apple-system,system-ui,sans-serif;padding:12px 18px;border-radius:16px;
+  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);box-shadow:0 14px 40px rgba(0,0,0,.28);animation:pzRise .45s var(--pz-ease) both}
+.mzf-display{font-family:-apple-system,"SF Pro Display",system-ui,sans-serif!important;font-weight:800!important;letter-spacing:-.024em!important}
