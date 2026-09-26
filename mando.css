@@ -909,6 +909,7 @@ html[data-theme] .hl-unk-i .dim{display:block;font-size:12px;margin-top:3px}
 html[data-theme] .hl-unk-a,html[data-theme] .hl-unk-f{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 html[data-theme] .hl-unk-f .inp{height:32px;width:220px}
 html[data-theme] .hl-unk-f .sel{height:32px}
+html[data-theme] .hl-near{display:block;margin-top:3px;font:500 12px/1.3 var(--sans);color:var(--accent-ink,var(--accent))}
 
 /* ==========================================================================
    MOTION · v1
