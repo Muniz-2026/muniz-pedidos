@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v136
+/* MUÑIZ Pedidos - service worker  ·  v137
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -13,7 +13,7 @@
      · Product photos (remote) stay network-then-cache.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v136";
+const CACHE = "muniz-pedidos-v137";
 const SHELL = [
   "./","./index.html","./instalar.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./pedidos_db.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./mando.html","./mando.js","./mando.css","./bandeja.html","./bandeja.js","./bandeja.css","./mando.webmanifest",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
