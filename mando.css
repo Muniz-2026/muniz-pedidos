@@ -900,6 +900,15 @@ html.mz-motion .hl-tile:nth-child(2){animation-delay:.06s}html.mz-motion .hl-til
 @media (max-width:1200px){.hl-console-body{grid-template-columns:1fr}.hl-tele{max-height:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}html[data-theme] .hl-day-b{grid-template-columns:1fr}}
 @media (max-width:640px){.hl-console{padding:16px;border-radius:18px}.hl-h{font-size:22px}.hl-clock b{font-size:18px}.hl-live{min-height:320px}html[data-theme] .hl-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   html[data-theme] .hl-cell{min-height:56px;padding:6px}html[data-theme] .hl-cell em{display:none}html[data-theme] .hl-dos-h{flex-wrap:wrap}}
+html[data-theme] .hl-unk{display:flex;flex-direction:column}
+html[data-theme] .hl-unk-r{display:flex;align-items:center;gap:14px;padding:11px 4px;border-bottom:1px solid var(--hair);flex-wrap:wrap}
+html[data-theme] .hl-unk-r.on{background:color-mix(in srgb,var(--accent) 6%,transparent);border-radius:10px;padding:11px 10px}
+html[data-theme] .hl-unk-i{flex:1;min-width:240px}
+html[data-theme] .hl-unk-i b{display:block;font:600 13.5px/1.2 var(--mono,ui-monospace,monospace)}
+html[data-theme] .hl-unk-i .dim{display:block;font-size:12px;margin-top:3px}
+html[data-theme] .hl-unk-a,html[data-theme] .hl-unk-f{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+html[data-theme] .hl-unk-f .inp{height:32px;width:220px}
+html[data-theme] .hl-unk-f .sel{height:32px}
 
 /* ==========================================================================
    MOTION · v1
