@@ -52,7 +52,7 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
 var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationVisits:["fuel"],fuelGps:["fuel"],fuelTest:["fuel"],
-  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],places:["haul"]};
+  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],places:["haul"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -85,6 +85,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["rules",300e3,2,()=>He($e("rules_config?select=*",c))],
   ["spots",300e3,2,()=>He($e("jobsite_spots?select=jobsite,lat,lon,radius_m,learned_from,learned_day,minutes",c))],
   ["pmProj",120e3,2,()=>He($e("pm_projects?select=*",c))],
+  ["pmSched",600e3,3,()=>He($e("pm_schedule?select=*&applied_at=is.null&order=starts.asc",c))],
   ["haulDays",300e3,2,()=>He($e("haul_days?select=*&day=gte."+new Date(Date.now()-62*864e5).toISOString().slice(0,10)+"&order=day.desc&limit=2000",c))],
   ["haulStops",300e3,2,()=>He(go("haul_stops?select=*&day=gte."+new Date(Date.now()-46*864e5).toISOString().slice(0,10)+"&order=arrive.asc",c,6))],
   ["places",900e3,3,()=>He($e("haul_places?select=*",c))],
@@ -99,7 +100,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
+   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
  /* escalate_pending / verify_pending_fuel run on the server every 2 min (parche39); browsers no longer call them */
  const rpc=()=>{};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;
@@ -481,9 +482,15 @@ var PJCOL=["#0A84FF","#FF6A1A","#30B158","#AF52DE","#FF9F0A","#00A4B4","#E5484D"
 var MZhav=PJhav;
 
 function PJmodel(e,pm,t){
-  var ppl=e.ppl||[],all=ppl.filter(function(p){return p.role==="MAYORDOMO"&&p.active});
-  var team=all.filter(function(p){return PJsame(p.pm,pm)}).map(function(p){return p.name});
-  var inT=function(n){for(var i=0;i<team.length;i++)if(PJsame(team[i],n))return team[i];return null};
+  var ppl=e.ppl||[],all=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR")&&p.active});
+  /* one person can be in People under two names (same_as): one crew card, all their orders */
+  var byName={};ppl.forEach(function(p){byName[p.name]=p});
+  var canon=function(p){return p.same_as&&byName[p.same_as]?p.same_as:p.name};
+  var groups={};all.filter(function(p){return PJsame(p.pm,pm)}).forEach(function(p){var c=canon(p);(groups[c]=groups[c]||[]).push(p.name)});
+  var team=Object.keys(groups).sort();
+  var keysOf={};team.forEach(function(c){var ks=[MK(c)];ppl.forEach(function(q){if(q.same_as===c||groups[c].indexOf(q.name)>=0||(byName[c]&&byName[c].same_as===q.name))ks.push(MK(q.name))});keysOf[c]=ks});
+  var inT=function(n){if(!n)return null;var k=MK(n);for(var i=0;i<team.length;i++)if(keysOf[team[i]].indexOf(k)>=0)return team[i];return null};
+  var PJs2=function(a,b){if(PJsame(a,b))return !0;var x=inT(a),y=inT(b);return !!x&&(x===b||x===y)};
   var num=function(v){return Number(v.subtotal!=null?v.subtotal:v.total)||0};
   var D30=t-30*864e5,D7=t-7*864e5,now=new Date(t),mStart=new Date(now.getFullYear(),now.getMonth(),1).getTime(),pmStart=new Date(now.getFullYear(),now.getMonth()-1,1).getTime();
   var todayK=qt(t);
@@ -501,7 +508,7 @@ function PJmodel(e,pm,t){
   var ud=(e.unitDay||[]).filter(function(r){return inT(r.who)});
   var appr=o30.filter(function(o){return o.secs_to_approve>0}).map(function(o){return o.secs_to_approve});
   var med=appr.length?appr.slice().sort(function(a,b){return a-b})[Math.floor(appr.length/2)]:null;
-  var fleetOf=function(n){return(e.fleet||[]).find(function(u){return PJsame(u.person,n)})||null};
+  var fleetOf=function(n){return(e.fleet||[]).find(function(u){return PJs2(u.person,n)})||null};
   var spots=e.spots||[];
   var liveOf=function(n){var u=fleetOf(n);if(!u)return{k:"none",c:_.faint,t:"No tracker linked",u:null};var sec=u.secs_since_seen!=null?u.secs_since_seen:1e9;
     if(sec>86400)return{k:"quiet",c:_.faint,t:"Tracker quiet · "+Ze(sec),u:u};
@@ -515,8 +522,8 @@ function PJmodel(e,pm,t){
   var dayMap={};sd.forEach(function(r){var n=inT(r.person);var k=n+"|"+r.day;if(!dayMap[k]||dayMap[k].m<r.minutes)dayMap[k]={j:r.jobsite,m:Number(r.minutes)||0}});
   var colorOf={},ci=0;
   var crews=team.map(function(n){
-    var js=byCrew[n]||{},ordsN=ords.filter(function(o){return PJsame(o.foreman,n)});
-    var recent=[].concat(ordsN.map(function(o){return{ts:o.ts,j:o.jobsite_week||o.jobsite}}),fuelT.filter(function(f){return PJsame(f.who,n)}).map(function(f){return{ts:f.ts,j:f.jobsite_week}}))
+    var js=byCrew[n]||{},ordsN=ords.filter(function(o){return PJs2(o.foreman,n)});
+    var recent=[].concat(ordsN.map(function(o){return{ts:o.ts,j:o.jobsite_week||o.jobsite}}),fuelT.filter(function(f){return PJs2(f.who,n)}).map(function(f){return{ts:f.ts,j:f.jobsite_week}}))
       .filter(function(x){return x.j&&!/yard|yarda/i.test(x.j)}).sort(function(a,b){return b.ts-a.ts});
     var gps=Object.keys(js).map(function(j){return[j,js[j]]}).sort(function(a,b){return b[1].last.localeCompare(a[1].last)||b[1].days-a[1].days})[0];
     var lv=liveOf(n);
@@ -524,17 +531,17 @@ function PJmodel(e,pm,t){
     var cd=cur&&js[cur]?js[cur]:null;
     var strip=[];for(var i=29;i>=0;i--){var dk=qt(t-i*864e5),hit=dayMap[n+"|"+dk];strip.push({d:dk,j:hit?hit.j:null,m:hit?hit.m:0})}
     strip.forEach(function(x){if(x.j&&colorOf[x.j]==null){colorOf[x.j]=PJCOL[ci%PJCOL.length];ci++}});
-    var mo=live.filter(function(o){return PJsame(o.foreman,n)&&o.ts>=D30});
+    var mo=live.filter(function(o){return PJs2(o.foreman,n)&&o.ts>=D30});
     var lastPo=ordsN.filter(function(o){return o.po}).sort(function(a,b){return(b.po_at?Date.parse(b.po_at):b.ts)-(a.po_at?Date.parse(a.po_at):a.ts)})[0]||null;
-    var acts=[].concat(ordsN.map(function(o){return o.ts}),fuelT.filter(function(f){return PJsame(f.who,n)}).map(function(f){return f.ts})).sort(function(a,b){return b-a});
-    var u7=ud.filter(function(r){return PJsame(r.who,n)&&PJts(r.day)>=D7});
-    var today=ud.filter(function(r){return PJsame(r.who,n)}).sort(function(a,b){return String(b.day).localeCompare(String(a.day))})[0]||null;
+    var acts=[].concat(ordsN.map(function(o){return o.ts}),fuelT.filter(function(f){return PJs2(f.who,n)}).map(function(f){return f.ts})).sort(function(a,b){return b-a});
+    var u7=ud.filter(function(r){return PJs2(r.who,n)&&PJts(r.day)>=D7});
+    var today=ud.filter(function(r){return PJs2(r.who,n)}).sort(function(a,b){return String(b.day).localeCompare(String(a.day))})[0]||null;
     var drive=u7.reduce(function(a,r){return a+(Number(r.drive_min)||0)},0),idle=u7.reduce(function(a,r){return a+(Number(r.idle_min)||0)},0);
-    var sup=(ppl.find(function(p){return PJsame(p.name,n)})||{}).supervisor||null;
+    var sup=(ppl.find(function(p){return PJs2(p.name,n)})||{}).supervisor||null;
     return{n:n,sup:sup,cur:cur,cd:cd,js:js,lv:lv,strip:strip,usd:mo.reduce(function(a,o){return a+(Number(o.est_total)||0)},0),cnt:mo.length,pos:mo.filter(function(o){return o.po}).length,
       lastPo:lastPo,lastAct:acts[0]||null,today:today,miles7:u7.reduce(function(a,r){return a+(Number(r.miles)||0)},0),idlePct:drive+idle?Math.round(100*idle/(drive+idle)):null,
-      bill:billM.filter(function(v){return PJsame(v.foreman,n)}).reduce(function(a,v){return a+num(v)},0),
-      fuelUsd:tix.filter(function(k){return PJsame(k.creator,n)&&PJts(k.ticket_date)>=D30}).reduce(function(a,k){return a+(Number(k.amount)||0)},0),
+      bill:billM.filter(function(v){return PJs2(v.foreman,n)}).reduce(function(a,v){return a+num(v)},0),
+      fuelUsd:tix.filter(function(k){return PJs2(k.creator,n)&&PJts(k.ticket_date)>=D30}).reduce(function(a,k){return a+(Number(k.amount)||0)},0),
       sdays:Object.keys(js).reduce(function(a,j){return a+js[j].days},0),ordersAll:ordsN}});
   /* jobsites */
   var jobs={};var J=function(j){return jobs[j]=jobs[j]||{j:j,crews:{},days:{},first:null,last:null,usd:0,orders:[],bills:[],billUsd:0,fuelPos:0,fuelUsd:0,gal:0,items:{},contracts:{},spot:null}};
@@ -549,7 +556,7 @@ function PJmodel(e,pm,t){
   spots.forEach(function(sp){if(jobs[sp.jobsite]&&!jobs[sp.jobsite].spot)jobs[sp.jobsite].spot=sp});
   var proj=e.pmProj||[];
   var jl=Object.keys(jobs).map(function(k){var x=jobs[k];x.nd=Object.keys(x.days).length;x.cl=Object.keys(x.crews);
-    var pr=proj.find(function(p){return PJsame(p.pm,pm)&&p.jobsite===x.j});x.finish=pr&&pr.expected_finish||"";x.contract=(pr&&pr.contract)||Object.keys(x.contracts).sort(function(a,b){return x.contracts[b]-x.contracts[a]})[0]||"";
+    var pr=proj.find(function(p){return PJs2(p.pm,pm)&&p.jobsite===x.j});x.finish=pr&&pr.expected_finish||"";x.contract=(pr&&pr.contract)||Object.keys(x.contracts).sort(function(a,b){return x.contracts[b]-x.contracts[a]})[0]||"";
     x.top=Object.keys(x.items).map(function(k2){return x.items[k2]}).sort(function(a,b){return b.usd-a.usd||b.qty-a.qty}).slice(0,5);
     x.onNow=crews.filter(function(c){return c.lv.site===x.j}).map(function(c){return c.n});
     if(x.finish&&x.first){var a=PJts(x.first),b=PJts(x.finish);x.pct=Math.max(0,Math.min(1,(t-a)/Math.max(1,b-a)));x.left=Math.ceil((b-t)/864e5)}else{x.pct=null;x.left=null}
@@ -577,7 +584,9 @@ function PJmodel(e,pm,t){
   var badB=billM.filter(function(v){return v.po_check&&v.po_check!=="OK"});if(badB.length)al.push({c:_.amber,t:badB.length+" invoice"+(badB.length===1?"":"s")+" this month without a clean PO match ("+H(badB.reduce(function(a,v){return a+num(v)},0))+")"});
   jl.forEach(function(x){if(x.left!=null&&x.left<0)al.push({c:_.red,t:x.j+" is "+(-x.left)+" day"+(-x.left===1?"":"s")+" past its expected finish",job:x.j});else if(x.left!=null&&x.left<=7)al.push({c:_.amber,t:x.j+" is due in "+x.left+" day"+(x.left===1?"":"s"),job:x.j})});
   var hr=now.getHours();if(hr>=9&&hr<15)crews.forEach(function(c){if(c.lv.k==="park"||c.lv.k==="idle")al.push({c:_.cyan,t:PJfirst(c.n)+"'s truck is "+(c.lv.k==="park"?"parked":"idling")+" off any jobsite ("+c.lv.t.replace(/^(Parked|Idling) · ?/,"")+")",crew:c.n})});
-  return{team:team,all:all,crews:crews,jl:jl,wk:wk,ven:ven,top:top,feed:feed,al:al,colorOf:colorOf,o30:o30,oM:oM,waiting:waiting,noPo:noPo,billM:billM,billP:billP,tixM:tixM,sd:sd,med:med,num:num,
+  var sch=(e.pmSched||[]).filter(function(r){return !r.applied_at}),coming=[];
+  sch.forEach(function(r){if(PJs2(r.pm,pm)&&!inT(r.person))coming.push({t:"joins you "+PJday(r.starts),n:r.person,why:r.reason,c:_.green});else if(inT(r.person)&&!PJs2(r.pm,pm))coming.push({t:"moves to "+PJfirst(r.pm)+" "+PJday(r.starts),n:r.person,why:r.reason,c:_.amber})});
+  return{coming:coming,team:team,all:all,crews:crews,jl:jl,wk:wk,ven:ven,top:top,feed:feed,al:al,colorOf:colorOf,o30:o30,oM:oM,waiting:waiting,noPo:noPo,billM:billM,billP:billP,tixM:tixM,sd:sd,med:med,num:num,
     onSite:crews.filter(function(c){return c.lv.k==="site"}).length,driving:crews.filter(function(c){return c.lv.k==="drive"}).length,poOrd:poOrd,bills:bills,fuelT:fuelT,tix:tix,ud:ud,inT:inT,dayMap:dayMap,ords:ords}
 }
 
@@ -632,14 +641,14 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
   var a6=(0,M.useState)(""),busy=a6[0],setBusy=a6[1];
   var a7=(0,M.useState)({}),fin=a7[0],setFin=a7[1];
   var minute=Math.floor(t/6e4);
-  var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
+  var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.pmSched,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
   var choose=function(n,play){try{n?localStorage.setItem(PJK,n):localStorage.removeItem(PJK)}catch(x){}setCrew(null);setJob(null);setPm(n);if(n&&play&&MZmo)setIntro(!0)};
   if(!pm){
     return PJh("div",{className:"room room-projects"},
       PJh("div",{className:"pj-lobby"},PJh("div",{className:"pj-lobby-glow"}),
         PJh("div",{className:"pj-kicker"},"PROJECTS"),PJh("div",{className:"pj-h1 xl"},"Your projects, all in one place."),
         PJh("div",{className:"pj-sub"},"Choose your name. Every crew you manage, every jobsite they work, every order, PO and invoice — and where each crew is right now.")),
-      PJh("div",{className:"pj-pick"},pms.length?pms.map(function(n,i){var c=ppl.filter(function(p){return p.role==="MAYORDOMO"&&p.active&&PJsame(p.pm,n)}).length;
+      PJh("div",{className:"pj-pick"},pms.length?pms.map(function(n,i){var c=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR")&&p.active&&PJsame(p.pm,n)}).length;
         return PJh("button",{key:n,className:"pj-pm",style:{animationDelay:(i*0.05)+"s"},onClick:function(){choose(n,!0)}},PJh("span",{className:"pj-av"},PJini(n)),PJh("b",null,z(n)),PJh("span",{className:"dim"},c?c+" crew"+(c===1?"":"s"):"no crews yet"),PJh("span",{className:"pj-go"},"Enter →"))}):PJh(ve,null,"No project managers yet — in People, give them the role GERENTE.")))}
   var finOf=function(j,d){var k=pm+"|"+j;return fin[k]!==void 0?fin[k]:d||""};
   var saveFin=async function(j,v){var k=pm+"|"+j;setFin(function(f){var o=Object.assign({},f);o[k]=v;return o});
@@ -667,6 +676,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
           PJh("span",{className:"pj-chip"},PJh(ae,{c:_.green}),m.driving+" driving"),
           PJh("span",{className:"pj-chip"},PJh(ae,{c:m.waiting.length?_.amber:_.faint}),m.waiting.length+" waiting on a decision"),
           PJh("span",{className:"pj-chip"},PJh(ae,{c:m.al.length?_.red:_.faint}),m.al.length+" need attention")),
+        m.coming.length?PJh("div",{className:"pj-coming"},m.coming.map(function(x,i){return PJh("span",{key:i,className:"pj-chip",title:x.why||""},PJh(ae,{c:x.c}),z(x.n)+" "+x.t)})):null,
         PJh("div",{className:"pj-actions"},PJh("button",{className:"btn primary",onClick:function(){setEdit(!0)}},m.team.length?"Edit my crews":"Add my crews"),PJh("button",{className:"btn",onClick:function(){choose(pm,!0)}},"Replay intro"),PJh("button",{className:"btn",onClick:function(){choose("")}},"Switch PM"))),
       PJh("div",{className:"pj-hero-r"},m.team.length?PJh(PJmap,{crews:m.crews,jobs:m.jl,colorOf:m.colorOf,sig:sig}):PJh("div",{className:"pj-map empty"},"Your crews will show up here, live."))),
     m.team.length?PJh("div",{className:"strip"},
