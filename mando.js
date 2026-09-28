@@ -52,7 +52,7 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
 var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationVisits:["fuel"],fuelGps:["fuel"],fuelTest:["fuel"],
-  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],places:["haul"]};
+  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],places:["haul"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -86,6 +86,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["spots",300e3,2,()=>He($e("jobsite_spots?select=jobsite,lat,lon,radius_m,learned_from,learned_day,minutes",c))],
   ["pmProj",120e3,2,()=>He($e("pm_projects?select=*",c))],
   ["pmSched",600e3,3,()=>He($e("pm_schedule?select=*&applied_at=is.null&order=starts.asc",c))],
+  ["crewDay",600e3,3,()=>He(go("crew_day_office?select=day,crew_no,name_raw,person,project,location&day=gte."+new Date(Date.now()-120*864e5).toISOString().slice(0,10)+"&order=day.desc",c,4))],
   ["haulDays",300e3,2,()=>He($e("haul_days?select=*&day=gte."+new Date(Date.now()-62*864e5).toISOString().slice(0,10)+"&order=day.desc&limit=2000",c))],
   ["haulStops",300e3,2,()=>He(go("haul_stops?select=*&day=gte."+new Date(Date.now()-46*864e5).toISOString().slice(0,10)+"&order=arrive.asc",c,6))],
   ["places",900e3,3,()=>He($e("haul_places?select=*",c))],
@@ -100,7 +101,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
+   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
  /* escalate_pending / verify_pending_fuel run on the server every 2 min (parche39); browsers no longer call them */
  const rpc=()=>{};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;
@@ -481,6 +482,7 @@ function PJhav(a,b,c,d){if(a==null||c==null)return 1e12;var R=6371000,x=(c-a)*Ma
 var PJCOL=["#0A84FF","#FF6A1A","#30B158","#AF52DE","#FF9F0A","#00A4B4","#E5484D","#5E5CE6","#8E8E93"];
 var MZhav=PJhav;
 
+function PJstreet(l){return String(l||"").split("/")[0].replace(/\(.*?\)/g,"").replace(/^\s*\d+\s+/,"").replace(/\s+/g," ").trim().toUpperCase()}
 function PJmodel(e,pm,t){
   var ppl=e.ppl||[],all=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR")&&p.active});
   /* one person can be in People under two names (same_as): one crew card, all their orders */
@@ -521,6 +523,11 @@ function PJmodel(e,pm,t){
     if(!j.set[r.day]){j.set[r.day]=1;j.days++}j.min+=Number(r.minutes)||0;if(r.day<j.first)j.first=r.day;if(r.day>j.last)j.last=r.day});
   var dayMap={};sd.forEach(function(r){var n=inT(r.person);var k=n+"|"+r.day;if(!dayMap[k]||dayMap[k].m<r.minutes)dayMap[k]={j:r.jobsite,m:Number(r.minutes)||0}});
   var colorOf={},ci=0;
+  var cdAll=e.crewDay||[];
+  var asgOf=function(n){var seen={},rows=cdAll.filter(function(r){return r.person&&PJs2(r.person,n)}).sort(function(a,b){return String(b.day).localeCompare(String(a.day))||(PJsame(a.person,n)?-1:1)}).filter(function(r){var d=String(r.day).slice(0,10);if(seen[d])return !1;seen[d]=1;return !0});if(!rows.length)return null;
+    var key=function(r){return(r.project||"")+"|"+PJstreet(r.location)},k0=key(rows[0]),run=0,since=rows[0].day;for(var i=0;i<rows.length;i++){if(key(rows[i])===k0){run++;since=rows[i].day}else break}
+    var per=[];rows.slice().reverse().forEach(function(r){var k=key(r),last=per[per.length-1];if(last&&last.k===k){last.to=r.day;last.days++;if(r.location)last.loc=r.location}else per.push({k:k,project:r.project,loc:r.location,from:r.day,to:r.day,days:1})});
+    return{cur:rows[0],run:run,since:since,per:per.reverse().slice(0,10),stale:String(rows[0].day).slice(0,10)<qt(t-4*864e5)}};
   var crews=team.map(function(n){
     var js=byCrew[n]||{},ordsN=ords.filter(function(o){return PJs2(o.foreman,n)});
     var recent=[].concat(ordsN.map(function(o){return{ts:o.ts,j:o.jobsite_week||o.jobsite}}),fuelT.filter(function(f){return PJs2(f.who,n)}).map(function(f){return{ts:f.ts,j:f.jobsite_week}}))
@@ -538,7 +545,7 @@ function PJmodel(e,pm,t){
     var today=ud.filter(function(r){return PJs2(r.who,n)}).sort(function(a,b){return String(b.day).localeCompare(String(a.day))})[0]||null;
     var drive=u7.reduce(function(a,r){return a+(Number(r.drive_min)||0)},0),idle=u7.reduce(function(a,r){return a+(Number(r.idle_min)||0)},0);
     var sup=(ppl.find(function(p){return PJs2(p.name,n)})||{}).supervisor||null;
-    return{n:n,sup:sup,cur:cur,cd:cd,js:js,lv:lv,strip:strip,usd:mo.reduce(function(a,o){return a+(Number(o.est_total)||0)},0),cnt:mo.length,pos:mo.filter(function(o){return o.po}).length,
+    return{n:n,asg:asgOf(n),sup:sup,cur:cur,cd:cd,js:js,lv:lv,strip:strip,usd:mo.reduce(function(a,o){return a+(Number(o.est_total)||0)},0),cnt:mo.length,pos:mo.filter(function(o){return o.po}).length,
       lastPo:lastPo,lastAct:acts[0]||null,today:today,miles7:u7.reduce(function(a,r){return a+(Number(r.miles)||0)},0),idlePct:drive+idle?Math.round(100*idle/(drive+idle)):null,
       bill:billM.filter(function(v){return PJs2(v.foreman,n)}).reduce(function(a,v){return a+num(v)},0),
       fuelUsd:tix.filter(function(k){return PJs2(k.creator,n)&&PJts(k.ticket_date)>=D30}).reduce(function(a,k){return a+(Number(k.amount)||0)},0),
@@ -641,7 +648,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
   var a6=(0,M.useState)(""),busy=a6[0],setBusy=a6[1];
   var a7=(0,M.useState)({}),fin=a7[0],setFin=a7[1];
   var minute=Math.floor(t/6e4);
-  var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.pmSched,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
+  var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.pmSched,e.crewDay,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
   var choose=function(n,play){try{n?localStorage.setItem(PJK,n):localStorage.removeItem(PJK)}catch(x){}setCrew(null);setJob(null);setPm(n);if(n&&play&&MZmo)setIntro(!0)};
   if(!pm){
     return PJh("div",{className:"room room-projects"},
@@ -697,8 +704,8 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
     m.team.length?PJh(G,{title:"YOUR CREWS",right:PJh("span",{className:"legend"},legend.slice(0,6).map(function(j){return PJh("span",{key:j,className:"pj-lg"},PJh("i",{style:{background:m.colorOf[j]}}),j)}))},
       PJh("div",{className:"pj-crews"},m.crews.map(function(c,i){return PJh("button",{key:c.n,className:"pj-crew",style:{animationDelay:(i*0.05)+"s"},onClick:function(){setCrew(c.n)}},
         PJh("div",{className:"pj-crew-top"},PJh("span",{className:"pj-av sm "+(c.lv.k==="site"?"ring":"")},PJini(c.n)),
-          PJh("div",{className:"pj-crew-id"},PJh("b",null,z(c.n)),PJh("span",{className:"dim"},c.cur||"no jobsite yet")),
-          c.cd?PJh("div",{className:"pj-dayno"},PJh("b",null,"Day "+c.cd.days),PJh("span",null,"since "+PJday(c.cd.first))):null),
+          PJh("div",{className:"pj-crew-id"},PJh("b",null,z(c.n)),PJh("span",{className:"dim",title:c.asg?"Internal Crew Locations email · "+PJday(c.asg.cur.day):""},c.asg?c.asg.cur.project+(c.asg.cur.location?" · "+c.asg.cur.location:""):c.cur||"no jobsite yet")),
+          c.asg?PJh("div",{className:"pj-dayno",title:"Days on this assignment, per the daily crew email"},PJh("b",null,"Day "+c.asg.run),PJh("span",null,"since "+PJday(c.asg.since))):c.cd?PJh("div",{className:"pj-dayno"},PJh("b",null,"Day "+c.cd.days),PJh("span",null,"since "+PJday(c.cd.first))):null),
         PJh("div",{className:"pj-live"},PJh(ae,{c:c.lv.c,pulse:c.lv.k==="site"||c.lv.k==="drive"}),PJh("span",null,c.lv.t)),
         PJh(PJstrip,{days:c.strip,colorOf:m.colorOf,today:today}),
         PJh("div",{className:"pj-nums"},
@@ -739,8 +746,10 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
     cr?PJh("div",{className:"drawer-bg",onClick:function(){setCrew(null)}},PJh("aside",{className:"drawer pj-dr",onClick:function(x){x.stopPropagation()}},
       PJh("header",{className:"dh"},PJh("div",{style:{display:"flex",gap:14,alignItems:"center"}},PJh("span",{className:"pj-av "+(cr.lv.k==="site"?"ring":"")},PJini(cr.n)),PJh("div",null,PJh("div",{className:"ml"},"CREW · PM "+PJfirst(pm)+(cr.sup?" · SUP. "+PJfirst(cr.sup).toUpperCase():"")),PJh("div",{className:"dn"},z(cr.n)))),PJh("div",{className:"tags"},PJh(V,{c:cr.lv.c},cr.lv.t))),
       PJh("div",{className:"db"},
-        PJh("div",{className:"kv"},[["Jobsite now",cr.cur||"—"],["On this jobsite",cr.cd?"Day "+cr.cd.days+" · since "+PJday(cr.cd.first):"—"],["Days on site · 60d",String(cr.sdays)],["Ordered · 30d",H(cr.usd)],["Billed this month",H(cr.bill)],["POs · 30d",String(cr.pos)],["Fuel · 30d",cr.fuelUsd?H(cr.fuelUsd):"—"],["Miles · 7 days",cr.miles7?Math.round(cr.miles7)+" mi":"—"],["Idle · 7 days",cr.idlePct!=null?cr.idlePct+"%":"—"],["Last activity",cr.lastAct?PJrel(cr.lastAct,t):"—"]].map(function(r){return PJh("div",{key:r[0]},PJh("span",null,r[0]),PJh("b",null,r[1]))})),
+        PJh("div",{className:"kv"},[["Crew email today",cr.asg?cr.asg.cur.project+(cr.asg.cur.location?" · "+cr.asg.cur.location:"")+" · crew "+cr.asg.cur.crew_no:"—"],["On this assignment",cr.asg?"Day "+cr.asg.run+" · since "+PJday(cr.asg.since):"—"],["GPS jobsite now",cr.cur||"—"],["GPS days on this jobsite",cr.cd?cr.cd.days+" · since "+PJday(cr.cd.first):"—"],["Days on site · 60d",String(cr.sdays)],["Ordered · 30d",H(cr.usd)],["Billed this month",H(cr.bill)],["POs · 30d",String(cr.pos)],["Fuel · 30d",cr.fuelUsd?H(cr.fuelUsd):"—"],["Miles · 7 days",cr.miles7?Math.round(cr.miles7)+" mi":"—"],["Idle · 7 days",cr.idlePct!=null?cr.idlePct+"%":"—"],["Last activity",cr.lastAct?PJrel(cr.lastAct,t):"—"]].map(function(r){return PJh("div",{key:r[0]},PJh("span",null,r[0]),PJh("b",null,r[1]))})),
         cr.lv.u&&cr.lv.u.last_lat?PJh("div",{style:{marginTop:12}},PJh("button",{className:"btn",onClick:function(){setCrew(null);om(cr.lv.u.last_lat,cr.lv.u.last_lon,z(cr.n))}},"SHOW ON THE MAP")):null,
+        cr.asg?PJh("div",{className:"pj-sec"},"ASSIGNMENTS · INTERNAL CREW LOCATIONS EMAIL"):null,
+        cr.asg?cr.asg.per.map(function(p2,i){return PJh("div",{key:i,className:"row"},PJh("span",{className:"pj-dd"},PJday(p2.from)+(p2.to!==p2.from?" – "+PJday(p2.to):"")),PJh("b",{className:"grow tr"},p2.project+(p2.loc?" · "+p2.loc:"")),PJh("span",{className:"mono r"},p2.days+" day"+(p2.days===1?"":"s")))}):null,
         PJh("div",{className:"pj-sec"},"LAST 30 DAYS · WHERE THE CREW WAS"),PJh(PJstrip,{days:cr.strip,colorOf:m.colorOf,today:today}),
         PJh("div",{className:"pj-sec"},"DAY BY DAY"),
         PJh("div",{className:"pj-daylog"},cr.strip.slice().reverse().filter(function(x){return x.j||m.ud.some(function(r){return PJsame(r.who,cr.n)&&String(r.day).slice(0,10)===x.d})}).slice(0,12).map(function(x){var u=m.ud.find(function(r){return PJsame(r.who,cr.n)&&String(r.day).slice(0,10)===x.d});
