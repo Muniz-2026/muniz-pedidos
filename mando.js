@@ -609,6 +609,13 @@ function PJmodel(e,pm,t){
     x.onNow=crews.filter(function(c){return c.lv.site===x.j}).map(function(c){return c.n});
     if(x.finish&&x.first){var a=PJts(x.first),b=PJts(x.finish);x.pct=Math.max(0,Math.min(1,(t-a)/Math.max(1,b-a)));x.left=Math.ceil((b-t)/864e5)}else{x.pct=null;x.left=null}
     return x}).sort(function(a,b){return b.nd-a.nd||b.usd-a.usd});
+  /* removed by this PM (pm_projects.hidden) come off the board; so do passing visits: a jobsite needs 3+ GPS days, an order or
+     invoice from the team, a crew on site right now, or a finish date/contract saved for it — one or two days of a truck parked
+     near someone else's job is not a project */
+  var hidN={};proj.forEach(function(p){if(PJs2(p.pm,pm)&&p.hidden)hidN[p.jobsite]=1});
+  var jlHidden=jl.filter(function(x){return hidN[x.j]}).map(function(x){return x.j}).concat(Object.keys(hidN).filter(function(j){return !jobs[j]}));
+  var jlVisits=[];jl=jl.filter(function(x){if(hidN[x.j])return !1;var pr=proj.find(function(p){return PJs2(p.pm,pm)&&p.jobsite===x.j});
+    var real=x.nd>=3||x.usd>0||x.billUsd>0||x.onNow.length>0||!!(pr&&(pr.expected_finish||pr.contract));if(!real)jlVisits.push(x.j);return real});
   /* 8-week trend */
   var wk=[];var w0=PJwk(t);for(var i=7;i>=0;i--){var s0=w0-i*7*864e5;wk.push({s:s0,o:0,b:0,f:0})}
   var put=function(ts,key,v){for(var i=wk.length-1;i>=0;i--){if(ts>=wk[i].s){if(ts<wk[i].s+7*864e5)wk[i][key]+=v;return}}};
@@ -634,7 +641,7 @@ function PJmodel(e,pm,t){
   var hr=now.getHours();if(hr>=9&&hr<15)crews.forEach(function(c){if(c.lv.k==="park"||c.lv.k==="idle")al.push({c:_.cyan,t:PJfirst(c.n)+"'s truck is "+(c.lv.k==="park"?"parked":"idling")+" off any jobsite ("+c.lv.t.replace(/^(Parked|Idling) · ?/,"")+")",crew:c.n})});
   var sch=(e.pmSched||[]).filter(function(r){return !r.applied_at}),coming=[];
   sch.forEach(function(r){if(PJs2(r.pm,pm)&&!inT(r.person))coming.push({t:"joins you "+PJday(r.starts),n:r.person,why:r.reason,c:_.green});else if(inT(r.person)&&!PJs2(r.pm,pm))coming.push({t:"moves to "+PJfirst(r.pm)+" "+PJday(r.starts),n:r.person,why:r.reason,c:_.amber})});
-  return{coming:coming,team:team,all:all,crews:crews,jl:jl,wk:wk,ven:ven,top:top,feed:feed,al:al,colorOf:colorOf,o30:o30,oM:oM,waiting:waiting,noPo:noPo,billM:billM,billP:billP,tixM:tixM,sd:sd,med:med,num:num,
+  return{coming:coming,jlHidden:jlHidden,jlVisits:jlVisits,team:team,all:all,crews:crews,jl:jl,wk:wk,ven:ven,top:top,feed:feed,al:al,colorOf:colorOf,o30:o30,oM:oM,waiting:waiting,noPo:noPo,billM:billM,billP:billP,tixM:tixM,sd:sd,med:med,num:num,
     onSite:crews.filter(function(c){return c.lv.k==="site"}).length,driving:crews.filter(function(c){return c.lv.k==="drive"}).length,poOrd:poOrd,bills:bills,fuelT:fuelT,tix:tix,ud:ud,inT:inT,dayMap:dayMap,ords:ords}
 }
 
@@ -699,6 +706,9 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
       PJh("div",{className:"pj-pick"},pms.length?pms.map(function(n,i){var isCrew=PJcrewPred(e,t),c=ppl.filter(function(p){return isCrew(p)&&PJsame(p.pm,n)&&!(p.same_as&&ppl.some(function(q){return q.name===p.same_as}))}).length;
         return PJh("button",{key:n,className:"pj-pm",style:{animationDelay:(i*0.05)+"s"},onClick:function(){choose(n,!0)}},PJh("span",{className:"pj-av"},PJini(n)),PJh("b",null,z(n)),PJh("span",{className:"dim"},c?c+" crew"+(c===1?"":"s"):"no crews yet"),PJh("span",{className:"pj-go"},"Enter →"))}):PJh(ve,null,"No project managers yet — in People, give them the role GERENTE.")))}
   var finOf=function(j,d){var k=pm+"|"+j;return fin[k]!==void 0?fin[k]:d||""};
+  var hideJob=async function(j,on){if(on&&!(await MZconfirm("Remove "+j+" from "+z(pm)+"'s projects?\n\nIt comes off this board only. Orders, fuel and GPS history stay, and it can come back from the list below the jobsites.")))return;
+    try{await Vr(vt+"/rest/v1/pm_projects?on_conflict=pm,jobsite",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({pm:pm,jobsite:j,hidden:!!on,updated_at:new Date().toISOString()})},tok.access_token);
+      MZtoast(on?j+" removed from "+PJfirst(pm)+"'s projects":j+" is back on "+PJfirst(pm)+"'s projects","ok");rf()}catch(x){var q=String(x.message||x);MZtoast(/hidden/i.test(q)?"Run parche60 first":"Couldn't save","err")}};
   var saveFin=async function(j,v){var k=pm+"|"+j;setFin(function(f){var o=Object.assign({},f);o[k]=v;return o});
     try{await Vr(vt+"/rest/v1/pm_projects?on_conflict=pm,jobsite",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({pm:pm,jobsite:j,expected_finish:v||null,updated_at:new Date().toISOString()})},tok.access_token);
       MZtoast(v?j+" · expected finish "+PJday(v):j+" · finish date cleared","ok");rf()}catch(x){MZtoast("Couldn't save the date","err")}};
@@ -760,6 +770,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
         if(fin[pm+"|"+x.j]!==void 0&&f&&x.first){var a=PJts(x.first),b=PJts(f);pc=Math.max(0,Math.min(1,(t-a)/Math.max(1,b-a)));lf=Math.ceil((b-t)/864e5)}
         var tone=lf==null?_.faint:lf<0?_.red:lf<=7?_.amber:_.green;
         return PJh("div",{key:x.j,className:"pj-job",style:{animationDelay:(i*0.05)+"s","--jc":m.colorOf[x.j]||"#0A84FF"}},
+          PJh("button",{className:"pj-job-x",title:"Remove from "+PJfirst(pm)+"'s projects",onClick:function(ev){ev.stopPropagation();hideJob(x.j,!0)}},"×"),
           PJh("button",{className:"pj-job-h",onClick:function(){setJob(x.j)}},PJh("div",null,PJh("b",null,x.j),PJh("span",{className:"dim"},(x.contract?x.contract+" · ":"")+x.cl.length+" crew"+(x.cl.length===1?"":"s")+(x.onNow.length?" · "+x.onNow.length+" on site now":""))),
             PJh("div",{className:"pj-job-d"},PJh("b",null,x.nd||"—"),PJh("span",null,"days worked"))),
           PJh("div",{className:"pj-job-crews"},x.cl.map(function(n){return PJh("span",{key:n,className:"pj-av xs"+(x.onNow.indexOf(n)>=0?" ring":""),title:z(n)+" · "+(x.crews[n]||0)+" days here"},PJini(n))})),
@@ -767,7 +778,9 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
           PJh("div",{className:"pj-tl"},
             PJh("div",{className:"pj-tl-top"},PJh("span",null,x.first?"Started "+PJday(x.first):"No GPS days yet"),PJh("label",null,"Finish ",PJh("input",{type:"date",className:"inp pj-date",value:f,onClick:function(ev){ev.stopPropagation()},onChange:function(ev){saveFin(x.j,ev.target.value)}}))),
             PJh("div",{className:"pj-bar"},PJh("i",{style:{width:pc!=null?Math.round(pc*100)+"%":"0%",background:tone}}),pc!=null?PJh("em",{style:{left:Math.round(pc*100)+"%"}}):null),
-            PJh("div",{className:"pj-tl-s",style:{color:tone}},lf==null?"Set the expected finish to see the timeline":lf<0?(-lf)+" days past the finish date":lf===0?"Due today":lf+" days left · "+Math.round((pc||0)*100)+"% of the time used")))}))):null,
+            PJh("div",{className:"pj-tl-s",style:{color:tone}},lf==null?"Set the expected finish to see the timeline":lf<0?(-lf)+" days past the finish date":lf===0?"Due today":lf+" days left · "+Math.round((pc||0)*100)+"% of the time used")))})),
+      m.jlHidden.length?PJh("div",{className:"pj-hid"},PJh("span",{className:"dim"},"Removed from "+PJfirst(pm)+"'s projects:"),m.jlHidden.map(function(j){return PJh("button",{key:j,className:"pj-chip",title:"Put it back",onClick:function(){hideJob(j,!1)}},j+"  ↺")})):null,
+      m.jlVisits.length?PJh("div",{className:"pj-hid"},PJh("span",{className:"dim"},"Not shown · only a short GPS visit, no orders:"),PJh("span",{className:"dim"},m.jlVisits.join(" · "))):null):null,
     /* ---------- activity + purchasing ---------- */
     m.team.length?PJh("div",{className:"g3"},
       PJh(G,{title:"WHAT HAPPENED · YOUR CREWS",className:"span2",right:PJh("span",{className:"dim"},"orders · POs · fuel · invoices")},

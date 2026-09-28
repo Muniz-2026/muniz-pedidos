@@ -917,6 +917,13 @@ html[data-theme] .btn.danger{color:var(--red-t,var(--red));border-color:color-mi
 html[data-theme] .btn.danger:hover{background:color-mix(in srgb,var(--red) 9%,transparent)}
 html[data-theme] .pp-dr .df{display:flex;align-items:center;gap:8px}
 html[data-theme] .pp-dr .df .grow{flex:1}
+html[data-theme] .pj-job{position:relative}
+html[data-theme] .pj-job-x{position:absolute;top:8px;right:10px;width:26px;height:26px;border-radius:50%;border:0;background:transparent;color:var(--faint);font:500 18px/1 var(--sans);cursor:pointer;opacity:0;transition:opacity .15s,background .15s;z-index:2}
+html[data-theme] .pj-job:hover .pj-job-x,html[data-theme] .pj-job-x:focus-visible{opacity:1}
+html[data-theme] .pj-job-x:hover{background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red)}
+@media (hover:none){html[data-theme] .pj-job-x{opacity:.7}}
+html[data-theme] .pj-job .pj-job-d{margin-right:22px}
+html[data-theme] .pj-hid{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;font-size:13px}
 
 /* ==========================================================================
    MOTION · v1
