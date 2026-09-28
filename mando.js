@@ -484,7 +484,7 @@ var MZhav=PJhav;
 
 function PJstreet(l){return String(l||"").split("/")[0].replace(/\(.*?\)/g,"").replace(/^\s*\d+\s+/,"").replace(/\s+/g," ").trim().toUpperCase()}
 function PJmodel(e,pm,t){
-  var ppl=e.ppl||[],all=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR")&&p.active});
+  var ppl=e.ppl||[],all=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR"||(p.role==="PERSONAL"&&p.pm))&&p.active});
   /* one person can be in People under two names (same_as): one crew card, all their orders */
   var byName={};ppl.forEach(function(p){byName[p.name]=p});
   var canon=function(p){return p.same_as&&byName[p.same_as]?p.same_as:p.name};
@@ -655,13 +655,13 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
       PJh("div",{className:"pj-lobby"},PJh("div",{className:"pj-lobby-glow"}),
         PJh("div",{className:"pj-kicker"},"PROJECTS"),PJh("div",{className:"pj-h1 xl"},"Your projects, all in one place."),
         PJh("div",{className:"pj-sub"},"Choose your name. Every crew you manage, every jobsite they work, every order, PO and invoice — and where each crew is right now.")),
-      PJh("div",{className:"pj-pick"},pms.length?pms.map(function(n,i){var c=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR")&&p.active&&PJsame(p.pm,n)}).length;
+      PJh("div",{className:"pj-pick"},pms.length?pms.map(function(n,i){var c=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR"||(p.role==="PERSONAL"&&p.pm))&&p.active&&PJsame(p.pm,n)&&!(p.same_as&&ppl.some(function(q){return q.name===p.same_as}))}).length;
         return PJh("button",{key:n,className:"pj-pm",style:{animationDelay:(i*0.05)+"s"},onClick:function(){choose(n,!0)}},PJh("span",{className:"pj-av"},PJini(n)),PJh("b",null,z(n)),PJh("span",{className:"dim"},c?c+" crew"+(c===1?"":"s"):"no crews yet"),PJh("span",{className:"pj-go"},"Enter →"))}):PJh(ve,null,"No project managers yet — in People, give them the role GERENTE.")))}
   var finOf=function(j,d){var k=pm+"|"+j;return fin[k]!==void 0?fin[k]:d||""};
   var saveFin=async function(j,v){var k=pm+"|"+j;setFin(function(f){var o=Object.assign({},f);o[k]=v;return o});
     try{await Vr(vt+"/rest/v1/pm_projects?on_conflict=pm,jobsite",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({pm:pm,jobsite:j,expected_finish:v||null,updated_at:new Date().toISOString()})},tok.access_token);
       MZtoast(v?j+" · expected finish "+PJday(v):j+" · finish date cleared","ok");rf()}catch(x){MZtoast("Couldn't save the date","err")}};
-  var setCrewPm=async function(n,on){setBusy(n);try{await Eo("people?name=eq."+encodeURIComponent(n),{pm:on?pm:null},tok.access_token);rf()}catch(x){MZtoast(String(x.message||x).slice(0,140),"err")}finally{setBusy("")}};
+  var setCrewPm=async function(n,on,names){setBusy(n);try{var ns=(names&&names.length?names:[n]);await Eo("people?name=in.("+encodeURIComponent(ns.map(function(x){return'"'+x+'"'}).join(","))+")",{pm:on?pm:null},tok.access_token);rf()}catch(x){MZtoast(String(x.message||x).slice(0,140),"err")}finally{setBusy("")}};
   var sum=function(a,f){return a.reduce(function(x,y){return x+(Number(f(y))||0)},0)};
   var billNow=sum(m.billM,m.num),billPrev=sum(m.billP,m.num),trendB=billPrev?Math.round((billNow-billPrev)/billPrev*100):null;
   var cr=crew?m.crews.find(function(c){return c.n===crew}):null,jb=job?m.jl.find(function(x){return x.j===job}):null;
@@ -739,8 +739,13 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
     edit?PJh("div",{className:"drawer-bg",onClick:function(){setEdit(!1)}},PJh("aside",{className:"drawer",onClick:function(x){x.stopPropagation()}},
       PJh("header",{className:"dh"},PJh("div",null,PJh("div",{className:"ml"},"MY CREWS"),PJh("div",{className:"dn"},z(pm))),PJh("div",{className:"tags"},PJh(V,{c:_.green},m.team.length+" crews"))),
       PJh("div",{className:"db"},PJh("div",{className:"dim",style:{marginBottom:10}},"Check the foremen you manage. It saves instantly; the People room and every other PM see the same assignments."),
-        m.all.slice().sort(function(a,b){return(PJsame(b.pm,pm)-PJsame(a.pm,pm))||a.name.localeCompare(b.name)}).map(function(p){var mine=PJsame(p.pm,pm);
-          return PJh("label",{key:p.name,className:"pj-pickrow"+(mine?" on":"")},PJh("input",{type:"checkbox",checked:mine,disabled:busy===p.name,onChange:function(x){setCrewPm(p.name,x.target.checked)}}),PJh("b",null,z(p.name)),PJh("span",{className:"dim"},p.pm&&!mine?"with "+PJfirst(p.pm):p.supervisor?"sup. "+PJfirst(p.supervisor):""))})),
+        (function(){var byN={};ppl.forEach(function(q){byN[q.name]=q});
+          var mains=m.all.filter(function(p){return !(p.same_as&&byN[p.same_as])}).map(function(p){var al=ppl.filter(function(q){return q.same_as===p.name}),names=[p.name].concat(al.map(function(q){return q.name}));
+            var mine=PJsame(p.pm,pm)||al.some(function(q){return PJsame(q.pm,pm)}),other=p.pm&&!PJsame(p.pm,pm)?p.pm:(al.find(function(q){return q.pm&&!PJsame(q.pm,pm)})||{}).pm,sup=p.supervisor||(al.find(function(q){return q.supervisor})||{}).supervisor;
+            return{p:p,al:al,names:names,mine:mine,other:other,sup:sup}});
+          return mains.sort(function(a,b){return(b.mine-a.mine)||a.p.name.localeCompare(b.p.name)}).map(function(r){
+            return PJh("label",{key:r.p.name,className:"pj-pickrow"+(r.mine?" on":"")},PJh("input",{type:"checkbox",checked:r.mine,disabled:busy===r.p.name,onChange:function(x){setCrewPm(r.p.name,x.target.checked,r.names)}}),
+              PJh("b",null,z(r.p.name),r.al.length?PJh("span",{className:"pj-aka"},"also "+r.al.map(function(q){return z(q.name)}).join(", ")):null),PJh("span",{className:"dim"},r.other&&!r.mine?"with "+PJfirst(r.other):r.sup?"sup. "+PJfirst(r.sup):""))})})()),
       PJh("footer",{className:"df"},PJh("button",{className:"btn",onClick:function(){setEdit(!1)}},"CLOSE")))):null,
     /* ---------- crew deep dive ---------- */
     cr?PJh("div",{className:"drawer-bg",onClick:function(){setCrew(null)}},PJh("aside",{className:"drawer pj-dr",onClick:function(x){x.stopPropagation()}},
