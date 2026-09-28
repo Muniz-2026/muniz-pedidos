@@ -924,6 +924,46 @@ html[data-theme] .pj-job-x:hover{background:color-mix(in srgb,var(--red) 12%,tra
 @media (hover:none){html[data-theme] .pj-job-x{opacity:.7}}
 html[data-theme] .pj-job .pj-job-d{margin-right:22px}
 html[data-theme] .pj-hid{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;font-size:13px}
+/* ===== permits ===== */
+html[data-theme] .pm-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px 3px 4px;border-radius:999px;font:600 12px/1.2 var(--sans);color:var(--pc);background:color-mix(in srgb,var(--pc) 11%,transparent);border:1px solid color-mix(in srgb,var(--pc) 28%,transparent);white-space:nowrap}
+html[data-theme] .pm-chip b{font:700 10.5px/1 var(--mono,monospace);letter-spacing:.04em;color:#fff;background:var(--pc);border-radius:999px;padding:3px 6px}
+html[data-theme] .pm-chip .pm-pdf{font:700 9.5px/1 var(--mono,monospace);font-style:normal;letter-spacing:.04em;padding:2px 4px;border-radius:4px;background:color-mix(in srgb,var(--pc) 18%,transparent)}
+html[data-theme] .pm-crew{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+html[data-theme] .pm-pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 18px}
+@media (max-width:760px){html[data-theme] .pm-pair{grid-template-columns:1fr}}
+html[data-theme] .pm-card{border:1px solid var(--line);border-left:4px solid var(--pc,var(--line));border-radius:14px;padding:14px 16px;background:var(--panel);display:flex;flex-direction:column;gap:10px}
+html[data-theme] .pm-card.empty{border-left-color:var(--red)}
+html[data-theme] .pm-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+html[data-theme] .pm-h>div>b{display:block;font:650 17px/1.25 var(--sans);margin-top:2px;overflow-wrap:anywhere}
+html[data-theme] .pm-h .pm-chip{flex:none}
+html[data-theme] .pm-k{font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+html[data-theme] .pm-meta{display:grid;gap:6px}
+html[data-theme] .pm-meta>div{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
+html[data-theme] .pm-meta span{color:var(--dim)}
+html[data-theme] .pm-meta b{font-weight:600;text-align:right;overflow-wrap:anywhere}
+html[data-theme] .pm-acts{display:flex;flex-wrap:wrap;gap:6px}
+html[data-theme] .pm-acts.sub{padding-top:8px;border-top:1px dashed var(--line)}
+html[data-theme] .pm-nofile{font-size:13px;color:var(--amber-t,var(--amber));font-weight:600}
+html[data-theme] .pm-form{display:grid;gap:8px;padding:12px;border-radius:10px;background:color-mix(in srgb,var(--accent) 5%,transparent);border:1px solid color-mix(in srgb,var(--accent) 20%,transparent)}
+html[data-theme] .pm-fh{font:600 13px/1.35 var(--sans)}
+html[data-theme] .pm-form label{display:grid;grid-template-columns:110px 1fr;align-items:center;gap:10px;font-size:13px;color:var(--dim)}
+html[data-theme] .pm-hist{display:grid;gap:4px;font-size:12.5px}
+html[data-theme] .pm-hist>span{font:600 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin-bottom:2px}
+html[data-theme] .pm-hist .row{display:flex;gap:10px;align-items:center}
+html[data-theme] .pm-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:16px}
+@media (max-width:1100px){html[data-theme] .pm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+html[data-theme] .pm-kpis>div{--pc:var(--accent);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+html[data-theme] .pm-kpis b{font:700 28px/1 var(--display,var(--sans));color:var(--pc)}
+html[data-theme] .pm-kpis span{font-size:12.5px;color:var(--dim)}
+html[data-theme] .pm-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+html[data-theme] .pm-tools .inp{min-width:260px}
+html[data-theme] .pm-tbl td{vertical-align:top;cursor:pointer}
+html[data-theme] .pm-tbl tr.pm-attn td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
+html[data-theme] .pm-tbl td .dim.xs{margin-top:4px}
+html[data-theme] .pm-dr{width:min(880px,100vw)}
+html[data-theme] .pm-dchips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+html[data-theme] .pm-room .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media (max-width:640px){html[data-theme] .pm-tools .inp{min-width:0;width:100%}html[data-theme] .pm-tbl{min-width:640px}}
 
 /* ==========================================================================
    MOTION · v1
