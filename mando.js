@@ -100,7 +100,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  /* an explicit refresh (after approving, marking test, …) re-reads live + medium right away */
  if(!S.first)D.forEach(d=>{if(d[2]<3)S.at[d[0]]=0});
  const pool=async(jobs,k)=>{let i=0;const run=async()=>{while(i<jobs.length&&alive){const j=jobs[i++];await j()}};await Promise.all(Array.from({length:Math.min(k,jobs.length)},run))};
- const commit=()=>{const d=S.data;if(!alive||!d.orders||!d.fuel)return;
+ const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
    notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
@@ -177,7 +177,12 @@ function MzTheme(){
   return(0,s.jsx)("button",{className:"btn sm mz-theme",onClick:go,title:th==="light"?"Switch to dark mode  \u00B7  T":"Switch to light mode  \u00B7  T",
     children:th==="light"?"Dark":"Light"});
 }
+function MZme(t){try{var c=typeof _e!=="undefined"&&_e.cur||null,em=(t&&t.email)||(c&&c.email)||(t&&t.user&&t.user.email)||"";
+  if(!em){var tk=(t&&t.access_token)||(c&&c.access_token)||"";var pl=tk.split(".")[1];if(pl){pl=pl.replace(/-/g,"+").replace(/_/g,"/");pl+="===".slice((pl.length+3)%4);em=JSON.parse(atob(pl)).email||""}}
+  return String(em).toLowerCase()}catch(x){return""}}
+function MZnoNotify(t){var me=MZme(t);if(!me)return !1;var r=(window.MZrules||[]).find(function(x){return x.key==="notify_exclude"});return String(r&&r.value||"").toLowerCase().split(/[,;\s]+/).filter(Boolean).indexOf(me)>=0}
 function MzBell({t}){
+  if(MZnoNotify(t))return(0,s.jsx)("button",{className:"btn sm",disabled:!0,title:"This account is excluded from Command Center notifications (Rules → notify_exclude)",children:"Notifications off for this account"});
   let[st,ss]=(0,M.useState)("idle"),[msg,sm]=(0,M.useState)("");
   let ios=/iPad|iPhone|iPod/.test(navigator.userAgent),standalone=window.navigator.standalone===!0||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);
   let supported=typeof window.Notification!="undefined"&&"serviceWorker"in navigator&&"PushManager"in window;
@@ -697,7 +702,9 @@ function PJstrip(p){return PJh("div",{className:"pj-strip"},p.days.map(function(
 
 function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
   var ppl=e.ppl||[],pms=ppl.filter(function(p){return p.role==="GERENTE"&&p.active}).map(function(p){return p.name}).sort();
-  var a1=(0,M.useState)(function(){try{return localStorage.getItem(PJK)||""}catch(x){return""}}),pm=a1[0],setPm=a1[1];
+  var me=MZme(tok),pk=PJK+(me?":"+me:""),mine=(ppl.find(function(p){return p.role==="GERENTE"&&p.active&&p.email&&String(p.email).toLowerCase()===me})||{}).name||"";
+  var a1=(0,M.useState)(function(){try{return localStorage.getItem(pk)||localStorage.getItem(PJK)||""}catch(x){return""}}),pm=a1[0],setPm=a1[1];
+  (0,M.useEffect)(function(){if(mine){try{if(!localStorage.getItem(pk)){setPm(mine);localStorage.setItem(pk,mine)}}catch(x){}}},[mine]);
   var a2=(0,M.useState)(!1),intro=a2[0],setIntro=a2[1];
   var a3=(0,M.useState)(!1),edit=a3[0],setEdit=a3[1];
   var a4=(0,M.useState)(null),crew=a4[0],setCrew=a4[1];
@@ -706,7 +713,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
   var a7=(0,M.useState)({}),fin=a7[0],setFin=a7[1];
   var minute=Math.floor(t/6e4);
   var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.pmSched,e.crewDay,e.permits,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
-  var choose=function(n,play){try{n?localStorage.setItem(PJK,n):localStorage.removeItem(PJK)}catch(x){}setCrew(null);setJob(null);setPm(n);if(n&&play&&MZmo)setIntro(!0)};
+  var choose=function(n,play){try{n?localStorage.setItem(pk,n):localStorage.removeItem(pk)}catch(x){}setCrew(null);setJob(null);setPm(n);if(n&&play&&MZmo)setIntro(!0)};
   if(!pm){
     return PJh("div",{className:"room room-projects"},
       PJh("div",{className:"pj-lobby"},PJh("div",{className:"pj-lobby-glow"}),
