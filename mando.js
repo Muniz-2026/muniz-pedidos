@@ -498,6 +498,13 @@ function PJhav(a,b,c,d){if(a==null||c==null)return 1e12;var R=6371000,x=(c-a)*Ma
 var PJCOL=["#0A84FF","#FF6A1A","#30B158","#AF52DE","#FF9F0A","#00A4B4","#E5484D","#5E5CE6","#8E8E93"];
 var MZhav=PJhav;
 
+function PJfam(p){var u=String(p||"").toUpperCase().replace(/\s+/g," ").trim();if(/CMTA|CAP ?METRO/.test(u))return"CMTA";return u.replace(/^ADA\s*(\d+)/,"ADA $1")}
+var PJSINGLE={"CMTA":1,"CLMC 1107A":1};
+function PJroot(x){return String(x||"").toUpperCase().replace(/^\s*\d+\s+/,"").replace(/\b(RD|LN|ST|AVE|BLVD|DR|TRAIL|TRL|WAY|PKWY|CT|CIR|HWY|CROSSING)\b/g," ").replace(/[^A-Z0-9 ]/g," ")
+  .replace(/\b(MOBILIZATION|PUNCH|LIST|CLEAN|UP|IMPROVEMENTS?|PROJECT|BRIDGE|PEDESTRIAN|CULVERT|EXTENSION|SIDEWALK|AND|DRIVEWAYS|TO|FINISH|NOT|ACTIVE|CREW|ONLY|N|S|E|W|C|29|CMTA|CAP|METRO)\b/g," ").replace(/\s+/g," ").trim()}
+function PJroots(l){var s=String(l||""),par=(s.match(/\((.*?)\)/g)||[]).map(function(x){return x.slice(1,-1)}),main=s.replace(/\(.*?\)/g,""),first=main.split(/\/|&| - /)[0];
+  var o={};[PJroot(first)].concat(par.map(function(x){return PJroot(x.split(/\/|&/)[0])})).forEach(function(r){if(r)o[r]=1});return o}
+function PJsameJob(a,b){var fa=PJfam(a.project),fb=PJfam(b.project);if(fa!==fb)return !1;if(PJSINGLE[fa])return !0;var ra=PJroots(a.location),rb=PJroots(b.location);for(var k in ra)if(rb[k])return !0;return !1}
 function PJstreet(l){return String(l||"").split("/")[0].replace(/\(.*?\)/g,"").replace(/^\s*\d+\s+/,"").replace(/\s+/g," ").trim().toUpperCase()}
 function PJmodel(e,pm,t){
   var ppl=e.ppl||[],all=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR"||(p.role==="PERSONAL"&&p.pm))&&p.active});
@@ -540,10 +547,23 @@ function PJmodel(e,pm,t){
   var dayMap={};sd.forEach(function(r){var n=inT(r.person);var k=n+"|"+r.day;if(!dayMap[k]||dayMap[k].m<r.minutes)dayMap[k]={j:r.jobsite,m:Number(r.minutes)||0}});
   var colorOf={},ci=0;
   var cdAll=e.crewDay||[];
-  var asgOf=function(n){var seen={},rows=cdAll.filter(function(r){return r.person&&PJs2(r.person,n)}).sort(function(a,b){return String(b.day).localeCompare(String(a.day))||(PJsame(a.person,n)?-1:1)}).filter(function(r){var d=String(r.day).slice(0,10);if(seen[d])return !1;seen[d]=1;return !0});if(!rows.length)return null;
-    var key=function(r){return(r.project||"")+"|"+PJstreet(r.location)},k0=key(rows[0]),run=0,since=rows[0].day;for(var i=0;i<rows.length;i++){if(key(rows[i])===k0){run++;since=rows[i].day}else break}
-    var per=[];rows.slice().reverse().forEach(function(r){var k=key(r),last=per[per.length-1];if(last&&last.k===k){last.to=r.day;last.days++;if(r.location)last.loc=r.location}else per.push({k:k,project:r.project,loc:r.location,from:r.day,to:r.day,days:1})});
-    return{cur:rows[0],run:run,since:since,per:per.reverse().slice(0,10),stale:String(rows[0].day).slice(0,10)<qt(t-4*864e5)}};
+  var allDays=Object.keys(cdAll.reduce(function(o,r){o[String(r.day).slice(0,10)]=1;return o},{})).sort().reverse(),firstDay=allDays[allDays.length-1];
+  var byDayCrew={};cdAll.forEach(function(r){byDayCrew[String(r.day).slice(0,10)+"|"+r.crew_no]=r});
+  /* how long a crew has been on the job it is on today: the daily crew email, day by day (same project, same street or landmark;
+     single-site contracts like Cap Metro count as one job), following the crew number when the name changes (Ruben → Ruben/Julio),
+     then GPS: the days the crew truck actually sat on a learned jobsite inside that stretch */
+  var asgOf=function(n){var mine={};cdAll.forEach(function(r){if(r.person&&PJs2(r.person,n)){var d=String(r.day).slice(0,10);if(!mine[d]||PJsame(r.person,n))mine[d]=r}});
+    var myDays=Object.keys(mine).sort().reverse();if(!myDays.length)return null;var last=myDays[0],cur=mine[last],run=[cur],k=allDays.indexOf(last)+1;
+    var gsite={};(e.siteDays||[]).forEach(function(r2){if(!PJs2(r2.person,n))return;var d=String(r2.day).slice(0,10);if(!gsite[d]||gsite[d].m<Number(r2.minutes))gsite[d]={j:r2.jobsite,m:Number(r2.minutes)||0}});
+    /* the email is the plan; two small safety nets for typos: the same street under a mistyped contract code is the same job,
+       and a day with no usable location counts as the same job when the truck sat on the same learned jobsite */
+    var sameDay=function(a,b){if(PJsameJob(a,b))return !0;var ra=PJroots(a.location),rb=PJroots(b.location),hit=!1;for(var q in ra)if(rb[q])hit=!0;if(hit)return !0;
+      if(Object.keys(ra).length&&Object.keys(rb).length)return !1;var ga=gsite[String(a.day).slice(0,10)],gb=gsite[String(b.day).slice(0,10)];return !!(ga&&gb&&ga.j===gb.j)};
+    for(;k<allDays.length;k++){var d=allDays[k],r=mine[d]||byDayCrew[d+"|"+cur.crew_no];if(!r)continue;if(sameDay(run[run.length-1],r))run.push(r);else break}
+    var since=String(run[run.length-1].day).slice(0,10),open=since===firstDay&&k>=allDays.length;
+    var gps=0,gs={};(e.siteDays||[]).forEach(function(r2){var d=String(r2.day).slice(0,10);if(d>=since&&d<=last&&PJs2(r2.person,n)&&!gs[d]){gs[d]=1;gps++}});
+    var chron=myDays.slice().reverse().map(function(d){return mine[d]}),per=[];chron.forEach(function(r){var lp=per[per.length-1];if(lp&&PJsameJob(lp.lastRow,r)){lp.to=String(r.day).slice(0,10);lp.days++;lp.lastRow=r;if(r.location)lp.loc=r.location}else per.push({project:PJfam(r.project),loc:r.location,from:String(r.day).slice(0,10),to:String(r.day).slice(0,10),days:1,lastRow:r})});
+    return{cur:cur,run:run.length,since:since,open:open,gps:gps,per:per.reverse().slice(0,12),stale:last<qt(t-4*864e5),last:last,firstDay:firstDay}};
   var crews=team.map(function(n){
     var js=byCrew[n]||{},ordsN=ords.filter(function(o){return PJs2(o.foreman,n)});
     var recent=[].concat(ordsN.map(function(o){return{ts:o.ts,j:o.jobsite_week||o.jobsite}}),fuelT.filter(function(f){return PJs2(f.who,n)}).map(function(f){return{ts:f.ts,j:f.jobsite_week}}))
@@ -721,7 +741,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
       PJh("div",{className:"pj-crews"},m.crews.map(function(c,i){return PJh("button",{key:c.n,className:"pj-crew",style:{animationDelay:(i*0.05)+"s"},onClick:function(){setCrew(c.n)}},
         PJh("div",{className:"pj-crew-top"},PJh("span",{className:"pj-av sm "+(c.lv.k==="site"?"ring":"")},PJini(c.n)),
           PJh("div",{className:"pj-crew-id"},PJh("b",null,z(c.n)),PJh("span",{className:"dim",title:c.asg?"Internal Crew Locations email · "+PJday(c.asg.cur.day):""},c.asg?c.asg.cur.project+(c.asg.cur.location?" · "+c.asg.cur.location:""):c.cur||"no jobsite yet")),
-          c.asg?PJh("div",{className:"pj-dayno",title:"Days on this assignment, per the daily crew email"},PJh("b",null,"Day "+c.asg.run),PJh("span",null,"since "+PJday(c.asg.since))):c.cd?PJh("div",{className:"pj-dayno"},PJh("b",null,"Day "+c.cd.days),PJh("span",null,"since "+PJday(c.cd.first))):null),
+          c.asg?PJh("div",{className:"pj-dayno",title:"Workdays on this job per the Internal Crew Locations email"+(c.asg.gps?" · GPS: truck on a jobsite "+c.asg.gps+" of them":"")},PJh("b",null,"Day "+c.asg.run+(c.asg.open?"+":"")),PJh("span",null,c.asg.stale?"last on the email "+PJday(c.asg.last):c.asg.open?"since before "+PJday(c.asg.since):"since "+PJday(c.asg.since))):c.cd?PJh("div",{className:"pj-dayno"},PJh("b",null,"Day "+c.cd.days),PJh("span",null,"since "+PJday(c.cd.first))):null),
         PJh("div",{className:"pj-live"},PJh(ae,{c:c.lv.c,pulse:c.lv.k==="site"||c.lv.k==="drive"}),PJh("span",null,c.lv.t)),
         PJh(PJstrip,{days:c.strip,colorOf:m.colorOf,today:today}),
         PJh("div",{className:"pj-nums"},
@@ -767,10 +787,10 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
     cr?PJh("div",{className:"drawer-bg",onClick:function(){setCrew(null)}},PJh("aside",{className:"drawer pj-dr",onClick:function(x){x.stopPropagation()}},
       PJh("header",{className:"dh"},PJh("div",{style:{display:"flex",gap:14,alignItems:"center"}},PJh("span",{className:"pj-av "+(cr.lv.k==="site"?"ring":"")},PJini(cr.n)),PJh("div",null,PJh("div",{className:"ml"},"CREW · PM "+PJfirst(pm)+(cr.sup?" · SUP. "+PJfirst(cr.sup).toUpperCase():"")),PJh("div",{className:"dn"},z(cr.n)))),PJh("div",{className:"tags"},PJh(V,{c:cr.lv.c},cr.lv.t))),
       PJh("div",{className:"db"},
-        PJh("div",{className:"kv"},[["Crew email today",cr.asg?cr.asg.cur.project+(cr.asg.cur.location?" · "+cr.asg.cur.location:"")+" · crew "+cr.asg.cur.crew_no:"—"],["On this assignment",cr.asg?"Day "+cr.asg.run+" · since "+PJday(cr.asg.since):"—"],["GPS jobsite now",cr.cur||"—"],["GPS days on this jobsite",cr.cd?cr.cd.days+" · since "+PJday(cr.cd.first):"—"],["Days on site · 60d",String(cr.sdays)],["Ordered · 30d",H(cr.usd)],["Billed this month",H(cr.bill)],["POs · 30d",String(cr.pos)],["Fuel · 30d",cr.fuelUsd?H(cr.fuelUsd):"—"],["Miles · 7 days",cr.miles7?Math.round(cr.miles7)+" mi":"—"],["Idle · 7 days",cr.idlePct!=null?cr.idlePct+"%":"—"],["Last activity",cr.lastAct?PJrel(cr.lastAct,t):"—"]].map(function(r){return PJh("div",{key:r[0]},PJh("span",null,r[0]),PJh("b",null,r[1]))})),
+        PJh("div",{className:"kv"},[["Crew email today",cr.asg?cr.asg.cur.project+(cr.asg.cur.location?" · "+cr.asg.cur.location:"")+" · crew "+cr.asg.cur.crew_no:"—"],["On this job",cr.asg?cr.asg.run+(cr.asg.open?"+":"")+" workdays · "+(cr.asg.open?"since before "+PJday(cr.asg.since)+" (first email on file)":"since "+PJday(cr.asg.since))+(cr.asg.gps?" · GPS on site "+cr.asg.gps+" days":""):"—"],["GPS jobsite now",cr.cur||"—"],["GPS days on this jobsite",cr.cd?cr.cd.days+" · since "+PJday(cr.cd.first):"—"],["Days on site · 60d",String(cr.sdays)],["Ordered · 30d",H(cr.usd)],["Billed this month",H(cr.bill)],["POs · 30d",String(cr.pos)],["Fuel · 30d",cr.fuelUsd?H(cr.fuelUsd):"—"],["Miles · 7 days",cr.miles7?Math.round(cr.miles7)+" mi":"—"],["Idle · 7 days",cr.idlePct!=null?cr.idlePct+"%":"—"],["Last activity",cr.lastAct?PJrel(cr.lastAct,t):"—"]].map(function(r){return PJh("div",{key:r[0]},PJh("span",null,r[0]),PJh("b",null,r[1]))})),
         cr.lv.u&&cr.lv.u.last_lat?PJh("div",{style:{marginTop:12}},PJh("button",{className:"btn",onClick:function(){setCrew(null);om(cr.lv.u.last_lat,cr.lv.u.last_lon,z(cr.n))}},"SHOW ON THE MAP")):null,
         cr.asg?PJh("div",{className:"pj-sec"},"ASSIGNMENTS · INTERNAL CREW LOCATIONS EMAIL"):null,
-        cr.asg?cr.asg.per.map(function(p2,i){return PJh("div",{key:i,className:"row"},PJh("span",{className:"pj-dd"},PJday(p2.from)+(p2.to!==p2.from?" – "+PJday(p2.to):"")),PJh("b",{className:"grow tr"},p2.project+(p2.loc?" · "+p2.loc:"")),PJh("span",{className:"mono r"},p2.days+" day"+(p2.days===1?"":"s")))}):null,
+        cr.asg?cr.asg.per.map(function(p2,i){return PJh("div",{key:i,className:"row"},PJh("span",{className:"pj-dd"},(i===cr.asg.per.length-1&&p2.from===cr.asg.firstDay?"≤ ":"")+PJday(p2.from)+(p2.to!==p2.from?" – "+PJday(p2.to):"")),PJh("b",{className:"grow tr"},p2.project+(p2.loc?" · "+p2.loc:"")),PJh("span",{className:"mono r"},p2.days+" workday"+(p2.days===1?"":"s")))}):null,
         PJh("div",{className:"pj-sec"},"LAST 30 DAYS · WHERE THE CREW WAS"),PJh(PJstrip,{days:cr.strip,colorOf:m.colorOf,today:today}),
         PJh("div",{className:"pj-sec"},"DAY BY DAY"),
         PJh("div",{className:"pj-daylog"},cr.strip.slice().reverse().filter(function(x){return x.j||m.ud.some(function(r){return PJsame(r.who,cr.n)&&String(r.day).slice(0,10)===x.d})}).slice(0,12).map(function(x){var u=m.ud.find(function(r){return PJsame(r.who,cr.n)&&String(r.day).slice(0,10)===x.d});
