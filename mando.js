@@ -427,7 +427,7 @@ function PPed(p){
     if(f.pin&&!/^\d{4,6}$/.test(f.pin)){setErr("A PIN is 4 to 6 digits.");return}
     if(f.email&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())){setErr("That email doesn't look right.");return}
     var body={role:f.role,email:f.email.trim()||null,phone:f.phone.trim()||null,notes:f.notes.trim()||null,can_order:!!f.can_order,active:!!f.active,
-      supervisor:f.role==="MAYORDOMO"?(f.supervisor||null):(base.supervisor||null),pm:f.role==="MAYORDOMO"?(f.pm||null):(base.pm||null),same_as:f.same_as||null};
+      supervisor:f.role==="MAYORDOMO"?(f.supervisor||null):(base.supervisor||null),pm:/^(MAYORDOMO|SUPERVISOR|PERSONAL)$/.test(f.role)?(f.pm||null):null,same_as:f.same_as||null};
     if(f.pin)body.pin=f.pin;
     setBusy(!0);
     try{
@@ -461,7 +461,7 @@ function PPed(p){
         isNew?row("Full name",PJh("input",{className:"inp",value:f.name,autoFocus:!0,placeholder:"FIRST LAST",onChange:function(ev){set("name",ev.target.value)}})):row("Full name",PJh("b",{className:"pp-static"},z(base.name))),
         row("Role",PJh("select",{className:"sel",value:f.role,onChange:function(ev){set("role",ev.target.value)}},PPROLES.map(function(k){return PJh("option",{key:k[0],value:k[0]},k[1])}))),
         f.role==="MAYORDOMO"?row("Supervisor",PJh("select",{className:"sel",value:f.supervisor,onChange:function(ev){set("supervisor",ev.target.value)}},PJh("option",{value:""},"— none —"),(p.sups||[]).map(function(n){return PJh("option",{key:n,value:n},z(n))}))):null,
-        f.role==="MAYORDOMO"?row("Project manager",PJh("select",{className:"sel",value:f.pm,onChange:function(ev){set("pm",ev.target.value)}},PJh("option",{value:""},"— none —"),(p.pms||[]).map(function(n){return PJh("option",{key:n,value:n},z(n))}))):null,
+        /^(MAYORDOMO|SUPERVISOR|PERSONAL)$/.test(f.role)?row(f.role==="MAYORDOMO"?"Project manager":"Project manager (only if they run a crew)",PJh("select",{className:"sel",value:f.pm,onChange:function(ev){set("pm",ev.target.value)}},PJh("option",{value:""},"— none —"),(p.pms||[]).map(function(n){return PJh("option",{key:n,value:n},z(n))}))):null,
         row("Email",PJh("input",{className:"inp",type:"email",value:f.email,placeholder:"name@munizcontracting.com",onChange:function(ev){set("email",ev.target.value)}})),
         row("Phone",PJh("input",{className:"inp",type:"tel",value:f.phone,placeholder:"15125551234",onChange:function(ev){set("phone",ev.target.value)}})),
         row(base.pin?"New PIN":"PIN",PJh("input",{className:"inp",inputMode:"numeric",maxLength:6,value:f.pin,placeholder:base.pin?"leave blank to keep the current PIN":"4–6 digits (optional)",onChange:function(ev){set("pin",ev.target.value.replace(/\D/g,""))}})),
