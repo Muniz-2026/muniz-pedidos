@@ -506,8 +506,13 @@ function PJroots(l){var s=String(l||""),par=(s.match(/\((.*?)\)/g)||[]).map(func
   var o={};[PJroot(first)].concat(par.map(function(x){return PJroot(x.split(/\/|&/)[0])})).forEach(function(r){if(r)o[r]=1});return o}
 function PJsameJob(a,b){var fa=PJfam(a.project),fb=PJfam(b.project);if(fa!==fb)return !1;if(PJSINGLE[fa])return !0;var ra=PJroots(a.location),rb=PJroots(b.location);for(var k in ra)if(rb[k])return !0;return !1}
 function PJstreet(l){return String(l||"").split("/")[0].replace(/\(.*?\)/g,"").replace(/^\s*\d+\s+/,"").replace(/\s+/g," ").trim().toUpperCase()}
+function PJcrewPred(e,t){var drv=typeof HLdrivers==="function"?HLdrivers(e):[],on={},since=qt(t-14*864e5);
+  (e.crewDay||[]).forEach(function(r){if(r.person&&String(r.day).slice(0,10)>=since)on[MK(r.person)]=1});
+  return function(p){if(!p||!p.active||p.role==="CHOFER"||p.role==="GERENTE"||p.role==="OFICINA")return !1;
+    for(var i=0;i<drv.length;i++)if(PJsame(drv[i],p.name))return !1;
+    return p.role==="MAYORDOMO"||p.role==="SUPERVISOR"||(p.role==="PERSONAL"&&!!on[MK(p.name)])}}
 function PJmodel(e,pm,t){
-  var ppl=e.ppl||[],all=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR"||(p.role==="PERSONAL"&&p.pm))&&p.active});
+  var ppl=e.ppl||[],isCrew=PJcrewPred(e,t),all=ppl.filter(isCrew);
   /* one person can be in People under two names (same_as): one crew card, all their orders */
   var byName={};ppl.forEach(function(p){byName[p.name]=p});
   var canon=function(p){return p.same_as&&byName[p.same_as]?p.same_as:p.name};
@@ -691,7 +696,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
       PJh("div",{className:"pj-lobby"},PJh("div",{className:"pj-lobby-glow"}),
         PJh("div",{className:"pj-kicker"},"PROJECTS"),PJh("div",{className:"pj-h1 xl"},"Your projects, all in one place."),
         PJh("div",{className:"pj-sub"},"Choose your name. Every crew you manage, every jobsite they work, every order, PO and invoice — and where each crew is right now.")),
-      PJh("div",{className:"pj-pick"},pms.length?pms.map(function(n,i){var c=ppl.filter(function(p){return(p.role==="MAYORDOMO"||p.role==="SUPERVISOR"||(p.role==="PERSONAL"&&p.pm))&&p.active&&PJsame(p.pm,n)&&!(p.same_as&&ppl.some(function(q){return q.name===p.same_as}))}).length;
+      PJh("div",{className:"pj-pick"},pms.length?pms.map(function(n,i){var isCrew=PJcrewPred(e,t),c=ppl.filter(function(p){return isCrew(p)&&PJsame(p.pm,n)&&!(p.same_as&&ppl.some(function(q){return q.name===p.same_as}))}).length;
         return PJh("button",{key:n,className:"pj-pm",style:{animationDelay:(i*0.05)+"s"},onClick:function(){choose(n,!0)}},PJh("span",{className:"pj-av"},PJini(n)),PJh("b",null,z(n)),PJh("span",{className:"dim"},c?c+" crew"+(c===1?"":"s"):"no crews yet"),PJh("span",{className:"pj-go"},"Enter →"))}):PJh(ve,null,"No project managers yet — in People, give them the role GERENTE.")))}
   var finOf=function(j,d){var k=pm+"|"+j;return fin[k]!==void 0?fin[k]:d||""};
   var saveFin=async function(j,v){var k=pm+"|"+j;setFin(function(f){var o=Object.assign({},f);o[k]=v;return o});
