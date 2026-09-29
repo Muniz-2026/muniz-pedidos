@@ -52,7 +52,7 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
 var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationVisits:["fuel"],fuelGps:["fuel"],fuelTest:["fuel"],
-  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],places:["haul"]};
+  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects"],places:["haul"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -86,6 +86,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["spots",300e3,2,()=>He($e("jobsite_spots?select=jobsite,lat,lon,radius_m,learned_from,learned_day,minutes",c))],
   ["pmProj",120e3,2,()=>He($e("pm_projects?select=*",c))],
   ["pmSched",600e3,3,()=>He($e("pm_schedule?select=*&applied_at=is.null&order=starts.asc",c))],
+  ["dtix",600e3,3,()=>He(go("delivery_tickets?select=*&order=delivered_at.desc",c,4))],
   ["permits",600e3,3,()=>He($e("permits_status?select=*&order=crew_no.asc,kind.asc,created_at.desc",c))],
   ["removedPeople",600e3,3,()=>He($e("people_removed?select=id,name,outcome,removed_by,removed_at,refs&restored_at=is.null&order=removed_at.desc&limit=30",c))],
   ["crewDay",600e3,3,()=>He(go("crew_day_office?select=day,crew_no,name_raw,person,project,location&day=gte."+new Date(Date.now()-120*864e5).toISOString().slice(0,10)+"&order=day.desc",c,4))],
@@ -103,7 +104,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
+   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
  /* escalate_pending / verify_pending_fuel run on the server every 2 min (parche39); browsers no longer call them */
  const rpc=()=>{};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;
@@ -603,6 +604,7 @@ function PJmodel(e,pm,t){
   var jobs={};var J=function(j){return jobs[j]=jobs[j]||{j:j,crews:{},days:{},first:null,last:null,usd:0,orders:[],bills:[],billUsd:0,fuelPos:0,fuelUsd:0,gal:0,items:{},contracts:{},spot:null}};
   crews.forEach(function(c){Object.keys(c.js).forEach(function(j){var x=J(j),v=c.js[j];x.crews[c.n]=v.days;if(!x.first||v.first<x.first)x.first=v.first;if(!x.last||v.last>x.last)x.last=v.last;Object.keys(v.set).forEach(function(d){x.days[d]=(x.days[d]||0)+1})});
     if(c.cur){var x=J(c.cur);if(x.crews[c.n]==null)x.crews[c.n]=0}});
+  (e.dtix||[]).forEach(function(k){if(!k.jobsite||!PJs2(k.pm,pm))return;var x=J(k.jobsite);(x.tix=x.tix||[]).push(k);x.cy=(x.cy||0)+(Number(k.load_cy)||0);var d=String(k.delivered_at||"").slice(0,10);if(d){if(!x.first||d<x.first)x.first=d;if(!x.last||d>x.last)x.last=d}});
   live.forEach(function(o){var j=o.jobsite||o.jobsite_week;if(!j||!jobs[j])return;var x=jobs[j];x.usd+=Number(o.est_total)||0;x.orders.push(o);
     (o.lines||[]).filter(function(l){return l.stage===(o.approved_at?"APROBADO":"SOLICITADO")&&!l.removed&&l.qty>0}).forEach(function(l){var k=(l.code||"")+"|"+(l.descr||"");var it=x.items[k]=x.items[k]||{code:l.code,descr:l.descr,qty:0,usd:0};it.qty+=Number(l.qty)||0;it.usd+=Number(l.line_total)||0});
     if(o.po){var pl=(e.poLog||[]).find(function(p){return String(p.po)===String(o.po)});if(pl&&pl.project&&!/yard|yarda|office|oficina/i.test(pl.project)&&pl.project!==j)x.contracts[pl.project]=(x.contracts[pl.project]||0)+1}});
@@ -623,7 +625,7 @@ function PJmodel(e,pm,t){
   var hidN={};proj.forEach(function(p){if(PJs2(p.pm,pm)&&p.hidden)hidN[p.jobsite]=1});
   var jlHidden=jl.filter(function(x){return hidN[x.j]}).map(function(x){return x.j}).concat(Object.keys(hidN).filter(function(j){return !jobs[j]}));
   var jlVisits=[];jl=jl.filter(function(x){if(hidN[x.j])return !1;var pr=proj.find(function(p){return PJs2(p.pm,pm)&&p.jobsite===x.j});
-    var real=x.nd>=3||x.usd>0||x.billUsd>0||x.onNow.length>0||!!(pr&&(pr.expected_finish||pr.contract));if(!real)jlVisits.push(x.j);return real});
+    var real=x.nd>=3||x.usd>0||x.billUsd>0||x.onNow.length>0||!!(x.tix&&x.tix.length)||!!(pr&&(pr.expected_finish||pr.contract));if(!real)jlVisits.push(x.j);return real});
   /* 8-week trend */
   var wk=[];var w0=PJwk(t);for(var i=7;i>=0;i--){var s0=w0-i*7*864e5;wk.push({s:s0,o:0,b:0,f:0})}
   var put=function(ts,key,v){for(var i=wk.length-1;i>=0;i--){if(ts>=wk[i].s){if(ts<wk[i].s+7*864e5)wk[i][key]+=v;return}}};
@@ -712,7 +714,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
   var a6=(0,M.useState)(""),busy=a6[0],setBusy=a6[1];
   var a7=(0,M.useState)({}),fin=a7[0],setFin=a7[1];
   var minute=Math.floor(t/6e4);
-  var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.pmSched,e.crewDay,e.permits,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
+  var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.pmSched,e.crewDay,e.permits,e.dtix,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
   var choose=function(n,play){try{n?localStorage.setItem(pk,n):localStorage.removeItem(pk)}catch(x){}setCrew(null);setJob(null);setPm(n);if(n&&play&&MZmo)setIntro(!0)};
   if(!pm){
     return PJh("div",{className:"room room-projects"},
@@ -792,6 +794,8 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
             PJh("div",{className:"pj-job-d"},PJh("b",null,x.nd||"—"),PJh("span",null,"days worked"))),
           PJh("div",{className:"pj-job-crews"},x.cl.map(function(n){return PJh("span",{key:n,className:"pj-av xs"+(x.onNow.indexOf(n)>=0?" ring":""),title:z(n)+" · "+(x.crews[n]||0)+" days here"},PJini(n))})),
           PJh("div",{className:"pj-job-m"},PJh("div",null,PJh("b",null,H(x.usd)),PJh("span",null,"ordered")),PJh("div",null,PJh("b",null,H(x.billUsd)),PJh("span",null,"billed")),PJh("div",null,PJh("b",null,x.fuelUsd?H(x.fuelUsd):x.fuelPos?x.fuelPos+" POs":"—"),PJh("span",null,"fuel"))),
+          x.tix&&x.tix.length?PJh("button",{className:"pj-job-conc",onClick:function(){setJob(x.j)}},PJh("b",null,(Math.round(x.cy*100)/100)+" CY"),PJh("span",null,"concrete · "+x.tix.length+" ticket"+(x.tix.length===1?"":"s")+" · last "+PJday(String(x.tix.map(function(k){return k.delivered_at}).sort().slice(-1)[0]).slice(0,10))),
+            (function(){var g=DTorders(x.tix).filter(function(o){return o.gap>0.01});return g.length?PJh(V,{c:_.amber},g.length+" order"+(g.length===1?"":"s")+" short on tickets"):null})()):null,
           PJh("div",{className:"pj-tl"},
             PJh("div",{className:"pj-tl-top"},PJh("span",null,x.first?"Started "+PJday(x.first):"No GPS days yet"),PJh("label",null,"Finish ",PJh("input",{type:"date",className:"inp pj-date",value:f,onClick:function(ev){ev.stopPropagation()},onChange:function(ev){saveFin(x.j,ev.target.value)}}))),
             PJh("div",{className:"pj-bar"},PJh("i",{style:{width:pc!=null?Math.round(pc*100)+"%":"0%",background:tone}}),pc!=null?PJh("em",{style:{left:Math.round(pc*100)+"%"}}):null),
@@ -842,9 +846,10 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
     jb?PJh("div",{className:"drawer-bg",onClick:function(){setJob(null)}},PJh("aside",{className:"drawer pj-dr",onClick:function(x){x.stopPropagation()}},
       PJh("header",{className:"dh"},PJh("div",null,PJh("div",{className:"ml"},"JOBSITE"+(jb.contract?" · "+jb.contract:"")),PJh("div",{className:"dn"},jb.j)),PJh("div",{className:"tags"},PJh(V,{c:jb.left==null?_.faint:jb.left<0?_.red:jb.left<=7?_.amber:_.green},jb.left==null?"no finish date":jb.left<0?(-jb.left)+" days over":jb.left+" days left"))),
       PJh("div",{className:"db"},
-        PJh("div",{className:"kv"},[["Crews",jb.cl.map(PJfirst).join(", ")||"—"],["On site now",jb.onNow.map(PJfirst).join(", ")||"nobody"],["Days worked · GPS",String(jb.nd)],["First · last day",jb.first?PJday(jb.first)+" · "+PJday(jb.last):"—"],["Ordered",H(jb.usd)],["Billed (matched by PO)",H(jb.billUsd)],["Fuel",jb.fuelUsd?H(jb.fuelUsd):jb.fuelPos?jb.fuelPos+" POs":"—"],["Gallons",jb.gal?Math.round(jb.gal)+" gal":"—"]].map(function(r){return PJh("div",{key:r[0]},PJh("span",null,r[0]),PJh("b",null,r[1]))})),
+        PJh("div",{className:"kv"},[["Crews",jb.cl.map(PJfirst).join(", ")||"—"],["Concrete delivered",jb.tix&&jb.tix.length?(Math.round(jb.cy*100)/100)+" CY · "+jb.tix.length+" tickets":"—"],["On site now",jb.onNow.map(PJfirst).join(", ")||"nobody"],["Days worked · GPS",String(jb.nd)],["First · last day",jb.first?PJday(jb.first)+" · "+PJday(jb.last):"—"],["Ordered",H(jb.usd)],["Billed (matched by PO)",H(jb.billUsd)],["Fuel",jb.fuelUsd?H(jb.fuelUsd):jb.fuelPos?jb.fuelPos+" POs":"—"],["Gallons",jb.gal?Math.round(jb.gal)+" gal":"—"]].map(function(r){return PJh("div",{key:r[0]},PJh("span",null,r[0]),PJh("b",null,r[1]))})),
         PJh("div",{className:"pj-tl",style:{marginTop:14}},PJh("div",{className:"pj-tl-top"},PJh("span",null,jb.first?"Started "+PJday(jb.first):"No GPS days yet"),PJh("label",null,"Expected finish ",PJh("input",{type:"date",className:"inp pj-date",value:finOf(jb.j,jb.finish),onChange:function(ev){saveFin(jb.j,ev.target.value)}})))),
         jb.spot?PJh("div",{style:{marginTop:12}},PJh("button",{className:"btn",onClick:function(){setJob(null);om(jb.spot.lat,jb.spot.lon,jb.j)}},"SHOW ON THE MAP")):null,
+        PJh("div",{className:"pj-sec"},"CONCRETE · DELIVERY TICKETS"),PJh(DTsection,{tix:jb.tix||[],jobsite:jb.j,pm:pm,tok:tok,onChanged:rf}),
         PJh("div",{className:"pj-sec"},"LAST 30 DAYS · CREWS ON SITE"),
         PJh("div",{className:"pj-strip"},(function(){var a=[];for(var i=29;i>=0;i--){var dk=qt(t-i*864e5),n=jb.days[dk]||0,wd=new Date(dk+"T12:00:00").getDay();a.push(PJh("i",{key:dk,className:(n?"on":"")+(wd===0||wd===6?" we":"")+(dk===today?" td":""),title:PJday(dk)+" · "+n+" crew"+(n===1?"":"s"),style:n?{background:m.colorOf[jb.j]||"#0A84FF",opacity:Math.min(1,.45+n*.25)}:null}))}return a})()),
         PJh("div",{className:"pj-sec"},"CREWS ON THIS JOBSITE"),
@@ -1107,12 +1112,63 @@ function PMchip(p,k){return PJh("span",{className:"pm-chip",style:{"--pc":PMtone
 function PMfor(e,crewNo,person){var ps=(e.permits||[]).filter(function(p){return p.active&&((crewNo&&p.crew_no===String(crewNo))||(!crewNo&&person&&p.person&&PJsame(p.person,person)))});
   return{row:ps.find(function(p){return p.kind==="ROW"})||null,t811:ps.find(function(p){return p.kind==="811"})||null}}
 function PMbad(p){return !p||p.level==="EXPIRED"||p.level==="MISSING"}
-async function PMblob(path,tok){var r=await Vr(vt+"/storage/v1/object/"+PMB+"/"+PMenc(path),{},tok);return await r.blob()}
-async function PMsign(path,tok,secs){var r=await Vr(vt+"/storage/v1/object/sign/"+PMB+"/"+PMenc(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expiresIn:secs||604800})},tok);var j=await r.json();var u=j.signedURL||j.signedUrl||"";return /^https?:/.test(u)?u:vt+"/storage/v1"+u}
-async function PMupload(file,path,tok){await Vr(vt+"/storage/v1/object/"+PMB+"/"+PMenc(path),{method:"POST",headers:{"Content-Type":file.type||"application/pdf","x-upsert":"true"},body:file},tok)}
+async function PMblob(path,tok,bk){var r=await Vr(vt+"/storage/v1/object/"+(bk||PMB)+"/"+PMenc(path),{},tok);return await r.blob()}
+async function PMsign(path,tok,secs,bk){var r=await Vr(vt+"/storage/v1/object/sign/"+(bk||PMB)+"/"+PMenc(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expiresIn:secs||604800})},tok);var j=await r.json();var u=j.signedURL||j.signedUrl||"";return /^https?:/.test(u)?u:vt+"/storage/v1"+u}
+async function PMupload(file,path,tok,bk){await Vr(vt+"/storage/v1/object/"+(bk||PMB)+"/"+PMenc(path),{method:"POST",headers:{"Content-Type":file.type||"application/pdf","x-upsert":"true"},body:file},tok)}
 async function PMsave(obj,tok){return Gi("permit_save",{p:obj},tok)}
 function PMerr(x){var q=String(x&&x.message||x);try{q=JSON.parse(q).message||q}catch(y){}if(/permit_save|permits_status|does not exist|Bucket not found/i.test(q))return"Run parche61 first to turn on permits.";return q.slice(0,200)}
 function PMfname(p,ext){return(PMshort(p.kind)+" "+(p.number||"")+" "+p.site).replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim()+(ext||".pdf")}
+
+/* ===== CONCRETE DELIVERY TICKETS · per jobsite, on the PM's board =================
+   Every ready-mix ticket (Lauren, Alpha…) with its yards, mix, truck and the scanned PDF.
+   The order check compares yards ordered with yards on tickets, so a missing ticket is
+   caught the week it happens, not when the invoice arrives.
+   ============================================================================= */
+var DTB="tickets";
+function DTvend(v){return String(v||"").toLowerCase().replace(/(^|[\s-])\w/g,function(c){return c.toUpperCase()})}
+function DTwhen(k){if(!k.delivered_at)return"—";var d=new Date(k.delivered_at);return d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})+" · "+d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}
+function DTorders(tix){var g={};tix.forEach(function(k){var key=k.vendor+"|"+(k.order_no||("t"+k.ticket_no));var o=g[key]=g[key]||{vendor:k.vendor,order:k.order_no,day:k.delivered_at,ordered:0,tick:0,n:0};o.ordered=Math.max(o.ordered,Number(k.ordered_cy)||0);o.tick+=Number(k.load_cy)||0;o.n++;if(k.delivered_at<o.day)o.day=k.delivered_at});
+  return Object.keys(g).map(function(k){var o=g[k];o.gap=Math.round((o.ordered-o.tick)*100)/100;return o}).sort(function(a,b){return String(a.day).localeCompare(String(b.day))})}
+function DTfile(p){var k=p.k,tok=p.tok,[b,setB]=(0,M.useState)("");
+  var open=async function(){var w=window.open("","_blank");setB("o");try{var u=await PMsign(k.file_path,tok,300,DTB);if(w)w.location=u}catch(x){w&&w.close();MZtoast("Couldn't open · "+PMerr(x),"err")}finally{setB("")}};
+  var dl=async function(){setB("d");try{var bl=await PMblob(k.file_path,tok,DTB),u=URL.createObjectURL(bl),a=document.createElement("a");a.href=u;a.download=k.file_name||(DTvend(k.vendor)+" "+k.ticket_no+".pdf");document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},6e4)}catch(x){MZtoast(PMerr(x),"err")}finally{setB("")}};
+  var sh=async function(){setB("s");try{var u=await PMsign(k.file_path,tok,604800,DTB),t2=DTvend(k.vendor)+" ticket "+k.ticket_no+" · "+(k.load_cy||"")+" CY · "+DTwhen(k);if(navigator.share){try{await navigator.share({title:t2,text:t2,url:u});return}catch(x){if(x&&x.name==="AbortError")return}}await navigator.clipboard.writeText(u);MZtoast("Link copied · works for 7 days","ok",5000)}catch(x){MZtoast(PMerr(x),"err")}finally{setB("")}};
+  return PJh("span",{className:"dt-acts"},PJh("button",{className:"btn sm",disabled:!!b,onClick:open},b==="o"?"…":"PDF"),PJh("button",{className:"btn sm",disabled:!!b,onClick:dl},"↓"),PJh("button",{className:"btn sm",disabled:!!b,onClick:sh},"SHARE"))}
+function DTsection(p){var tix=(p.tix||[]).slice().sort(function(a,b){return String(b.delivered_at).localeCompare(String(a.delivered_at))}),tok=p.tok,fr=(0,M.useRef)(null),[busy,setBusy]=(0,M.useState)(""),[add,setAdd]=(0,M.useState)(null);
+  var cy=tix.reduce(function(a,k){return a+(Number(k.load_cy)||0)},0),ords=DTorders(tix),gaps=ords.filter(function(o){return o.gap>0.01}),noPdf=tix.filter(function(k){return !k.file_path}).length;
+  var up=async function(files){files=[].slice.call(files||[]);if(!files.length)return;setBusy("up");var ok=0,miss=[];
+    for(var i=0;i<files.length;i++){var f=files[i],nums=String(f.name).match(/\d{5,8}/g)||[],k=tix.find(function(t){return nums.indexOf(String(t.ticket_no))>=0});
+      if(!k){miss.push(f.name);continue}
+      var ext=(String(f.name).match(/\.[A-Za-z0-9]+$/)||[".pdf"])[0].toLowerCase(),path=String(p.jobsite).toLowerCase().replace(/[^a-z0-9]+/g,"-")+"/"+String(k.vendor).toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+k.ticket_no+ext;
+      try{await PMupload(f,path,tok,DTB);await Gi("dtix_save",{p:{id:k.id,file_path:path,file_name:f.name,file_size:f.size}},tok);ok++}catch(x){miss.push(f.name+" ("+PMerr(x)+")")}}
+    setBusy("");if(fr.current)fr.current.value="";MZforce(["dtix"]);p.onChanged&&p.onChanged();
+    MZtoast(ok+" ticket PDF"+(ok===1?"":"s")+" attached"+(miss.length?" · not matched to a ticket: "+miss.join(", "):""),miss.length?"warn":"ok",9000)};
+  var saveAdd=async function(){if(!add.vendor||!add.ticket_no){MZtoast("Vendor and ticket # are required","err");return}setBusy("add");
+    try{var dtv=add.date?new Date(add.date+"T"+(add.time||"12:00")).toISOString():null;await Gi("dtix_save",{p:{vendor:add.vendor,ticket_no:add.ticket_no,order_no:add.order_no,delivered_at:dtv,load_cy:add.load_cy,ordered_cy:add.ordered_cy,mix_desc:add.mix,truck:add.truck,driver:add.driver,notes:add.notes,jobsite:p.jobsite,pm:p.pm}},tok);
+      MZtoast("Ticket "+add.ticket_no+" saved · attach its PDF with UPLOAD TICKET PDFs","ok",6000);setAdd(null);MZforce(["dtix"]);p.onChanged&&p.onChanged()}catch(x){MZtoast(PMerr(x),"err",8000)}finally{setBusy("")}};
+  var F=function(k,lbl,type,ph){return PJh("label",null,PJh("span",null,lbl),PJh("input",{className:"inp",type:type||"text",value:add[k]||"",placeholder:ph||"",onChange:function(ev){var o=Object.assign({},add);o[k]=ev.target.value;setAdd(o)}}))};
+  return PJh("div",{className:"dt"},
+    PJh("div",{className:"dt-sum"},
+      PJh("div",null,PJh("b",null,(Math.round(cy*100)/100)+" CY"),PJh("span",null,"concrete delivered")),
+      PJh("div",null,PJh("b",null,tix.length),PJh("span",null,"tickets"+(tix.length?" · "+PJday(String(tix[tix.length-1].delivered_at).slice(0,10))+" → "+PJday(String(tix[0].delivered_at).slice(0,10)):""))),
+      PJh("div",{style:{"--pc":gaps.length?_.amber:_.green}},PJh("b",null,gaps.length?gaps.reduce(function(a,o){return a+o.gap},0)+" CY":"✓"),PJh("span",null,gaps.length?"ordered but not on a ticket here":"every order fully ticketed")),
+      PJh("div",{style:{"--pc":noPdf?_.amber:_.green}},PJh("b",null,(tix.length-noPdf)+"/"+tix.length),PJh("span",null,"with the PDF attached"))),
+    gaps.length?PJh("div",{className:"dt-gaps"},gaps.map(function(o,i){return PJh("div",{key:i},PJh(V,{c:_.amber},"CHECK"),PJh("span",null,DTvend(o.vendor)+(o.order?" · order "+o.order:"")+" · "+PJday(String(o.day).slice(0,10))+" — "+o.ordered+" CY ordered, "+o.tick+" CY on "+o.n+" ticket"+(o.n===1?"":"s")+". Ask the foreman or the plant for the missing "+o.gap+" CY ticket."))})):null,
+    PJh("div",{className:"dt-tools"},
+      PJh("input",{ref:fr,type:"file",multiple:!0,accept:"application/pdf,image/*",style:{display:"none"},onChange:function(ev){up(ev.target.files)}}),
+      PJh("button",{className:"btn sm primary",disabled:!!busy,onClick:function(){fr.current&&fr.current.click()}},busy==="up"?"UPLOADING…":"UPLOAD TICKET PDFs"),
+      PJh("button",{className:"btn sm",disabled:!!busy,onClick:function(){setAdd(add?null:{vendor:"LAUREN CONCRETE",date:new Date().toISOString().slice(0,10)})}},add?"CANCEL":"ADD A TICKET"),
+      PJh("span",{className:"dim xs"},"PDFs are matched by the ticket number in the file name")),
+    add?PJh("div",{className:"pm-form dt-form"},
+      PJh("label",null,PJh("span",null,"Vendor"),PJh("select",{className:"inp",value:add.vendor,onChange:function(ev){setAdd(Object.assign({},add,{vendor:ev.target.value}))}},["LAUREN CONCRETE","ALPHA READY-MIX","OTHER"].map(function(v){return PJh("option",{key:v,value:v},DTvend(v))}))),
+      F("ticket_no","Ticket #","text","2328403"),F("date","Date","date"),F("time","Time","time"),F("load_cy","CY this load","number","10"),F("ordered_cy","CY ordered","number","10"),F("order_no","Order #"),F("mix","Mix","text","3000# 25% 1LS"),F("truck","Truck"),F("driver","Driver"),F("notes","Notes"),
+      PJh("div",{className:"pm-acts"},PJh("button",{className:"btn sm primary",disabled:!!busy,onClick:saveAdd},busy==="add"?"SAVING…":"SAVE TICKET"))):null,
+    tix.length?PJh("div",{className:"dt-list"},tix.map(function(k){return PJh("div",{key:k.id,className:"dt-row"},
+      PJh("div",{className:"dt-when"},PJh("b",null,k.delivered_at?new Date(k.delivered_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}):"—"),PJh("span",null,k.delivered_at?new Date(k.delivered_at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}):"")),
+      PJh("div",{className:"dt-main"},PJh("b",null,DTvend(k.vendor)+" · "+k.ticket_no),PJh("span",{className:"dim"},[k.order_no?"order "+k.order_no:"",k.mix_desc,k.mix_code,k.slump_in?Number(k.slump_in)+"\" slump":""].filter(Boolean).join(" · ")),
+        PJh("span",{className:"dim xs"},[k.truck?"truck "+k.truck:"",k.driver,k.extras,k.water_added_gal?k.water_added_gal+" gal water added":"",k.signed_by?"signed "+k.signed_by:"",k.notes].filter(Boolean).join(" · "))),
+      PJh("div",{className:"dt-cy"},PJh("b",null,Number(k.load_cy||0)),PJh("span",null,"CY"+(k.ordered_cy&&Number(k.ordered_cy)!==Number(k.load_cy)?" of "+Number(k.ordered_cy):""))),
+      PJh("div",{className:"dt-pdf"},k.file_path?PJh(DTfile,{k:k,tok:tok}):PJh("span",{className:"dim xs"},"no PDF")))})):PJh("div",{className:"dim"},"No delivery tickets for this jobsite yet."))}
 
 /* one permit: what it is, how long it has, and everything you can do with its PDF */
 function PMcard(p){var pm=p.p,k=p.kind,tok=p.tok,[busy,setBusy]=(0,M.useState)(""),[ed,setEd]=(0,M.useState)(null),fileRef=(0,M.useRef)(null);

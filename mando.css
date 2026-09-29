@@ -964,6 +964,36 @@ html[data-theme] .pm-dr{width:min(880px,100vw)}
 html[data-theme] .pm-dchips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 html[data-theme] .pm-room .tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 @media (max-width:640px){html[data-theme] .pm-tools .inp{min-width:0;width:100%}html[data-theme] .pm-tbl{min-width:640px}}
+/* ===== concrete delivery tickets ===== */
+html[data-theme] .pj-job-conc{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;margin:10px 0 2px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:color-mix(in srgb,var(--accent) 5%,transparent);text-align:left;cursor:pointer;font:inherit;color:inherit}
+html[data-theme] .pj-job-conc b{font:700 16px/1 var(--display,var(--sans))}
+html[data-theme] .pj-job-conc span{font-size:12.5px;color:var(--dim)}
+html[data-theme] .dt{display:grid;gap:12px;margin:6px 0 18px}
+html[data-theme] .dt-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+html[data-theme] .dt-sum>div{--pc:var(--ink);border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel);display:flex;flex-direction:column;gap:3px}
+html[data-theme] .dt-sum b{font:700 20px/1.1 var(--display,var(--sans));color:var(--pc)}
+html[data-theme] .dt-sum span{font-size:12px;color:var(--dim)}
+html[data-theme] .dt-gaps{display:grid;gap:6px}
+html[data-theme] .dt-gaps>div{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.4}
+html[data-theme] .dt-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+html[data-theme] .dt-form{grid-template-columns:1fr 1fr}
+@media (max-width:640px){html[data-theme] .dt-form{grid-template-columns:1fr}}
+html[data-theme] .dt-form label{grid-template-columns:96px 1fr}
+html[data-theme] .dt-tbl td{vertical-align:top}
+html[data-theme] .dt-acts{display:inline-flex;gap:4px}
+html[data-theme] .dt-list{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+html[data-theme] .dt-row{display:grid;grid-template-columns:82px 1fr auto auto;gap:12px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+html[data-theme] .dt-row:first-child{border-top:0}
+html[data-theme] .dt-when{display:flex;flex-direction:column;gap:2px}
+html[data-theme] .dt-when b{font:600 13px/1.2 var(--sans)}
+html[data-theme] .dt-when span{font:500 12px/1.2 var(--mono,monospace);color:var(--dim)}
+html[data-theme] .dt-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+html[data-theme] .dt-main b{font:600 14px/1.3 var(--sans)}
+html[data-theme] .dt-main span{overflow-wrap:anywhere;font-size:12.5px}
+html[data-theme] .dt-cy{text-align:right;display:flex;flex-direction:column}
+html[data-theme] .dt-cy b{font:700 18px/1 var(--display,var(--sans))}
+html[data-theme] .dt-cy span{font-size:11.5px;color:var(--dim)}
+@media (max-width:640px){html[data-theme] .dt-row{grid-template-columns:70px 1fr auto}html[data-theme] .dt-pdf{grid-column:2/-1}}
 
 /* ==========================================================================
    MOTION · v1
