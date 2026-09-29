@@ -66,15 +66,23 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
    rounds never overlap, hidden tabs stop polling, errors back off, and the write RPCs
    run once per browser every 90 s instead of from every tab every 7 s. */
 (0,M.useEffect)(()=>{let alive=!0,timer=0,busy=!1,fails=0,c=e.access_token,S=mem.current;
+ /* live lists without re-downloading them every time: a full pass every few minutes, and in between only the
+    newest rows (orders, fuel) or only rows newer than the last one we have (append-only logs), merged by key */
+ const inc=async(name,o)=>{const prev=S.data[name],F=S.full||(S.full={});
+   if(!Array.isArray(prev)||!prev.length||!F[name]||Date.now()-F[name]>o.every){const v=await $e(o.full,c);if(Array.isArray(v))F[name]=Date.now();return v}
+   const v=await $e(o.recent(prev),c);if(!Array.isArray(v))return v;if(!v.length)return prev;
+   const m=new Map();prev.forEach(r=>m.set(o.key(r),r));v.forEach(r=>m.set(o.key(r),r));
+   return[...m.values()].sort((a,b)=>String(b[o.sort]||"").localeCompare(String(a[o.sort]||""))).slice(0,o.keep)};
+ const newer=(prev,f)=>{let t="";prev.forEach(r=>{if(r[f]&&String(r[f])>t)t=String(r[f])});return t?"&"+f+"=gt."+encodeURIComponent(t):""};
  const D=[
   /* live: the decision queue and what's happening now */
-  ["orders",20e3,1,()=>He($e("material_orders_full?select=*&order=created_at.desc&limit=2000",c))],
-  ["oev",20e3,1,()=>He($e("material_order_events?select=order_id,ts,stage,actor,meta&order=ts.desc&limit=400",c))],
-  ["fuel",30e3,1,()=>$e("fuel_pos_flagged?select=*&order=created_at.desc&limit=3000",c)],
+  ["orders",20e3,1,()=>He(inc("orders",{full:"material_orders_full?select=*&order=created_at.desc&limit=2000",recent:()=>"material_orders_full?select=*&order=created_at.desc&limit=200",every:300e3,key:r=>r.id,sort:"created_at",keep:2000}))],
+  ["oev",20e3,1,()=>He(inc("oev",{full:"material_order_events?select=order_id,ts,stage,actor,meta&order=ts.desc&limit=400",recent:p=>"material_order_events?select=order_id,ts,stage,actor,meta"+newer(p,"ts")+"&order=ts.desc&limit=400",every:600e3,key:r=>r.order_id+"|"+r.ts+"|"+r.stage,sort:"ts",keep:400}))],
+  ["fuel",30e3,1,()=>inc("fuel",{full:"fuel_pos_flagged?select=*&order=created_at.desc&limit=3000",recent:()=>"fuel_pos_flagged?select=*&order=created_at.desc&limit=300",every:300e3,key:r=>r.id,sort:"created_at",keep:3000})],
   ["fleet",30e3,1,()=>He($e("gps_fleet_now?select=*&order=last_seen.desc",c))],
   ["notif",30e3,1,()=>He($e("notifications?select=*&order=created_at.desc&limit=200",c))],
   ["lastPo",30e3,1,()=>He($e("office_last_po?select=*",c))],
-  ["ev",60e3,1,()=>$e("events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1500",c)],
+  ["ev",60e3,1,()=>inc("ev",{full:"events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1500",recent:p=>"events?select=ts,device_id,who,event,step,meta,app"+newer(p,"ts")+"&order=ts.desc&limit=1500",every:600e3,key:r=>r.ts+"|"+r.device_id+"|"+r.event+"|"+(r.step||""),sort:"ts",keep:1500})],
   /* medium: checks and reference data */
   ["fuelGps",120e3,2,()=>He($e("fuel_gps_check?select=*&order=created_at.desc&limit=300",c))],
   ["stationVisits",120e3,2,()=>He($e("gps_positions?select=actsoft_id,ts,geofence,status,ignition&geofence=not.is.null&order=ts.desc&limit=600",c))],
