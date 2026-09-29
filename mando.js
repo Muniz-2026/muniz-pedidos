@@ -52,7 +52,7 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
 var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationVisits:["fuel"],fuelGps:["fuel"],fuelTest:["fuel"],
-  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects"],places:["haul"]};
+  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects"],pcosts:["projects"],places:["haul"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -86,6 +86,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["spots",300e3,2,()=>He($e("jobsite_spots?select=jobsite,lat,lon,radius_m,learned_from,learned_day,minutes",c))],
   ["pmProj",120e3,2,()=>He($e("pm_projects?select=*",c))],
   ["pmSched",600e3,3,()=>He($e("pm_schedule?select=*&applied_at=is.null&order=starts.asc",c))],
+  ["pcosts",600e3,3,()=>He(go("project_costs?select=*&order=doc_date.desc",c,4))],
   ["dtix",600e3,3,()=>He(go("delivery_tickets?select=*&order=delivered_at.desc",c,4))],
   ["permits",600e3,3,()=>He($e("permits_status?select=*&order=crew_no.asc,kind.asc,created_at.desc",c))],
   ["removedPeople",600e3,3,()=>He($e("people_removed?select=id,name,outcome,removed_by,removed_at,refs&restored_at=is.null&order=removed_at.desc&limit=30",c))],
@@ -104,7 +105,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
+   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sync:S.sync||Date.now(),err:S.err||""})};
  /* escalate_pending / verify_pending_fuel run on the server every 2 min (parche39); browsers no longer call them */
  const rpc=()=>{};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;
@@ -604,6 +605,7 @@ function PJmodel(e,pm,t){
   var jobs={};var J=function(j){return jobs[j]=jobs[j]||{j:j,crews:{},days:{},first:null,last:null,usd:0,orders:[],bills:[],billUsd:0,fuelPos:0,fuelUsd:0,gal:0,items:{},contracts:{},spot:null}};
   crews.forEach(function(c){Object.keys(c.js).forEach(function(j){var x=J(j),v=c.js[j];x.crews[c.n]=v.days;if(!x.first||v.first<x.first)x.first=v.first;if(!x.last||v.last>x.last)x.last=v.last;Object.keys(v.set).forEach(function(d){x.days[d]=(x.days[d]||0)+1})});
     if(c.cur){var x=J(c.cur);if(x.crews[c.n]==null)x.crews[c.n]=0}});
+  (e.pcosts||[]).forEach(function(k){if(!k.jobsite||!PJs2(k.pm,pm))return;var x=J(k.jobsite);(x.costs=x.costs||[]).push(k);if(PCspent(k))x.spent=(x.spent||0)+(Number(k.amount)||0);if(k.status==="ACCEPTED")x.comm=(x.comm||0)+(Number(k.amount)||0);if(!x.project&&k.project)x.project=k.project});
   (e.dtix||[]).forEach(function(k){if(!k.jobsite||!PJs2(k.pm,pm))return;var x=J(k.jobsite);(x.tix=x.tix||[]).push(k);x.cy=(x.cy||0)+(Number(k.load_cy)||0);var d=String(k.delivered_at||"").slice(0,10);if(d){if(!x.first||d<x.first)x.first=d;if(!x.last||d>x.last)x.last=d}});
   live.forEach(function(o){var j=o.jobsite||o.jobsite_week;if(!j||!jobs[j])return;var x=jobs[j];x.usd+=Number(o.est_total)||0;x.orders.push(o);
     (o.lines||[]).filter(function(l){return l.stage===(o.approved_at?"APROBADO":"SOLICITADO")&&!l.removed&&l.qty>0}).forEach(function(l){var k=(l.code||"")+"|"+(l.descr||"");var it=x.items[k]=x.items[k]||{code:l.code,descr:l.descr,qty:0,usd:0};it.qty+=Number(l.qty)||0;it.usd+=Number(l.line_total)||0});
@@ -625,7 +627,7 @@ function PJmodel(e,pm,t){
   var hidN={};proj.forEach(function(p){if(PJs2(p.pm,pm)&&p.hidden)hidN[p.jobsite]=1});
   var jlHidden=jl.filter(function(x){return hidN[x.j]}).map(function(x){return x.j}).concat(Object.keys(hidN).filter(function(j){return !jobs[j]}));
   var jlVisits=[];jl=jl.filter(function(x){if(hidN[x.j])return !1;var pr=proj.find(function(p){return PJs2(p.pm,pm)&&p.jobsite===x.j});
-    var real=x.nd>=3||x.usd>0||x.billUsd>0||x.onNow.length>0||!!(x.tix&&x.tix.length)||!!(pr&&(pr.expected_finish||pr.contract));if(!real)jlVisits.push(x.j);return real});
+    var real=x.nd>=3||x.usd>0||x.billUsd>0||x.onNow.length>0||!!(x.tix&&x.tix.length)||!!(x.costs&&x.costs.length)||!!(pr&&(pr.expected_finish||pr.contract));if(!real)jlVisits.push(x.j);return real});
   /* 8-week trend */
   var wk=[];var w0=PJwk(t);for(var i=7;i>=0;i--){var s0=w0-i*7*864e5;wk.push({s:s0,o:0,b:0,f:0})}
   var put=function(ts,key,v){for(var i=wk.length-1;i>=0;i--){if(ts>=wk[i].s){if(ts<wk[i].s+7*864e5)wk[i][key]+=v;return}}};
@@ -714,7 +716,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
   var a6=(0,M.useState)(""),busy=a6[0],setBusy=a6[1];
   var a7=(0,M.useState)({}),fin=a7[0],setFin=a7[1];
   var minute=Math.floor(t/6e4);
-  var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.pmSched,e.crewDay,e.permits,e.dtix,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
+  var m=(0,M.useMemo)(function(){return pm?PJmodel(e,pm,t):null},[pm,e.pmSched,e.crewDay,e.permits,e.dtix,e.pcosts,e.orders,e.fuel,e.ledger,e.siteDays,e.unitDay,e.tickets,e.fleet,e.spots,e.ppl,e.pmProj,e.oev,e.poLog,minute]);
   var choose=function(n,play){try{n?localStorage.setItem(pk,n):localStorage.removeItem(pk)}catch(x){}setCrew(null);setJob(null);setPm(n);if(n&&play&&MZmo)setIntro(!0)};
   if(!pm){
     return PJh("div",{className:"room room-projects"},
@@ -794,6 +796,7 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
             PJh("div",{className:"pj-job-d"},PJh("b",null,x.nd||"—"),PJh("span",null,"days worked"))),
           PJh("div",{className:"pj-job-crews"},x.cl.map(function(n){return PJh("span",{key:n,className:"pj-av xs"+(x.onNow.indexOf(n)>=0?" ring":""),title:z(n)+" · "+(x.crews[n]||0)+" days here"},PJini(n))})),
           PJh("div",{className:"pj-job-m"},PJh("div",null,PJh("b",null,H(x.usd)),PJh("span",null,"ordered")),PJh("div",null,PJh("b",null,H(x.billUsd)),PJh("span",null,"billed")),PJh("div",null,PJh("b",null,x.fuelUsd?H(x.fuelUsd):x.fuelPos?x.fuelPos+" POs":"—"),PJh("span",null,"fuel"))),
+          x.costs&&x.costs.length?PJh("button",{className:"pj-job-conc pj-job-cost",onClick:function(){setJob(x.j)}},PJh("b",null,PCmoney(x.spent||0).replace(/\.\d\d$/,"")),PJh("span",null,"spent"+(x.comm?" · "+PCmoney(x.comm).replace(/\.\d\d$/,"")+" committed":"")+" · "+x.costs.length+" docs")):null,
           x.tix&&x.tix.length?PJh("button",{className:"pj-job-conc",onClick:function(){setJob(x.j)}},PJh("b",null,(Math.round(x.cy*100)/100)+" CY"),PJh("span",null,"concrete · "+x.tix.length+" ticket"+(x.tix.length===1?"":"s")+" · last "+PJday(String(x.tix.map(function(k){return k.delivered_at}).sort().slice(-1)[0]).slice(0,10))),
             (function(){var g=DTorders(x.tix).filter(function(o){return o.gap>0.01});return g.length?PJh(V,{c:_.amber},g.length+" order"+(g.length===1?"":"s")+" short on tickets"):null})()):null,
           PJh("div",{className:"pj-tl"},
@@ -846,10 +849,11 @@ function Pj({d:e,now:t,t:tok,onChanged:rf,onOrder:oo,onMap:om}){
     jb?PJh("div",{className:"drawer-bg",onClick:function(){setJob(null)}},PJh("aside",{className:"drawer pj-dr",onClick:function(x){x.stopPropagation()}},
       PJh("header",{className:"dh"},PJh("div",null,PJh("div",{className:"ml"},"JOBSITE"+(jb.contract?" · "+jb.contract:"")),PJh("div",{className:"dn"},jb.j)),PJh("div",{className:"tags"},PJh(V,{c:jb.left==null?_.faint:jb.left<0?_.red:jb.left<=7?_.amber:_.green},jb.left==null?"no finish date":jb.left<0?(-jb.left)+" days over":jb.left+" days left"))),
       PJh("div",{className:"db"},
-        PJh("div",{className:"kv"},[["Crews",jb.cl.map(PJfirst).join(", ")||"—"],["Concrete delivered",jb.tix&&jb.tix.length?(Math.round(jb.cy*100)/100)+" CY · "+jb.tix.length+" tickets":"—"],["On site now",jb.onNow.map(PJfirst).join(", ")||"nobody"],["Days worked · GPS",String(jb.nd)],["First · last day",jb.first?PJday(jb.first)+" · "+PJday(jb.last):"—"],["Ordered",H(jb.usd)],["Billed (matched by PO)",H(jb.billUsd)],["Fuel",jb.fuelUsd?H(jb.fuelUsd):jb.fuelPos?jb.fuelPos+" POs":"—"],["Gallons",jb.gal?Math.round(jb.gal)+" gal":"—"]].map(function(r){return PJh("div",{key:r[0]},PJh("span",null,r[0]),PJh("b",null,r[1]))})),
+        PJh("div",{className:"kv"},[["Crews",jb.cl.map(PJfirst).join(", ")||"—"],["Costs on file",jb.costs&&jb.costs.length?PCmoney(jb.spent||0)+" spent · "+PCmoney(jb.comm||0)+" committed":"—"],["Concrete delivered",jb.tix&&jb.tix.length?(Math.round(jb.cy*100)/100)+" CY · "+jb.tix.length+" tickets":"—"],["On site now",jb.onNow.map(PJfirst).join(", ")||"nobody"],["Days worked · GPS",String(jb.nd)],["First · last day",jb.first?PJday(jb.first)+" · "+PJday(jb.last):"—"],["Ordered",H(jb.usd)],["Billed (matched by PO)",H(jb.billUsd)],["Fuel",jb.fuelUsd?H(jb.fuelUsd):jb.fuelPos?jb.fuelPos+" POs":"—"],["Gallons",jb.gal?Math.round(jb.gal)+" gal":"—"]].map(function(r){return PJh("div",{key:r[0]},PJh("span",null,r[0]),PJh("b",null,r[1]))})),
         PJh("div",{className:"pj-tl",style:{marginTop:14}},PJh("div",{className:"pj-tl-top"},PJh("span",null,jb.first?"Started "+PJday(jb.first):"No GPS days yet"),PJh("label",null,"Expected finish ",PJh("input",{type:"date",className:"inp pj-date",value:finOf(jb.j,jb.finish),onChange:function(ev){saveFin(jb.j,ev.target.value)}})))),
         jb.spot?PJh("div",{style:{marginTop:12}},PJh("button",{className:"btn",onClick:function(){setJob(null);om(jb.spot.lat,jb.spot.lon,jb.j)}},"SHOW ON THE MAP")):null,
-        PJh("div",{className:"pj-sec"},"CONCRETE · DELIVERY TICKETS"),PJh(DTsection,{tix:jb.tix||[],jobsite:jb.j,pm:pm,tok:tok,onChanged:rf}),
+        jb.costs&&jb.costs.length?PJh("div",{className:"pj-sec"},"PROJECT COSTS"+(jb.project?" · "+jb.project:"")):null,jb.costs&&jb.costs.length?PJh(PCsection,{rows:jb.costs,jobsite:jb.j,pm:pm,project:jb.project,tok:tok,today:today,onChanged:rf}):null,
+        PJh("div",{className:"pj-sec"},"CONCRETE · DELIVERY TICKETS"),PJh(DTsection,{tix:jb.tix||[],costs:jb.costs||[],jobsite:jb.j,pm:pm,tok:tok,onChanged:rf}),
         PJh("div",{className:"pj-sec"},"LAST 30 DAYS · CREWS ON SITE"),
         PJh("div",{className:"pj-strip"},(function(){var a=[];for(var i=29;i>=0;i--){var dk=qt(t-i*864e5),n=jb.days[dk]||0,wd=new Date(dk+"T12:00:00").getDay();a.push(PJh("i",{key:dk,className:(n?"on":"")+(wd===0||wd===6?" we":"")+(dk===today?" td":""),title:PJday(dk)+" · "+n+" crew"+(n===1?"":"s"),style:n?{background:m.colorOf[jb.j]||"#0A84FF",opacity:Math.min(1,.45+n*.25)}:null}))}return a})()),
         PJh("div",{className:"pj-sec"},"CREWS ON THIS JOBSITE"),
@@ -1125,7 +1129,7 @@ function PMfname(p,ext){return(PMshort(p.kind)+" "+(p.number||"")+" "+p.site).re
    caught the week it happens, not when the invoice arrives.
    ============================================================================= */
 var DTB="tickets";
-function DTvend(v){return String(v||"").toLowerCase().replace(/(^|[\s-])\w/g,function(c){return c.toUpperCase()})}
+function DTvend(v){return String(v||"").toLowerCase().replace(/(^|[\s(\-])\w/g,function(c){return c.toUpperCase()}).replace(/\b(Ace|Cmc|Usa|Siu|Mcc|Llc|Inc)\b/g,function(w){return w==="Llc"?"LLC":w==="Inc"?"Inc":w.toUpperCase()})}
 function DTwhen(k){if(!k.delivered_at)return"—";var d=new Date(k.delivered_at);return d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})+" · "+d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}
 function DTorders(tix){var g={};tix.forEach(function(k){var key=k.vendor+"|"+(k.order_no||("t"+k.ticket_no));var o=g[key]=g[key]||{vendor:k.vendor,order:k.order_no,day:k.delivered_at,ordered:0,tick:0,n:0};o.ordered=Math.max(o.ordered,Number(k.ordered_cy)||0);o.tick+=Number(k.load_cy)||0;o.n++;if(k.delivered_at<o.day)o.day=k.delivered_at});
   return Object.keys(g).map(function(k){var o=g[k];o.gap=Math.round((o.ordered-o.tick)*100)/100;return o}).sort(function(a,b){return String(a.day).localeCompare(String(b.day))})}
@@ -1135,7 +1139,8 @@ function DTfile(p){var k=p.k,tok=p.tok,[b,setB]=(0,M.useState)("");
   var sh=async function(){setB("s");try{var u=await PMsign(k.file_path,tok,604800,DTB),t2=DTvend(k.vendor)+" ticket "+k.ticket_no+" · "+(k.load_cy||"")+" CY · "+DTwhen(k);if(navigator.share){try{await navigator.share({title:t2,text:t2,url:u});return}catch(x){if(x&&x.name==="AbortError")return}}await navigator.clipboard.writeText(u);MZtoast("Link copied · works for 7 days","ok",5000)}catch(x){MZtoast(PMerr(x),"err")}finally{setB("")}};
   return PJh("span",{className:"dt-acts"},PJh("button",{className:"btn sm",disabled:!!b,onClick:open},b==="o"?"…":"PDF"),PJh("button",{className:"btn sm",disabled:!!b,onClick:dl},"↓"),PJh("button",{className:"btn sm",disabled:!!b,onClick:sh},"SHARE"))}
 function DTsection(p){var tix=(p.tix||[]).slice().sort(function(a,b){return String(b.delivered_at).localeCompare(String(a.delivered_at))}),tok=p.tok,fr=(0,M.useRef)(null),[busy,setBusy]=(0,M.useState)(""),[add,setAdd]=(0,M.useState)(null);
-  var cy=tix.reduce(function(a,k){return a+(Number(k.load_cy)||0)},0),ords=DTorders(tix),gaps=ords.filter(function(o){return o.gap>0.01}),noPdf=tix.filter(function(k){return !k.file_path}).length;
+  var chk=PCcheck(tix,p.costs);
+  var cy=tix.reduce(function(a,k){return a+(Number(k.load_cy)||0)},0),ords=DTorders(tix),gaps=chk.has?[]:ords.filter(function(o){return o.gap>0.01}),noPdf=tix.filter(function(k){return !k.file_path}).length;
   var up=async function(files){files=[].slice.call(files||[]);if(!files.length)return;setBusy("up");var ok=0,miss=[];
     for(var i=0;i<files.length;i++){var f=files[i],nums=String(f.name).match(/\d{5,8}/g)||[],k=tix.find(function(t){return nums.indexOf(String(t.ticket_no))>=0});
       if(!k){miss.push(f.name);continue}
@@ -1151,8 +1156,12 @@ function DTsection(p){var tix=(p.tix||[]).slice().sort(function(a,b){return Stri
     PJh("div",{className:"dt-sum"},
       PJh("div",null,PJh("b",null,(Math.round(cy*100)/100)+" CY"),PJh("span",null,"concrete delivered")),
       PJh("div",null,PJh("b",null,tix.length),PJh("span",null,"tickets"+(tix.length?" · "+PJday(String(tix[tix.length-1].delivered_at).slice(0,10))+" → "+PJday(String(tix[0].delivered_at).slice(0,10)):""))),
+      chk.has?PJh("div",{style:{"--pc":chk.billedNo.length?_.amber:_.green}},PJh("b",null,chk.billedNo.length?chk.billedNo.reduce(function(a,l){return a+l.cy},0)+" CY":"✓"),PJh("span",null,chk.billedNo.length?"billed with no ticket on file ("+chk.billedNo.length+")":"every billed load has its ticket")):
       PJh("div",{style:{"--pc":gaps.length?_.amber:_.green}},PJh("b",null,gaps.length?gaps.reduce(function(a,o){return a+o.gap},0)+" CY":"✓"),PJh("span",null,gaps.length?"ordered but not on a ticket here":"every order fully ticketed")),
+      chk.has?PJh("div",{style:{"--pc":chk.notInv.length?_.ink:_.green}},PJh("b",null,chk.notInv.length?chk.notInv.reduce(function(a,k){return a+(Number(k.load_cy)||0)},0)+" CY":"✓"),PJh("span",null,chk.notInv.length?"delivered, not invoiced yet ("+chk.notInv.length+")":"every ticket invoiced")):null,
       PJh("div",{style:{"--pc":noPdf?_.amber:_.green}},PJh("b",null,(tix.length-noPdf)+"/"+tix.length),PJh("span",null,"with the PDF attached"))),
+    chk.billedNo.length||chk.notInv.length?PJh("div",{className:"dt-gaps"},chk.billedNo.map(function(l,i){return PJh("div",{key:"b"+i},PJh(V,{c:_.amber},"NO TICKET"),PJh("span",null,DTvend(l.vendor)+" invoice "+l.doc+" bills ticket "+l.ticket+" · "+l.cy+" CY — no delivery ticket on file. Ask Julian or the plant for it."))}),
+      chk.notInv.map(function(k,i){return PJh("div",{key:"n"+i},PJh(V,{c:_.faint},"NOT BILLED YET"),PJh("span",null,DTvend(k.vendor)+" ticket "+k.ticket_no+(k.ref_no?" (form "+k.ref_no+")":"")+" · "+Number(k.load_cy)+" CY on "+PJday(String(k.delivered_at).slice(0,10))+" — watch for the invoice."))})):null,
     gaps.length?PJh("div",{className:"dt-gaps"},gaps.map(function(o,i){return PJh("div",{key:i},PJh(V,{c:_.amber},"CHECK"),PJh("span",null,DTvend(o.vendor)+(o.order?" · order "+o.order:"")+" · "+PJday(String(o.day).slice(0,10))+" — "+o.ordered+" CY ordered, "+o.tick+" CY on "+o.n+" ticket"+(o.n===1?"":"s")+". Ask the foreman or the plant for the missing "+o.gap+" CY ticket."))})):null,
     PJh("div",{className:"dt-tools"},
       PJh("input",{ref:fr,type:"file",multiple:!0,accept:"application/pdf,image/*",style:{display:"none"},onChange:function(ev){up(ev.target.files)}}),
@@ -1167,8 +1176,74 @@ function DTsection(p){var tix=(p.tix||[]).slice().sort(function(a,b){return Stri
       PJh("div",{className:"dt-when"},PJh("b",null,k.delivered_at?new Date(k.delivered_at).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}):"—"),PJh("span",null,k.delivered_at?new Date(k.delivered_at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}):"")),
       PJh("div",{className:"dt-main"},PJh("b",null,DTvend(k.vendor)+" · "+k.ticket_no),PJh("span",{className:"dim"},[k.order_no?"order "+k.order_no:"",k.mix_desc,k.mix_code,k.slump_in?Number(k.slump_in)+"\" slump":""].filter(Boolean).join(" · ")),
         PJh("span",{className:"dim xs"},[k.truck?"truck "+k.truck:"",k.driver,k.extras,k.water_added_gal?k.water_added_gal+" gal water added":"",k.signed_by?"signed "+k.signed_by:"",k.notes].filter(Boolean).join(" · "))),
-      PJh("div",{className:"dt-cy"},PJh("b",null,Number(k.load_cy||0)),PJh("span",null,"CY"+(k.ordered_cy&&Number(k.ordered_cy)!==Number(k.load_cy)?" of "+Number(k.ordered_cy):""))),
+      PJh("div",{className:"dt-cy"},PJh("b",null,Number(k.load_cy||0)),PJh("span",null,"CY"+(k.ordered_cy&&Number(k.ordered_cy)!==Number(k.load_cy)?" of "+Number(k.ordered_cy):"")),
+        chk.has?PJh("span",{className:"xs",style:{color:(chk.byT[String(k.ticket_no)]||chk.byT[String(k.ref_no||"")])?_.green:_.faint}},(function(){var l=chk.byT[String(k.ticket_no)]||chk.byT[String(k.ref_no||"")];return l?"invoiced "+l.doc:"not invoiced"})()):null),
       PJh("div",{className:"dt-pdf"},k.file_path?PJh(DTfile,{k:k,tok:tok}):PJh("span",{className:"dim xs"},"no PDF")))})):PJh("div",{className:"dim"},"No delivery tickets for this jobsite yet."))}
+
+/* ===== PROJECT COSTS · every invoice, receipt, labor sheet and quote on a jobsite ======
+   Spent = invoices, receipts and labor · Committed = accepted quotes · To confirm = pending
+   quotes and anything marked CHECK. Concrete invoices carry their ticket lines, so the
+   delivery tickets and the invoices check each other. PDFs live in "project-docs".
+   ============================================================================= */
+var PCB="project-docs";
+function PCnorm(x){return String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,"")}
+function PCspent(k){return k.amount!=null&&!/^(ACCEPTED|PENDING|CHECK|INFO)$/.test(k.status)}
+function PCmoney(n){return"$"+Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function PCtone(k,today){if(k.status==="PAID")return _.green;if(k.status==="ACCEPTED")return _.accent||"#0A84FF";if(k.status==="CHECK"||k.status==="PENDING")return _.amber;if(k.status==="INFO")return _.faint;if(k.due_date&&String(k.due_date)<today)return _.red;return _.faint}
+function PCstat(k,today){if(k.status==="OPEN"&&k.due_date)return(String(k.due_date)<today?"PAST DUE · ":"DUE ")+PJday(k.due_date);return k.status}
+function PCcheck(tix,costs){var inv=[];(costs||[]).forEach(function(c){if(c.category==="Concrete")(c.lines||[]).forEach(function(l){inv.push({ticket:String(l.ticket),cy:Number(l.cy)||0,vendor:c.vendor,doc:c.doc_no})})});
+  var onFile=function(t){return(tix||[]).find(function(k){return String(k.ticket_no)===t||String(k.ref_no||"")===t})};
+  var billedNo=inv.filter(function(l){return !onFile(l.ticket)}),byT={};inv.forEach(function(l){byT[l.ticket]=l});
+  var notInv=(tix||[]).filter(function(k){return !byT[String(k.ticket_no)]&&!(k.ref_no&&byT[String(k.ref_no)])});
+  return{inv:inv,byT:byT,billedNo:billedNo,notInv:notInv,has:inv.length>0}}
+function PCfile(p){var k=p.k,tok=p.tok,[b,setB]=(0,M.useState)("");
+  var open=async function(){var w=window.open("","_blank");setB("o");try{var u=await PMsign(k.file_path,tok,300,PCB);if(w)w.location=u}catch(x){w&&w.close();MZtoast("Couldn't open · "+PMerr(x),"err")}finally{setB("")}};
+  var dl=async function(){setB("d");try{var bl=await PMblob(k.file_path,tok,PCB),u=URL.createObjectURL(bl),a=document.createElement("a");a.href=u;a.download=k.file_name||(DTvend(k.vendor)+" "+k.doc_no+".pdf");document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},6e4)}catch(x){MZtoast(PMerr(x),"err")}finally{setB("")}};
+  var sh=async function(){setB("s");try{var u=await PMsign(k.file_path,tok,604800,PCB),t2=DTvend(k.vendor)+" "+k.doc_no+(k.amount!=null?" · "+PCmoney(k.amount):"");if(navigator.share){try{await navigator.share({title:t2,text:t2,url:u});return}catch(x){if(x&&x.name==="AbortError")return}}await navigator.clipboard.writeText(u);MZtoast("Link copied · works for 7 days","ok",5000)}catch(x){MZtoast(PMerr(x),"err")}finally{setB("")}};
+  return PJh("span",{className:"dt-acts"},PJh("button",{className:"btn sm",disabled:!!b,onClick:open},b==="o"?"…":"PDF"),PJh("button",{className:"btn sm",disabled:!!b,onClick:dl},"↓"),PJh("button",{className:"btn sm",disabled:!!b,onClick:sh},"SHARE"))}
+var PCCATS=["Concrete","Labor","Materials & tools","Color / dye","Site services","Fuel","Subcontract","Other"];
+function PCsection(p){var rows=(p.rows||[]).slice().sort(function(a,b){return String(b.doc_date).localeCompare(String(a.doc_date))}),tok=p.tok,today=p.today,fr=(0,M.useRef)(null),[busy,setBusy]=(0,M.useState)(""),[add,setAdd]=(0,M.useState)(null),[cat,setCat]=(0,M.useState)("");
+  var sum=function(f){return rows.filter(f).reduce(function(a,k){return a+(Number(k.amount)||0)},0)};
+  var spent=sum(PCspent),comm=sum(function(k){return k.status==="ACCEPTED"}),conf=sum(function(k){return k.status==="PENDING"||k.status==="CHECK"}),open=sum(function(k){return k.status==="OPEN"&&k.amount!=null});
+  var late=rows.filter(function(k){return k.status==="OPEN"&&k.due_date&&String(k.due_date)<today}),noPdf=rows.filter(function(k){return !k.file_path}).length;
+  var cats=PCCATS.map(function(c){return{c:c,v:sum(function(k){return k.category===c&&PCspent(k)}),n:rows.filter(function(k){return k.category===c}).length}}).filter(function(x){return x.n});
+  var colors={"Concrete":"#0A84FF","Labor":"#FF9F0A","Materials & tools":"#30D158","Color / dye":"#BF5AF2","Site services":"#64D2FF","Fuel":"#FF453A","Subcontract":"#5E5CE6","Other":"#8E8E93"};
+  var save=async function(obj,msg){setBusy("s"+(obj.id||""));try{await Gi("pcost_save",{p:obj},tok);MZtoast(msg,"ok");MZforce(["pcosts"]);p.onChanged&&p.onChanged()}catch(x){MZtoast(PMerr(x),"err",8000)}finally{setBusy("")}};
+  var up=async function(files){files=[].slice.call(files||[]);if(!files.length)return;setBusy("up");var ok=0,att=0,miss=[];
+    for(var i=0;i<files.length;i++){var f=files[i],fn=PCnorm(f.name),hits=rows.filter(function(k){var d=PCnorm(k.doc_no);return d.length>=5&&fn.indexOf(d)>=0});
+      if(!hits.length){miss.push(f.name);continue}
+      var ext=(String(f.name).match(/\.[A-Za-z0-9]+$/)||[".pdf"])[0].toLowerCase(),path=String(p.jobsite).toLowerCase().replace(/[^a-z0-9]+/g,"-")+"/"+PCnorm(hits[0].vendor).toLowerCase()+"-"+PCnorm(hits[0].doc_no).toLowerCase()+ext;
+      try{await PMupload(f,path,tok,PCB);ok++;for(var j=0;j<hits.length;j++){await Gi("pcost_save",{p:{id:hits[j].id,file_path:path,file_name:f.name,file_size:f.size}},tok);att++}}catch(x){miss.push(f.name+" ("+PMerr(x)+")")}}
+    setBusy("");if(fr.current)fr.current.value="";MZforce(["pcosts"]);p.onChanged&&p.onChanged();
+    MZtoast(ok+" file"+(ok===1?"":"s")+" attached to "+att+" document"+(att===1?"":"s")+(miss.length?" · not matched: "+miss.join(", "):""),miss.length?"warn":"ok",9000)};
+  var F=function(k,lbl,type,ph){return PJh("label",null,PJh("span",null,lbl),PJh("input",{className:"inp",type:type||"text",value:add[k]||"",placeholder:ph||"",onChange:function(ev){var o=Object.assign({},add);o[k]=ev.target.value;setAdd(o)}}))};
+  var S=function(k,lbl,opts){return PJh("label",null,PJh("span",null,lbl),PJh("select",{className:"inp",value:add[k]||"",onChange:function(ev){var o=Object.assign({},add);o[k]=ev.target.value;setAdd(o)}},opts.map(function(v){return PJh("option",{key:v,value:v},v)})))};
+  var shown=rows.filter(function(k){return !cat||k.category===cat});
+  return PJh("div",{className:"pc"},
+    PJh("div",{className:"dt-sum"},
+      PJh("div",null,PJh("b",null,PCmoney(spent)),PJh("span",null,"spent · invoices, receipts, labor")),
+      PJh("div",{style:{"--pc":_.accent||"#0A84FF"}},PJh("b",null,PCmoney(comm)),PJh("span",null,"committed · accepted quotes")),
+      PJh("div",{style:{"--pc":conf?_.amber:_.green}},PJh("b",null,PCmoney(conf)),PJh("span",null,"to confirm · pending or CHECK")),
+      PJh("div",{style:{"--pc":late.length?_.red:_.ink}},PJh("b",null,PCmoney(open)),PJh("span",null,"not marked paid"+(late.length?" · "+late.length+" past due":""))),
+      PJh("div",{style:{"--pc":noPdf?_.amber:_.green}},PJh("b",null,(rows.length-noPdf)+"/"+rows.length),PJh("span",null,"documents with the PDF"))),
+    spent?PJh("div",{className:"pc-bar",title:"Spent by category"},cats.filter(function(x){return x.v>0}).map(function(x){return PJh("i",{key:x.c,style:{width:(x.v/spent*100)+"%",background:colors[x.c]||"#8E8E93"},title:x.c+" · "+PCmoney(x.v)})})):null,
+    PJh("div",{className:"pc-cats"},PJh("button",{className:"pj-chip"+(!cat?" on":""),onClick:function(){setCat("")}},"All "+rows.length),
+      cats.map(function(x){return PJh("button",{key:x.c,className:"pj-chip"+(cat===x.c?" on":""),onClick:function(){setCat(cat===x.c?"":x.c)}},PJh("i",{className:"pc-dot",style:{background:colors[x.c]||"#8E8E93"}}),x.c+(x.v?" · "+PCmoney(x.v):" · "+x.n))})),
+    PJh("div",{className:"dt-tools"},
+      PJh("input",{ref:fr,type:"file",multiple:!0,accept:"application/pdf,image/*",style:{display:"none"},onChange:function(ev){up(ev.target.files)}}),
+      PJh("button",{className:"btn sm primary",disabled:!!busy,onClick:function(){fr.current&&fr.current.click()}},busy==="up"?"UPLOADING…":"UPLOAD DOCUMENT PDFs"),
+      PJh("button",{className:"btn sm",disabled:!!busy,onClick:function(){setAdd(add?null:{category:"Materials & tools",kind:"INVOICE",status:"OPEN",doc_date:new Date().toISOString().slice(0,10)})}},add?"CANCEL":"ADD A COST"),
+      PJh("span",{className:"dim xs"},"Files are matched by the document number in the file name")),
+    add?PJh("div",{className:"pm-form dt-form"},S("category","Category",PCCATS),S("kind","Type",["INVOICE","RECEIPT","LABOR","QUOTE","PICK TICKET","DOC"]),S("status","Status",["OPEN","PAID","ACCEPTED","PENDING","CHECK","INFO"]),
+      F("vendor","Vendor","text","White Cap"),F("doc_no","Document #"),F("doc_date","Date","date"),F("due_date","Due","date"),F("amount","Amount $","number"),F("po_ref","PO"),F("description","What it is"),
+      PJh("div",{className:"pm-acts"},PJh("button",{className:"btn sm primary",disabled:!!busy,onClick:function(){if(!add.vendor||!add.doc_no){MZtoast("Vendor and document # are required","err");return}save(Object.assign({jobsite:p.jobsite,pm:p.pm,project:p.project||""},add),"Saved · "+add.vendor+" "+add.doc_no).then(function(){setAdd(null)})}},"SAVE"))):null,
+    PJh("div",{className:"dt-list"},shown.map(function(k){var tone=PCtone(k,today);return PJh("div",{key:k.id,className:"dt-row pc-row"},
+      PJh("div",{className:"dt-when"},PJh("b",null,k.doc_date?new Date(k.doc_date+"T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"}):"—"),PJh("span",null,k.kind.toLowerCase())),
+      PJh("div",{className:"dt-main"},PJh("b",null,DTvend(k.vendor)+" · "+k.doc_no+(k.line_key?" · "+DTvend(k.line_key):"")),PJh("span",{className:"dim"},[k.description,k.qty,k.po_ref?"PO "+k.po_ref:""].filter(Boolean).join(" · ")),
+        k.notes||k.approved_by?PJh("span",{className:"dim xs"},[k.approved_by?"approved "+k.approved_by:"",k.notes].filter(Boolean).join(" · ")):null),
+      PJh("div",{className:"dt-cy"},PJh("b",null,k.amount!=null?PCmoney(k.amount):"—"),PJh("span",{style:{color:tone,fontWeight:600}},PCstat(k,today))),
+      PJh("div",{className:"dt-pdf"},k.file_path?PJh(PCfile,{k:k,tok:tok}):PJh("span",{className:"dim xs"},"no PDF"),
+        k.status==="OPEN"&&k.amount!=null?PJh("button",{className:"btn sm",disabled:!!busy,title:"Accounting confirmed it is paid",onClick:function(){save({id:k.id,status:"PAID"},DTvend(k.vendor)+" "+k.doc_no+" marked paid")}},"MARK PAID"):null))})))}
 
 /* one permit: what it is, how long it has, and everything you can do with its PDF */
 function PMcard(p){var pm=p.p,k=p.kind,tok=p.tok,[busy,setBusy]=(0,M.useState)(""),[ed,setEd]=(0,M.useState)(null),fileRef=(0,M.useRef)(null);

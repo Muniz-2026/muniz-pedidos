@@ -981,7 +981,8 @@ html[data-theme] .dt-form{grid-template-columns:1fr 1fr}
 html[data-theme] .dt-form label{grid-template-columns:96px 1fr}
 html[data-theme] .dt-tbl td{vertical-align:top}
 html[data-theme] .dt-acts{display:inline-flex;gap:4px}
-html[data-theme] .dt-list{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+/* overflow:hidden made the list a scroll container: pressing a button in it jumped the drawer. clip keeps the rounded corners without that */
+html[data-theme] .dt-list{display:grid;border:1px solid var(--line);border-radius:12px;overflow:visible;overflow:clip}
 html[data-theme] .dt-row{display:grid;grid-template-columns:82px 1fr auto auto;gap:12px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
 html[data-theme] .dt-row:first-child{border-top:0}
 html[data-theme] .dt-when{display:flex;flex-direction:column;gap:2px}
@@ -994,6 +995,20 @@ html[data-theme] .dt-cy{text-align:right;display:flex;flex-direction:column}
 html[data-theme] .dt-cy b{font:700 18px/1 var(--display,var(--sans))}
 html[data-theme] .dt-cy span{font-size:11.5px;color:var(--dim)}
 @media (max-width:640px){html[data-theme] .dt-row{grid-template-columns:70px 1fr auto}html[data-theme] .dt-pdf{grid-column:2/-1}}
+/* ===== project costs ===== */
+html[data-theme] .pc{display:grid;gap:12px;margin:6px 0 18px}
+html[data-theme] .pc-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--line)}
+html[data-theme] .pc-bar i{display:block;height:100%}
+html[data-theme] .pc-cats{display:flex;flex-wrap:wrap;gap:6px}
+html[data-theme] .pc-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+html[data-theme] .pc-row .dt-cy b{font-size:15px}
+html[data-theme] .pc-row .dt-cy span{white-space:nowrap}
+html[data-theme] .pc-row .dt-pdf{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+html[data-theme] .pj-job-cost{background:color-mix(in srgb,#30D158 6%,transparent)}
+/* drawers: Chrome's scroll anchoring jumped a scrolled drawer on every button press, so the click landed
+   on a different row (seen on Mark paid / PDF far down the CapMetro costs list). Drawers don't load
+   content above the reader, so anchoring buys nothing there. */
+html[data-theme] .drawer .db,html[data-theme] .drawer-bg .db{overflow-anchor:none}
 
 /* ==========================================================================
    MOTION · v1
