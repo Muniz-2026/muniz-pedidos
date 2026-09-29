@@ -1009,6 +1009,22 @@ html[data-theme] .pj-job-cost{background:color-mix(in srgb,#30D158 6%,transparen
    on a different row (seen on Mark paid / PDF far down the CapMetro costs list). Drawers don't load
    content above the reader, so anchoring buys nothing there. */
 html[data-theme] .drawer .db,html[data-theme] .drawer-bg .db{overflow-anchor:none}
+/* ===== smooth: the live pulses run on the GPU =====
+   The "on site" dots and crew rings animated box-shadow, which repaints the page 60 times a second
+   (≈180 ms of every second busy while Projects just sat open). Same look, drawn with transform +
+   opacity on a separate layer, so the browser does no repainting at all. */
+html[data-theme] .dot.pulse{animation:none;position:relative}
+html[data-theme] .dot.pulse::after{content:"";position:absolute;inset:0;border-radius:50%;background:rgba(52,199,89,.5);animation:mzPulseGPU 2s ease-out infinite;will-change:transform,opacity;pointer-events:none}
+@keyframes mzPulseGPU{0%{transform:scale(1);opacity:.9}70%{transform:scale(2.75);opacity:0}100%{transform:scale(2.75);opacity:0}}
+html.mz-motion .pj-av.ring{animation:none;position:relative}
+html.mz-motion .pj-av.ring::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid color-mix(in srgb,var(--green-f,#30B158) 55%,transparent);animation:pjRingGPU 2.4s ease-in-out infinite;will-change:transform,opacity;pointer-events:none}
+@keyframes pjRingGPU{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.16);opacity:.2}}
+@media (prefers-reduced-motion:reduce){html[data-theme] .dot.pulse::after,html.mz-motion .pj-av.ring::after{animation:none;opacity:0}}
+/* Haul map: the live truck ping, same treatment (GPU layer instead of a repainting shadow) */
+.hl-truck.live i{animation:none;position:relative}
+.hl-truck.live i::after{content:"";position:absolute;inset:0;border-radius:50%;background:rgba(48,209,88,.6);animation:hlPingGPU 1.6s ease-out infinite;will-change:transform,opacity;pointer-events:none}
+@keyframes hlPingGPU{0%{transform:scale(1);opacity:.9}100%{transform:scale(2.6);opacity:0}}
+@media (prefers-reduced-motion:reduce){.hl-truck.live i::after{animation:none;opacity:0}}
 
 /* ==========================================================================
    MOTION · v1
