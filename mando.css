@@ -1355,3 +1355,13 @@ html.vt-gate::view-transition-new(root){animation:mzFadeIn .55s ease both}
   html.mz-motion .drawer{animation:mzSheetUp .5s var(--ease-out) both}
   html.mz-motion .drawer-bg.mz-closing .drawer{animation:mzSheetDown .28s cubic-bezier(.5,0,.75,0) both}
 }
+/* ===== idle tab ===== */
+html[data-theme] .idle{display:grid;gap:14px}
+html[data-theme] .idle-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+html[data-theme] .idle-tbl td,html[data-theme] .idle-tbl th{white-space:nowrap}
+html[data-theme] .idle-tbl tr.hot td{background:color-mix(in srgb,#FF453A 7%,transparent)}
+html[data-theme] .idle-tbl td.xs{white-space:normal;max-width:220px}
+html[data-theme] .idle-msg{width:100%;font:12.5px/1.45 var(--mono);resize:vertical;min-height:220px;margin-bottom:8px}
+html[data-theme] .idle-note{padding:0 4px}
+html[data-theme] .segs.sm button{font-size:10.5px;padding:4px 8px}
+@media (max-width:720px){html[data-theme] .idle-kpis{grid-template-columns:1fr 1fr}}
