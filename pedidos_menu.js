@@ -237,6 +237,7 @@
     hidePills();
     overlay.querySelector("#mz-mat").onclick = function () { if (isOfficeName(name)) { showPara(name); return; } markSeen(name); hide(); };
     overlay.querySelector("#mz-fuel").onclick = function () {
+      if (isOfficeName(name)) { showFuelPara(name); return; }     // oficina: ¿para quién es el combustible?
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }   // el wizard arranca en el paso 2 con el nombre puesto
       openFuel(name);
     };
@@ -257,7 +258,103 @@
 
   /* ---------- COMBUSTIBLE dentro del app: mismo documento, mismo estilo, una sola cabecera ---------- */
   var panel = null, fuelHandle = null, hiddenPills = [];
-  function openFuel(name) {
+  /* ---------- combustible: ¿PARA QUIÉN ES? (solo oficina) ----------
+     Cuando un chofer llama a la oficina por combustible, la oficina pide el PO A NOMBRE DE ÉL:
+     sale con su nombre y su unidad (placa, diésel/gasolina, millaje), y el servidor anota quién
+     lo pidió (requested_by → "Pedido por oficina: …"). Así nadie vuelve a pedir "como si fuera suyo".
+     La lista son TODAS las personas activas (tengan clave o no). Sin señal: la lista del config. */
+  var fuelPeople = null;
+  function fEsc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fFold(v) { var t = String(v || "").toUpperCase(); try { t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); } catch (e) { } return t; }
+  function fuelPeopleFallback() {
+    var c = window.MUNIZ_CONFIG || {}, F = c.COMBUSTIBLE || {}, out = [];
+    function add(n, r) { n = upk(n); if (n) out.push({ name: n, role: r }); }
+    (F.CHOFERES_CAMION || []).forEach(function (n) { add(n, "CHOFER"); });
+    Object.keys(c.CHOFERES || {}).forEach(function (n) { add(n, "CHOFER"); });
+    Object.keys(c.ASIGNACIONES || {}).forEach(function (n) { add(n, "MAYORDOMO"); });
+    Object.keys(c.SUPERVISORES || {}).forEach(function (n) { add(n, "SUPERVISOR"); });
+    (Array.isArray(c.GERENTES) ? c.GERENTES : Object.keys(c.GERENTES || {})).forEach(function (n) { add(n, "GERENTE"); });
+    (F.USUARIOS_EXTRA || []).forEach(function (n) { add(n, "PERSONAL"); });
+    (c.PERSONAL || []).forEach(function (n) { add(n, "PERSONAL"); });
+    return out;
+  }
+  function loadFuelPeople(cb) {
+    if (fuelPeople) { cb(fuelPeople); return; }
+    var sb = (window.MUNIZ_CONFIG || {}).SUPABASE || {}, done = false;
+    function finish(list) { if (done) return; done = true; if (list && list.length) fuelPeople = list; cb(list && list.length ? list : fuelPeopleFallback()); }
+    if (!sb.URL || !sb.ANON_KEY) { finish(null); return; }
+    setTimeout(function () { finish(null); }, 6000);
+    fetch(sb.URL + "/rest/v1/people?select=name,role,active&order=name", { headers: { apikey: sb.ANON_KEY, Authorization: "Bearer " + sb.ANON_KEY } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (rows) {
+        finish((rows || []).filter(function (x) { return x && x.name && x.active !== false; })
+          .map(function (x) { return { name: upk(x.name), role: upk(x.role) }; }));
+      })
+      .catch(function () { finish(null); });
+  }
+  function fuelGroups(list, me) {
+    var c = window.MUNIZ_CONFIG || {}, F = c.COMBUSTIBLE || {}, office = {}, trucks = {}, seenN = {}, g = { cam: [], all: [] };
+    Object.keys(c.OFICINA || {}).forEach(function (k) { office[upk(k)] = 1; });
+    (F.CHOFERES_CAMION || []).forEach(function (k) { trucks[upk(k)] = 1; });
+    list.forEach(function (x) {
+      var n = upk(x.name); if (!n || seenN[n] || office[n] || n === upk(me) || x.role === "OFICINA") return; seenN[n] = 1;
+      (trucks[n] || x.role === "CHOFER" ? g.cam : g.all).push({ name: n, role: x.role || "" });
+    });
+    function byName(a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; }
+    g.cam.sort(byName); g.all.sort(byName);
+    return g;
+  }
+  var ROLE_ES = { CHOFER: "chofer", MAYORDOMO: "mayordomo", SUPERVISOR: "supervisor", GERENTE: "gerente de proyecto", PERSONAL: "personal" };
+  function showFuelPara(name) {
+    if (!overlay) return;
+    overlay.innerHTML =
+      '<div style="position:fixed;inset:0;background:#F2F2F7;z-index:9997;overflow:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 24px)">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<button id="mz-fpara-back" aria-label="Regresar" style="width:52px;height:52px;flex:none;border-radius:14px;background:#1C1C1E;color:#fff;border:0;font:900 26px/1 system-ui">\u2190</button>' +
+          '<div><div style="font:900 22px/1.05 \'Archivo Black\',system-ui,sans-serif;color:#1C1C1E">\u00bfPARA QUI\u00c9N ES EL COMBUSTIBLE?</div>' +
+          '<div style="font:700 12px/1.3 system-ui,sans-serif;color:#6E6E73;margin-top:3px">El PO sale a nombre de quien va a cargar, con su unidad. Queda anotado que lo pediste t\u00fa.</div></div>' +
+        '</div>' +
+        '<input id="mz-fpara-q" type="search" placeholder="Buscar nombre\u2026" autocomplete="off" autocapitalize="characters" style="margin-top:14px;width:100%;box-sizing:border-box;min-height:50px;border-radius:12px;border:2px solid #C7C7CC;background:#fff;padding:0 14px;font:800 16px/1 system-ui,sans-serif;color:#1C1C1E">' +
+        '<div id="mz-fpara-list"><div style="padding:28px 0;text-align:center;font:700 13px/1.3 system-ui,sans-serif;color:#6E6E73">Cargando nombres\u2026</div></div>' +
+        '<button id="mz-fpara-me" style="margin-top:22px;width:100%;min-height:48px;border-radius:12px;border:2px dashed #C7C7CC;background:transparent;font:800 13px/1 system-ui,sans-serif;color:#6E6E73">PARA M\u00cd (a mi nombre)</button>' +
+      '</div>';
+    var listEl = overlay.querySelector("#mz-fpara-list"), q = overlay.querySelector("#mz-fpara-q");
+    overlay.querySelector("#mz-fpara-back").onclick = function () { hide(); show(name); };
+    overlay.querySelector("#mz-fpara-me").onclick = function () {
+      try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }
+      hide(); openFuel(name);
+    };
+    function btn(x) {
+      return '<button data-fpara="' + fEsc(x.name) + '" data-fold="' + fEsc(fFold(x.name)) + '" style="min-height:56px;border-radius:12px;border:2px solid #E3E3E8;background:#fff;font:900 13px/1.15 system-ui,sans-serif;color:#1C1C1E;padding:6px;text-align:center">' +
+        fEsc(x.name) + (x.role ? '<span style="display:block;font:700 10px/1.2 system-ui,sans-serif;color:#8E8E93;margin-top:3px">' + fEsc(ROLE_ES[x.role] || x.role.toLowerCase()) + '</span>' : '') + '</button>';
+    }
+    function section(title, color, arr) {
+      if (!arr.length) return "";
+      return '<div data-fsec><div style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.1em;color:' + color + ';margin:16px 2px 8px">' + title + '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + arr.map(btn).join("") + '</div></div>';
+    }
+    function filter() {
+      var t = fFold(q.value).trim();
+      Array.prototype.forEach.call(listEl.querySelectorAll("[data-fpara]"), function (b) { b.style.display = !t || b.getAttribute("data-fold").indexOf(t) >= 0 ? "" : "none"; });
+      Array.prototype.forEach.call(listEl.querySelectorAll("[data-fsec]"), function (sec) {
+        var any = Array.prototype.some.call(sec.querySelectorAll("[data-fpara]"), function (b) { return b.style.display !== "none"; });
+        sec.style.display = any ? "" : "none";
+      });
+    }
+    q.oninput = filter;
+    loadFuelPeople(function (list) {
+      if (!overlay || !overlay.contains(listEl)) return;            // ya se salió de esta pantalla
+      var g = fuelGroups(list, name);
+      listEl.innerHTML = (section("CHOFERES DE CAMI\u00d3N", "#1E3A8A", g.cam) + section("TODOS", "#1C1C1E", g.all)) ||
+        '<div style="padding:28px 0;text-align:center;font:700 13px/1.3 system-ui,sans-serif;color:#6E6E73">No cargaron los nombres. Revisa la se\u00f1al.</div>';
+      Array.prototype.forEach.call(listEl.querySelectorAll("[data-fpara]"), function (b) {
+        b.onclick = function () { var para = b.getAttribute("data-fpara"); hide(); openFuel(para, name); };
+      });
+      filter();
+    });
+  }
+  
+function openFuel(name, por) {
     if (panel) return;
     if (!(window.MunizFuel && window.MunizFuel.mount)) { alert("No cargó combustible (fuel.js). Recarga el app."); return; }
     panel = document.createElement("div");
@@ -268,9 +365,11 @@
     document.body.style.overflow = "hidden";
     window.__mzBusy = true;                              // no recargar el app a la mitad de un PO
     hidePills();
-    fuelHandle = window.MunizFuel.mount(panel, { who: name, onClose: closeFuel });
+    window.__mzFuelPor = por ? upk(por) : "";            // oficina pidiendo a nombre de otra persona
+    fuelHandle = window.MunizFuel.mount(panel, { who: name, requestedBy: por || "", onClose: closeFuel });
   }
   function closeFuel() {
+    window.__mzFuelPor = "";
     if (fuelHandle) { try { fuelHandle.unmount(); } catch (e) { } fuelHandle = null; }
     if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
     panel = null; document.body.style.overflow = ""; window.__mzBusy = false;

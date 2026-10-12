@@ -1783,7 +1783,7 @@ function MzNum(props){
 /* Server-side text (fuel flags, lane reasons, what the foreman saw) is written in Spanish by the
    field apps and the database. Command Center shows it in English: whole phrases first, then
    fragments, so messages with names/plates/amounts inside still come out right. */
-var MZdict=[
+var MZdict=[  [/Pedido por oficina/gi,"Ordered by office"],[/a nombre de otra persona/gi,"under someone else's name"],[/Pedido por /gi,"Ordered by "],
  [/Mismo veh[i\u00ED]culo carg[o\u00F3] hace (\d+) h/gi,"Same vehicle fueled $1 h ago"],
  [/Placa dictada por la persona/gi,"Plate typed by the person"],[/\(no registrada\)/gi,"(not registered)"],
  [/Placa nueva \u00B7 se da de alta con este PO/gi,"New plate \u00B7 added with this PO"],[/Placa nueva/gi,"New plate"],[/el registro le tiene/gi,"the registry has"],
