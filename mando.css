@@ -1372,3 +1372,22 @@ html[data-theme] .stm-tbl tr.on td{background:color-mix(in srgb,var(--accent,#0A
 html[data-theme] .stm-detail{padding:12px 16px 16px;display:grid;gap:10px;border-top:1px solid var(--line)}
 html[data-theme] .stm-detail .tbl td{white-space:nowrap}
 html[data-theme] .stm-detail .segs{justify-self:start;max-width:100%}
+
+/* ---------- pull down to refresh (home-screen app; see the pull module in mando.js) ---------- */
+html.mz-ptr-on,html.mz-ptr-on body{overscroll-behavior-y:none}
+html[data-theme] .mz-ptr{position:fixed;left:50%;top:0;z-index:65;width:40px;height:40px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--card-line);
+  box-shadow:var(--pop-shadow,0 6px 20px rgba(0,0,0,.28));transform:translate3d(-50%,-56px,0);opacity:0;pointer-events:none;
+  will-change:transform,opacity;transition:transform .34s cubic-bezier(.3,.7,.4,1),opacity .25s ease}
+html[data-theme] .mz-ptr-ic{display:block;width:20px;height:20px;background:var(--dim);transition:transform .08s linear;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M6 13l6 6 6-6'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M6 13l6 6 6-6'/%3E%3C/svg%3E") center/contain no-repeat}
+html[data-theme] .mz-ptr.armed .mz-ptr-ic{background:var(--accent)}
+html[data-theme] .mz-ptr.spin .mz-ptr-ic{width:18px;height:18px;background:none;-webkit-mask:none;mask:none;
+  border:2.4px solid var(--accent);border-right-color:transparent;border-radius:50%;animation:mzPtrSpin .7s linear infinite}
+html[data-theme] .mz-ptr.ok .mz-ptr-ic{background:var(--green-f,#30D158);
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 12.5l4.2 4.2L18.5 8'/%3E%3C/svg%3E");
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 12.5l4.2 4.2L18.5 8'/%3E%3C/svg%3E")}
+html[data-theme] .mz-ptr-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@keyframes mzPtrSpin{to{transform:rotate(360deg)}}
+html:not(.mz-motion) .mz-ptr.spin .mz-ptr-ic{animation-duration:1.6s}
