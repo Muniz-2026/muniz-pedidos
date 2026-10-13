@@ -22,7 +22,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.5";
+  var VERSION = "1.6";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -67,6 +67,8 @@
   /* ---------- catálogos: código -> {es, p}. Mismo archivo que usa el app (ya está en caché) ---------- */
   var CAT = {}, CAT_P = {};
   function loadCat(prov) {
+    var live = window.__MZLIVEMAP && window.__MZLIVEMAP[prov];   // v1.6: the live catalog (app.js · catalog_items) wins
+    if (live) return Promise.resolve(live);
     if (CAT[prov]) return Promise.resolve(CAT[prov]);
     if (CAT_P[prov]) return CAT_P[prov];
     CAT_P[prov] = fetch("./catalog_" + prov.toLowerCase() + ".json").then(function (r) { return r.json(); }).then(function (j) {
