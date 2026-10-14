@@ -52,7 +52,7 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
 var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationVisits:["fuel"],fuelGps:["fuel"],fuelTest:["fuel"],
-  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],sdAlerts:["haul"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],wzCad:["catalog"],wzWeek:["catalog"],wzPairs:["catalog"],wzHist:["catalog"],wzNames:["catalog"],wzMeta:["catalog"]};
+  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],sdAlerts:["haul"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -90,12 +90,6 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["ctDemand",300e3,3,()=>He(go("catalog_demand?select=*&order=last_seen.desc",c,3))],
   ["ctHist",300e3,3,()=>He($e("catalog_history?select=*&order=at.desc&limit=400",c))],
   ["ctAlt",300e3,3,()=>He(go("catalog_alt_codes?select=*",c,3))],
-  ["wzCad",900e3,3,()=>He($e("wz_cadence?select=*&order=days.desc&limit=1000",c))],
-  ["wzWeek",900e3,3,()=>He($e("wz_weekly?select=*&order=week.desc&limit=400",c))],
-  ["wzPairs",900e3,3,()=>He($e("wz_pairs?select=*&order=together.desc&limit=600",c))],
-  ["wzHist",300e3,3,()=>He($e("wz_hist_orders?select=*&order=created_at.desc&limit=300",c))],
-  ["wzNames",900e3,3,()=>He($e("wz_names?select=*&order=invoices.desc&limit=500",c))],
-  ["wzMeta",300e3,3,()=>He($e("wz_meta?select=*",c))],
   ["notif",30e3,1,()=>He($e("notifications?select=*&order=created_at.desc&limit=200",c))],
   ["lastPo",30e3,1,()=>He($e("office_last_po?select=*",c))],
   ["ev",60e3,1,()=>inc("ev",{full:"events?select=ts,device_id,who,event,step,meta,app&order=ts.desc&limit=1500",recent:p=>"events?select=ts,device_id,who,event,step,meta,app"+newer(p,"ts")+"&order=ts.desc&limit=1500",every:600e3,key:r=>r.ts+"|"+r.device_id+"|"+r.event+"|"+(r.step||""),sort:"ts",keep:1500})],
@@ -133,7 +127,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],wzCad:d.wzCad||[],wzWeek:d.wzWeek||[],wzPairs:d.wzPairs||[],wzHist:d.wzHist||[],wzNames:d.wzNames||[],wzMeta:d.wzMeta||[],sync:S.sync||Date.now(),err:S.err||""})};
+   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],sync:S.sync||Date.now(),err:S.err||""})};
  /* escalate_pending / verify_pending_fuel run on the server every 2 min (parche39); browsers no longer call them */
  const rpc=()=>{};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
@@ -1410,7 +1404,7 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
   var markUnl=async function(x){try{await CTpost("catalog_unlisted_done",{vendor:x.vendor,code_key:x.code_key,action:"ignored",by:(tok.user&&tok.user.email)||null},tok.access_token);setGone(function(o){var n=Object.assign({},o);n["u|"+x.vendor+"|"+x.code_key]=1;return n});MZtoast("Hidden from this list","ok")}catch(y){MZtoast(CTerr(y),"err")}};
   var tie=async function(x,r){try{await CTpost("catalog_alt_codes",{vendor:r.vendor,code_key:x.code_key||CTkey(x.code),code:x.code,item_id:r.id,by:(tok.user&&tok.user.email)||null},tok.access_token,!0);setGone(function(o){var n=Object.assign({},o);n["u|"+x.vendor+"|"+x.code_key]=1;return n});setPick(null);setPq("");MZtoast(x.code+" now counts as "+r.name_es,"ok");after()}catch(y){MZtoast(CTerr(y),"err")}};
   var addWordTo=async function(x,r){try{var cur=String(r.aliases||"").trim(),w=String(x.text||"").trim().toLowerCase();if((" "+CTn(cur)+" ").indexOf(" "+CTn(w)+" ")<0)await Eo("catalog_items?id=eq."+r.id,{aliases:(cur+" "+w).trim()},tok.access_token);await markDemand(x,"alias",r.id);setPick(null);setPq("");MZtoast("\u201C"+w+"\u201D now finds "+r.name_es,"ok");after()}catch(y){MZtoast(CTerr(y),"err")}};
-  var tabs=[["all","All products",act.length],["fix","Needs attention",act.filter(needs).length],["unlisted","Bought, not orderable",unl.length],["demand","Couldn't find",dem.length],["changes","Changes",null],["hidden","Hidden",rows.length-act.length]];if(WZok(tok))tabs.splice(4,0,["buying","Buying patterns",null]);
+  var tabs=[["all","All products",act.length],["fix","Needs attention",act.filter(needs).length],["unlisted","Bought, not orderable",unl.length],["demand","Couldn't find",dem.length],["changes","Changes",null],["hidden","Hidden",rows.length-act.length]];
   var row=function(r){var s=stats[r.id],th=CTthumb(r),n=sameN(r);
     return PJh("button",{key:r.id,className:"ct-row",onClick:function(){setOpen({id:r.id})}},
       PJh("span",{className:"ct-th"},th?PJh("img",{src:th,alt:"",loading:"lazy"}):PJh("i",null,"sin foto")),
@@ -1446,7 +1440,6 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
         PJh("span",{className:"ct-btns"},PJh("button",{className:"btn sm primary",onClick:function(){setPick(pk?null:x.text_key);setPq("")}},pk?"Close":"It's this item\u2026"),PJh("button",{className:"btn sm",onClick:function(){var v0=String(x.vendors||"").split(",")[0].trim();setOpen({id:null,prefill:{vendor:CTVS.indexOf(v0)>=0?v0:"ACE",name_es:String(x.text).charAt(0).toUpperCase()+String(x.text).slice(1)},context:"Foremen looked for \u201C"+x.text+"\u201D "+x.n+" times. Add the product they meant.",demand:x})}},"New product"),PJh("button",{className:"btn sm",onClick:function(){markDemand(x,"dismissed")}},"Dismiss"))),
         pk?PJh("div",{className:"ct-pick"},PJh("input",{className:"inp",autoFocus:!0,value:pq,placeholder:"Search the catalog for the item they meant",onChange:function(ev){setPq(ev.target.value)}}),
           sug.length?sug.map(function(r){return PJh("div",{key:r.id,className:"ct-pick-r"},PJh("span",{className:"ct-th sm"},CTthumb(r)?PJh("img",{src:CTthumb(r),alt:""}):null),PJh("span",{className:"ct-main"},PJh("b",null,r.name_es),PJh("span",null,(CTV[r.vendor]||r.vendor)+" \u00B7 "+r.code)),PJh("button",{className:"btn sm primary",onClick:function(){addWordTo(x,r)}},"Add \u201C"+x.text+"\u201D as a search word"))}):PJh("div",{className:"dim xs",style:{padding:"8px 2px"}},"No match yet \u2014 type part of the name.")):null)})):PJh(ve,{ok:!0},"Nothing open. Every search found something."));
-  else if(view==="buying"&&WZok(tok))body=PJh(WZbuy,{d:e,now:t,t:tok,ven:ven,onAdd:function(x){setOpen({id:null,prefill:{vendor:x.vendor,code:x.code,name_en:x.descr||"",price:x.price},context:"Ordered from purchase history by "+WZname(x.foreman)+". Give it the name the crews use, then add it."})},onHide:function(x){markUnl({vendor:x.vendor,code_key:x.code_key||CTkey(x.code),code:x.code})}});
   else if(view==="changes")body=PJh(G,{title:"RECENT CHANGES",right:PJh("span",{className:"dim xs"},"who changed what, newest first")},
     (e.ctHist||[]).length?PJh("div",{className:"ct-list"},(e.ctHist||[]).slice(0,lim).map(function(x){var r=byId[x.item_id];return PJh("button",{key:x.id,className:"ct-row ct-chg",onClick:function(){r&&setOpen({id:r.id})}},
       PJh("span",{className:"ct-when mono"},CTwhen(x.at,t)),PJh("span",{className:"ct-main"},PJh("b",null,(r?r.name_es:x.code)+""),PJh("span",null,CTwho(x.by)+" \u00B7 "+(x.field==="created"?"added it":x.field==="photo_path"?"new photo":x.field.replace("name_es","name").replace("name_en","vendor description").replace("blocked","foreman access").replace("aliases","search words")+": "+(x.old_value==null?"\u2014":String(x.old_value).slice(0,60))+" \u2192 "+(x.new_value==null?"\u2014":String(x.new_value).slice(0,60))))))})):PJh(ve,null,"No changes yet."));
@@ -1497,103 +1490,6 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
 "@media(max-width:820px){.ct-ed{grid-template-columns:1fr}.ct-ed-r{order:-1}.ct-phone{max-width:260px;margin:0 auto}.ct-row{grid-template-columns:52px minmax(0,1fr) auto}.ct-tags{grid-column:2/-1;justify-content:flex-start;max-width:none}}"+
 "@media(max-width:640px){.ct-match{margin-left:6px}.ct-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ct-3{grid-template-columns:1fr 1fr}.ct-pick{padding-left:6px}.ct-btns{grid-column:1/-1;justify-content:flex-start}.ct-row .ct-num{display:none}.ct-static .ct-num{display:flex}}";
   var st=document.createElement("style");st.setAttribute("data-ct","v178");st.textContent=css;document.head.appendChild(st)}catch(e){}})();
-
-/* ===== BUYING PATTERNS (v179) · how each crew buys, from parche124 ==============================
-   A tab in CATALOG, for tito@ only until config.js has ASISTENTE_ACE: "TODOS". The point is a friendlier
-   app and better control, not more buying: who buys how often (and who bought again sooner than
-   usual), weekly contractor bags and blades, which pairs the phones remind about (only 50%+ of the
-   time), items ordered from purchase history ("Sí lo tenemos") with Add / Not for foremen, and which
-   names were counted as one person. Tables refresh twice an hour (pg_cron muniz_wizard). */
-function WZok(tok){return(window.MUNIZ_CONFIG||{}).ASISTENTE_ACE==="TODOS"||/^tito@munizcontracting\.com$/i.test(String(tok&&tok.user&&tok.user.email||""))}
-function WZday(s){if(!s)return null;var d=new Date(String(s).slice(0,10)+"T12:00:00");return isNaN(d)?null:d}
-function WZago(s,now){var d=WZday(s);if(!d)return null;var n=new Date(now||Date.now());n.setHours(12,0,0,0);return Math.round((n-d)/864e5)}
-function WZdate(d){return d&&!isNaN(d)?d.toLocaleDateString("en-US",{month:"short",day:"numeric"}):"\u2014"}
-function WZname(p){return String(p||"").toLowerCase().replace(/\b[a-z]/g,function(c){return c.toUpperCase()})}
-function WZn(x){return String(x||"").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^A-Z0-9]+/g," ").trim()}
-function WZv(v){return v==="WHITECAP"?"WHITE CAP":v}
-function WZbuy(p){var e=p.d,t=p.now,tok=p.t,ven=p.ven&&p.ven!=="ALL"?p.ven:"ACE";
-  var A0=(0,M.useState)(null),openP=A0[0],setOpenP=A0[1],B0=(0,M.useState)({}),usual=B0[0],setUsual=B0[1];
-  var arr=function(x){return Array.isArray(x)?x:[]};
-  (0,M.useEffect)(function(){if(!openP||usual[openP+"|"+ven])return;var on=!0;
-    $e("wz_usual?select=*&person=eq."+encodeURIComponent(openP)+"&vendor=eq."+ven+"&order=rank.asc&limit=12",tok&&tok.access_token).then(function(r){if(on&&Array.isArray(r))setUsual(function(o){var n=Object.assign({},o);n[openP+"|"+ven]=r;return n})}).catch(function(){});
-    return function(){on=!1}},[openP,ven]);
-  var meta=arr(e.wzMeta)[0]||null;
-  if(!meta)return PJh(G,{title:"BUYING PATTERNS"},PJh(ve,null,"Buying patterns start once parche124 has run in Supabase."));
-  var ST={sooner:["SOONER THAN USUAL",_.amber],usual:["AS USUAL",_.green],irregular:["NO STEADY RHYTHM",_.faint],quiet:["QUIET",_.faint]},RK={sooner:0,usual:1,irregular:2,quiet:3};
-  /* how often each foreman buys; "sooner than usual" = his last two purchases came at half his usual gap or less */
-  var cad=arr(e.wzCad).filter(function(r){return r.vendor===ven&&r.days>=3}).map(function(r){var age=WZago(r.last_day,t),ev=r.every_days,lg=r.last_gap!=null?Number(r.last_gap):null,
-      st=!ev?"irregular":age>Math.max(3*ev,ev+30)?"quiet":(ev>=4&&lg!=null&&lg<=Math.floor(ev/2))?"sooner":"usual";return{r:r,age:age,ev:ev,lg:lg,st:st}});
-  cad.sort(function(a,b){return RK[a.st]-RK[b.st]||(a.st==="sooner"?a.lg/a.ev-b.lg/b.ev:0)||b.r.days-a.r.days});
-  var active=cad.filter(function(x){return x.st!=="quiet"}).length,soon=cad.filter(function(x){return x.st==="sooner"}).length;
-  /* weekly use, all stores, up to the last invoice loaded */
-  var cut=meta.inv_cutoff||{},cutD=WZday(cut.ACE||Object.keys(cut).map(function(k){return cut[k]}).sort().pop());
-  var mon=function(d){var x=new Date(d);x.setHours(12,0,0,0);x.setDate(x.getDate()-((x.getDay()+6)%7));return x};
-  var iso=function(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
-  var wstat=function(g){var rows=arr(e.wzWeek).filter(function(x){return x.grp===g}),y0=new Date(new Date(t||Date.now()).getFullYear(),0,1),end=cutD||new Date(t||Date.now()),n=Math.max(1,(end-y0)/(7*864e5)),q=0,u=0,by={};
-    rows.forEach(function(x){q+=Number(x.qty)||0;u+=Number(x.usd)||0;by[String(x.week).slice(0,10)]=x});
-    var m=mon(end),w=[];for(var i=11;i>=0;i--){var d=new Date(m.getTime()-i*7*864e5);w.push({d:d,q:by[iso(d)]?Number(by[iso(d)].qty)||0:0})}
-    return{q:q/n,u:u/n,tq:q,tu:u,w:w}};
-  var bags=wstat("bags"),blades=wstat("blades");
-  var bars=function(st){var mx=Math.max.apply(null,st.w.map(function(x){return x.q}).concat([1]));
-    return PJh("div",{className:"wz-bars"},st.w.map(function(x){return PJh("div",{key:iso(x.d),className:"wz-bar"+(x.q?"":" z"),title:"Week of "+WZdate(x.d)+": "+Math.round(x.q)},PJh("i",{style:{height:Math.max(3,Math.round(x.q/mx*58))+"px"}}),PJh("span",null,String(Math.round(x.q))))}))};
-  /* pairs, each pair once (the stronger direction); the phones only remind at 50%+ */
-  var seen={},vp=arr(e.wzPairs).filter(function(x){return x.vendor===ven}),pairs=vp.slice().sort(function(a,b){return b.conf-a.conf||b.together-a.together}).filter(function(x){var k=[x.k_a,x.k_b].sort().join("|");if(seen[k])return!1;seen[k]=1;return!0}).sort(function(a,b){return b.together-a.together}).slice(0,16);
-  var near=vp.filter(function(x){return Number(x.conf)>=.5}).length;
-  var ho=arr(e.wzHist).filter(function(x){return p.ven==="ALL"||x.vendor===p.ven});
-  /* names counted as one person */
-  var groups={};arr(e.wzNames).forEach(function(x){if(x&&x.person)(groups[x.person]=groups[x.person]||[]).push(x)});
-  var merged=Object.keys(groups).map(function(k){var g=groups[k],ns={},nn={};g.forEach(function(x){ns[WZname(x.name)]=1;nn[WZn(x.name)]=1});
-      return{person:k,names:Object.keys(ns),keys:Object.keys(nn).length,inv:g.reduce(function(s,x){return s+(x.invoices||0)},0),ord:g.reduce(function(s,x){return s+(x.orders||0)},0),skip:g.some(function(x){return x.skipped}),miss:!g.some(function(x){return x.in_people}),diff:g.some(function(x){return WZn(x.name)!==k})}})
-    .filter(function(m){return m.keys>1||m.diff||(m.miss&&m.inv>0)||m.skip}).sort(function(a,b){return b.inv-a.inv});
-  var vl=WZv(ven),rollout=(window.MUNIZ_CONFIG||{}).ASISTENTE_ACE==="TODOS"?"Phones: on for everyone":"Phones: preview on Tito's phone only";
-  return PJh("div",{className:"wz"},
-    PJh("div",{className:"strip wz-k"},
-      PJh(K,{label:"BUYING FROM "+vl,value:active,sub:"foremen with a rhythm"}),
-      PJh(K,{label:"SOONER THAN USUAL",value:soon,tone:soon?_.amber:_.green,sub:"last two purchases at half the usual gap"}),
-      PJh(K,{label:"CONTRACTOR BAGS",value:bags.q.toFixed(1),sub:"a week \u00B7 "+H(bags.u)+" a week"}),
-      PJh(K,{label:"BLADES & DISCS",value:blades.q.toFixed(1),sub:"a week \u00B7 "+H(blades.u)+" a week \u00B7 "+H(blades.tu)+" this year"}),
-      PJh(K,{label:"REMINDERS IN THE APP",value:near,sub:"pairs bought together 50%+ of the time"}),
-      PJh(K,{label:"FROM HISTORY",value:ho.length,tone:ho.length?_.amber:_.green,sub:"ordered, not in the catalog"})),
-    PJh(G,{title:"HOW OFTEN EACH FOREMAN BUYS \u00B7 "+vl,right:PJh("span",{className:"dim xs"},"invoices + approved app orders \u00B7 tap a name for what he orders most")},
-      cad.length?PJh("div",{className:"ct-list"},cad.map(function(x){var r=x.r,o=openP===r.person,u=usual[r.person+"|"+ven],s0=ST[x.st];
-        return PJh("div",{key:r.person,className:"wz-p"},
-          PJh("button",{className:"wz-row",onClick:function(){setOpenP(o?null:r.person)}},
-            PJh("span",{className:"ct-main"},PJh("b",null,WZname(r.person)),PJh("span",null,r.days+" buying days \u00B7 "+(r.usd!=null?H(r.usd):"\u2014")+(r.app_orders?" \u00B7 "+r.app_orders+" app orders":" \u00B7 no app orders"))),
-            PJh("span",null,PJh(V,{c:s0[1]},s0[0])),
-            PJh("span",{className:"ct-main wz-hide"},PJh("b",null,x.ev?"usually every "+x.ev+" days":"no steady rhythm"),PJh("span",null,"last "+WZdate(WZday(r.last_day))+(x.age!=null?" \u00B7 "+(x.age<=0?"today":x.age===1?"yesterday":x.age+" days ago"):""))),
-            PJh("span",{className:"ct-num"},PJh("b",null,x.lg!=null?x.lg+" d":"\u2014"),PJh("span",null,"between the last two"))),
-          o?PJh("div",{className:"wz-sub"},u?(u.length?u.map(function(it){return PJh("div",{key:it.k,className:"wz-it"},PJh("span",null,it.name||it.code),PJh("span",{className:"mono"},"\u00D7"+Number(it.usual_qty)),PJh("span",{className:"dim"},it.days+" times"+(it.every_days?" \u00B7 every "+it.every_days+" days":"")+" \u00B7 last "+WZdate(WZday(it.last_day))))}):PJh("div",{className:"dim xs"},"No repeat items yet.")):PJh("div",{className:"dim xs"},"Loading what he orders most\u2026")):null)})):PJh(ve,null,"No foreman has 3 or more buying days at this store yet.")),
-    PJh(G,{title:"WEEKLY USE \u00B7 ALL STORES",right:PJh("span",{className:"dim xs"},"last 12 weeks"+(cutD?" through "+WZdate(cutD):"")+" \u00B7 average since Jan 1")},
-      PJh("div",{className:"wz-two"},[["Contractor bags",bags,"boxes or rolls, as billed"],["Blades, discs and cut-off wheels",blades,"as billed"]].map(function(z){return PJh("div",{key:z[0]},
-        PJh("div",{className:"wz-wk-h"},PJh("b",null,z[0]),PJh("span",null,z[1].q.toFixed(1)+" a week \u00B7 "+H(z[1].u)+" a week \u00B7 "+z[2])),bars(z[1]))}))),
-    PJh(G,{title:"BOUGHT TOGETHER",right:PJh("span",{className:"dim xs"},"the phones remind only when two items go together 50%+ of the time")},
-      pairs.length?PJh("div",{className:"ct-list"},pairs.map(function(x){var rem=Number(x.conf)>=.5;return PJh("div",{key:x.k_a+"|"+x.k_b,className:"wz-pair"},
-        PJh("span",{className:"ct-main"},PJh("b",null,(x.name_a||x.code_a)+" \u2192 "+(x.name_b||x.code_b)),PJh("span",null,"together "+x.together+" times \u00B7 "+Math.round(x.conf*100)+"% of the time \u00B7 "+Number(x.lift).toFixed(1)+"\u00D7 chance"+(x.qty_b!=null?" \u00B7 usually "+Number(x.qty_b):""))),
-        rem?PJh(V,{c:_.green},"REMINDED IN THE APP"):PJh(V,{c:_.faint},"NOT SHOWN"))})):PJh(ve,null,"No strong pairs at this store yet.")),
-    PJh(G,{title:"ORDERED FROM PURCHASE HISTORY \u00B7 NOT IN THE CATALOG",right:PJh("span",{className:"dim xs"},"\u201CS\u00ED lo tenemos\u201D \u00B7 last 90 days")},
-      ho.length?PJh("div",{className:"ct-list"},ho.map(function(x,i){return PJh("div",{key:x.order_id+"|"+x.code+"|"+i,className:"ct-row ct-static"},
-        PJh("span",{className:"ct-th"},PJh("i",null,"\u00D7"+Number(x.qty||0))),
-        PJh("span",{className:"ct-main"},PJh("b",null,x.descr||x.code),PJh("span",null,[WZv(x.vendor),x.code,WZname(x.foreman),WZdate(x.created_at?new Date(x.created_at):null),String(x.status||"").toLowerCase().replace("_"," "),x.times_billed?"billed "+x.times_billed+"\u00D7 before":null].filter(Boolean).join(" \u00B7 "))),
-        PJh("span",{className:"ct-num"},PJh("b",null,x.price!=null?le(x.price):"\u2014"),PJh("span",null,"highest paid")),
-        PJh("span",{className:"ct-btns"},PJh("button",{className:"btn sm primary",onClick:function(){p.onAdd&&p.onAdd(x)}},"Add to catalog"),PJh("button",{className:"btn sm",onClick:function(){p.onHide&&p.onHide(x)}},"Not for foremen")))})):PJh(ve,{ok:!0},"Nothing ordered from purchase history yet.")),
-    merged.length?PJh(G,{title:"COUNTED AS ONE PERSON",right:PJh("span",{className:"dim xs"},"People \u201Csame as\u201D links \u00B7 a middle initial is not a new person")},
-      PJh("div",{className:"ct-list"},merged.slice(0,30).map(function(m){return PJh("div",{key:m.person,className:"wz-pair"},
-        PJh("span",{className:"ct-main"},PJh("b",null,m.names.join(" + ")+(m.diff||m.keys>1?" = "+WZname(m.person):"")),PJh("span",null,m.inv+" invoices \u00B7 "+m.ord+" app orders")),
-        m.skip?PJh(V,{c:_.faint},"LEFT OUT"):m.miss?PJh(V,{c:_.amber},"NOT IN PEOPLE"):PJh(V,{c:_.green},"MATCHED"))}))):null,
-    PJh("div",{className:"wz-foot"},rollout+" \u00B7 learned from "+(meta.note||"\u2014")+" \u00B7 refreshed "+(meta.refreshed_at?new Date(meta.refreshed_at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"\u2014")+(meta.cron?" \u00B7 "+meta.cron:"")))}
-(function(){try{var css=".wz{display:flex;flex-direction:column;gap:14px}.wz-k{grid-template-columns:repeat(6,minmax(0,1fr))}"+
-".wz-row{display:grid;grid-template-columns:minmax(0,1.4fr) 150px minmax(0,1.2fr) 110px;gap:12px;align-items:center;width:100%;text-align:left;padding:9px 6px;border:0;border-top:1px solid var(--line);background:transparent;color:inherit;font:inherit;cursor:pointer}"+
-".wz-p:first-child>.wz-row{border-top:0}.wz-row:hover{background:color-mix(in srgb,var(--accent,#0A84FF) 5%,transparent)}"+
-".wz-sub{padding:2px 8px 12px 18px;display:flex;flex-direction:column}.wz-it{display:grid;grid-template-columns:minmax(0,1fr) 64px minmax(0,1.1fr);gap:10px;font-size:13px;padding:5px 0;border-top:1px dashed var(--line)}.wz-it:first-child{border-top:0}"+
-".wz-two{display:grid;grid-template-columns:1fr 1fr;gap:18px}.wz-wk-h{display:flex;flex-direction:column;gap:2px}.wz-wk-h b{font:600 14px/1.3 var(--sans)}.wz-wk-h span{font-size:12.5px;color:var(--dim)}"+
-".wz-bars{display:flex;align-items:flex-end;gap:5px;height:92px;padding:8px 0 0}.wz-bar{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px}"+
-".wz-bar i{display:block;width:100%;max-width:24px;border-radius:4px 4px 1px 1px;background:var(--cyan)}.wz-bar.z i{background:var(--line2,var(--line))}.wz-bar span{font:600 10.5px/1 var(--mono,ui-monospace,monospace);color:var(--dim)}"+
-".wz-pair{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 6px;border-top:1px solid var(--line)}.wz-pair:first-child{border-top:0}"+
-".wz-foot{font-size:12px;color:var(--dim);padding:2px 4px 8px}"+
-"@media(max-width:1100px){.wz-k{grid-template-columns:repeat(3,minmax(0,1fr))}}"+
-"@media(max-width:820px){.wz-row{grid-template-columns:minmax(0,1fr) auto 84px}.wz-row .wz-hide{display:none}.wz-two{grid-template-columns:1fr}.wz-it{grid-template-columns:minmax(0,1fr) 56px}.wz-it>span:last-child{grid-column:1/-1}}"+
-"@media(max-width:560px){.wz-k{grid-template-columns:repeat(2,minmax(0,1fr))}}";
-  var st=document.createElement("style");st.setAttribute("data-wz","v179");st.textContent=css;document.head.appendChild(st)}catch(e){}})();
 
 /* ===== PERMITS · City of Austin ROW permits + Texas 811 tickets, with the PDFs ===========
    Every site needs an active right-of-way permit (City of Austin) and a current 811 locate
