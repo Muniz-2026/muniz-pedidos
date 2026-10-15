@@ -1392,19 +1392,42 @@ function CTcsv(rows,stats,rank){rank=rank||{};var h=["vendor","code","name_es","
   var q=function(v){v=v==null?"":String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   var L=rows.map(function(r){var s=stats[r.id]||{};return[r.vendor,r.code,r.name_es,r.name_en,r.category,r.aliases,r.price,r.max_qty,r.blocked?"yes":"",r.flag,r.active?"yes":"hidden",r.photo_path?"uploaded":r.legacy_photo?"old":r.image_url?"web link":"none",s.bought_lines||0,s.ordered_lines||0,s.times_bought!=null?s.times_bought:"",s.last_bought||"",s.times_ordered!=null?s.times_ordered:"",s.last_ordered||"",rank[r.id]||"",String(r.updated_at||"").slice(0,16).replace("T"," "),r.updated_by].map(q).join(",")});
   var b=new Blob(["\uFEFF"+[h.join(",")].concat(L).join("\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="Muniz_Catalog_"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},500)}
+/* v186 · products that look identical on the foreman's phone: same vendor, same Spanish name (name_es),
+   ignoring capitals, accents and punctuation. CTdiff = the words only that product's vendor description has. */
+function CTdtok(d){var st={X:1,FOR:1,"&":1,AND:1,THE:1,W:1,"W/":1,WITH:1,OF:1,TO:1,IN:1,"-":1,EA:1};return String(d||"").split(/[\s,;()]+/).map(function(x){return x.replace(/[.,;:]+$/g,"")}).filter(function(x){return x&&!st[x.toUpperCase()]})}
+function CTdiff(g){var tk=g.map(function(r){var seen={};return CTdtok(r.name_en).filter(function(x){var k=x.toLowerCase();if(seen[k])return!1;seen[k]=1;return!0})});
+  return g.map(function(r,i){var o={};tk.forEach(function(a,j){if(j!==i)a.forEach(function(x){o[x.toLowerCase()]=1})});var only=tk[i].filter(function(x){return!o[x.toLowerCase()]});
+    return only.filter(function(x){return/\d/.test(x)}).concat(only.filter(function(x){return!/\d/.test(x)})).slice(0,6).map(function(x){return x.toLowerCase()})})}
+function CTtwin(r,o){var th=CTthumb(r),inf=o.info?o.info(r):{};
+  return PJh("div",{key:r.id,className:"ct-twin"+(o.me?" me":"")},
+    PJh("span",{className:"ct-th"},th?PJh("img",{src:th,alt:"",loading:"lazy"}):PJh("i",null,"sin foto")),
+    PJh("span",{className:"ct-main"},PJh("b",null,(o.me?"THIS ONE \u00B7 ":"")+r.code+(r.price!=null?" \u00B7 "+le(r.price):"")),
+      PJh("span",null,r.name_en||"no vendor description"),
+      PJh("span",{className:"ct-use"},[inf.rank?"TOP 50 #"+inf.rank:null,CTuse(inf.n||0,inf.last||"",inf.s),r.blocked?"office only":"can order",r.category].filter(Boolean).join(" \u00B7 ")),
+      o.diff&&o.diff.length?PJh("span",{className:"ct-diff"},PJh("em",null,"only this one says"),o.diff.map(function(x){return PJh("i",{key:x},x)})):null),
+    o.actions?PJh("span",{className:"ct-btns"},o.actions):null)}
 /* the product editor (drawer) */
 function CTedit(p){var row=p.row,isNew=!row,tok=p.tok,all=p.all||[];
   var base=row||Object.assign({vendor:"ACE",code:"",name_es:"",name_en:"",category:"Equipo de obra",aliases:"",price:null,max_qty:null,blocked:!1,flag:null,active:!0,notes:""},p.prefill||{});
   var a=(0,M.useState)(function(){return{vendor:base.vendor,code:base.code||"",name_es:base.name_es||"",name_en:base.name_en||"",category:base.category||"Equipo de obra",aliases:base.aliases||"",price:base.price!=null?String(base.price):"",max_qty:base.max_qty!=null?String(base.max_qty):"",blocked:!!base.blocked,flag:base.flag||"",active:base.active!==!1,notes:base.notes||""}}),f=a[0],setF=a[1];
-  var b=(0,M.useState)(!1),busy=b[0],setBusy=b[1],c=(0,M.useState)(""),err=c[0],setErr=c[1],d=(0,M.useState)(null),pic=d[0],setPic=d[1],h=(0,M.useState)([]),hist=h[0],setHist=h[1],w=(0,M.useState)(""),word=w[0],setWord=w[1],al=(0,M.useState)(""),alt=al[0],setAlt=al[1];
+  var b=(0,M.useState)(!1),busy=b[0],setBusy=b[1],c=(0,M.useState)(""),err=c[0],setErr=c[1],d=(0,M.useState)(null),pic=d[0],setPic=d[1],h=(0,M.useState)([]),hist=h[0],setHist=h[1],w=(0,M.useState)(""),word=w[0],setWord=w[1],al=(0,M.useState)(""),alt=al[0],setAlt=al[1],mgS=(0,M.useState)(null),mg=mgS[0],setMg=mgS[1];
   var set=function(k,v){setF(function(o){var n=Object.assign({},o);n[k]=v;return n})};
   (0,M.useEffect)(function(){if(!row)return;$e("catalog_history?item_id=eq."+row.id+"&order=at.desc&limit=40",tok.access_token).then(function(r){if(Array.isArray(r))setHist(r)}).catch(function(){})},[row&&row.id]);
+  (0,M.useEffect)(function(){if(!row||row.active)return;$e("catalog_merges?drop_id=eq."+row.id+"&undone_at=is.null&order=at.desc&limit=1",tok.access_token).then(function(r){if(Array.isArray(r)&&r[0])setMg(r[0])}).catch(function(){})},[row&&row.id]);
   (0,M.useEffect)(function(){var fn=function(ev){var it=ev.clipboardData&&ev.clipboardData.items;if(!it)return;for(var i=0;i<it.length;i++){if(String(it[i].type).indexOf("image/")===0){var fl=it[i].getAsFile();if(fl){ev.preventDefault();setPic({blob:fl,url:URL.createObjectURL(fl)})}return}}};window.addEventListener("paste",fn);return function(){window.removeEventListener("paste",fn)}},[]);
   var pickFile=function(fl){if(!fl)return;if(!/^image\//.test(fl.type||"")){setErr("Pick a picture (JPG, PNG, WEBP or HEIC from the phone)");return}setErr("");setPic({blob:fl,url:URL.createObjectURL(fl)})};
   var words=String(f.aliases||"").split(/[,;]+|\s{2,}/).join(" ").split(" ").filter(Boolean);
   var addWord=function(){var x=CTn(word);if(!x)return;var cur=CTn(f.aliases);if((" "+cur+" ").indexOf(" "+x+" ")<0)set("aliases",(String(f.aliases||"").trim()+" "+word.trim().toLowerCase()).trim());setWord("")};
   var dropWord=function(x){set("aliases",words.filter(function(y){return y!==x}).join(" "))};
   var same=all.filter(function(r){return r.active&&r.vendor===f.vendor&&(!row||r.id!==row.id)&&CTn(r.name_es)===CTn(f.name_es)&&CTn(f.name_es)}).length;
+  var twins=row?all.filter(function(r){return r.active&&r.vendor===f.vendor&&r.id!==row.id&&CTn(f.name_es)&&CTn(r.name_es)===CTn(f.name_es)}):[];
+  var doOpen=async function(t){if(dirty&&!(await MZconfirm("You have unsaved changes on "+row.code+". Open "+t.code+" anyway?",{ok:"Open "+t.code})))return;p.onOpen&&p.onOpen(t.id)};
+  var doMerge=async function(t){if(!(await MZconfirm("Merge "+t.code+" into "+row.code+"?\n\n\u2022 "+t.code+" becomes another code of this product: its invoices and orders count here\n\u2022 "+t.code+" is hidden from the foreman app\n\u2022 its search words"+(CTnoPhoto(row)&&!CTnoPhoto(t)?" and its photo":"")+" move to this product\n\nTo undo: Hidden \u2192 "+t.code+" \u2192 Undo merge.",{ok:"Merge"})))return;
+    setBusy(!0);setErr("");try{await Gi("catalog_merge",{p_keep:row.id,p_drop:t.id},tok.access_token);MZtoast(t.code+" merged into "+row.code,"ok");p.refresh&&p.refresh();p.onClose()}catch(x){setErr(CTerr(x))}finally{setBusy(!1)}};
+  var doHide=async function(t){if(!(await MZconfirm("Hide "+t.code+" from the foreman app?\n\nIts history stays. It moves to Hidden, where you can show it again.",{ok:"Hide"})))return;
+    setBusy(!0);setErr("");try{await Eo("catalog_items?id=eq."+t.id,{active:!1},tok.access_token);MZtoast(t.code+" hidden from foremen","ok");p.refresh&&p.refresh();p.onClose()}catch(x){setErr(CTerr(x))}finally{setBusy(!1)}};
+  var doUnmerge=async function(){if(!mg)return;if(!(await MZconfirm("Undo the merge?\n\n"+row.code+" comes back to the foreman app, and its codes stop counting as "+mg.keep_code+".",{ok:"Undo merge"})))return;
+    setBusy(!0);setErr("");try{await Gi("catalog_unmerge",{p_merge:mg.id},tok.access_token);MZtoast(row.code+" is back in the foreman app","ok");p.refresh&&p.refresh();p.onClose()}catch(x){setErr(CTerr(x))}finally{setBusy(!1)}};
   var dupCode=isNew&&f.code.trim()&&all.some(function(r){return r.vendor===f.vendor&&CTkey(r.code)===CTkey(f.code)});
   var changes=function(){var o={};["name_es","name_en","category","aliases","notes"].forEach(function(k){var v=String(f[k]||"").trim();if(v!==String(base[k]||"").trim())o[k]=v||null});
     var pr=f.price===""?null:Number(f.price),bp=base.price==null?null:Number(base.price);if(pr!==bp)o.price=pr;
@@ -1427,6 +1450,7 @@ function CTedit(p){var row=p.row,isNew=!row,tok=p.tok,all=p.all||[];
       PJh("div",{className:"tags"},f.blocked?PJh(V,{c:_.amber},"OFFICE ONLY"):PJh(V,{c:_.green},"CAN ORDER"),f.active?null:PJh(V,{c:_.faint},"HIDDEN"),f.flag?PJh(V,{c:_.violet},f.flag):null)),
     PJh("div",{className:"db ct-db"},
       p.context?PJh("div",{className:"ct-ctx"},p.context):null,
+      mg?PJh("div",{className:"ct-ctx ct-merged"},PJh("span",null,"Merged into "+mg.keep_code+" on "+CTwhen(mg.at,Date.now())+" by "+CTwho(mg.by)+" \u00B7 its invoices and orders count there."),PJh("button",{className:"btn sm",disabled:busy,onClick:doUnmerge},"Undo merge")):null,
       PJh("div",{className:"ct-ed"},
         PJh("div",{className:"ct-ed-l"},
           PJh("label",{className:"ct-drop"},PJh("input",{type:"file",accept:"image/*",style:{display:"none"},onChange:function(ev){pickFile(ev.target.files&&ev.target.files[0])}}),
@@ -1434,6 +1458,11 @@ function CTedit(p){var row=p.row,isNew=!row,tok=p.tok,all=p.all||[];
           isNew?PJh("div",{className:"ct-2"},fld("Vendor",PJh("select",{className:"inp",value:f.vendor,onChange:function(ev){set("vendor",ev.target.value)}},CTVS.map(function(v){return PJh("option",{key:v,value:v},CTV[v])}))),
             fld("Vendor's item code",PJh("input",{className:"inp",value:f.code,placeholder:"MB5524FX",onChange:function(ev){set("code",ev.target.value)}}),dupCode?"Already in the catalog":null)):null,
           fld("Name foremen see (Spanish)",PJh("input",{className:"inp ct-big",value:f.name_es,placeholder:"Escoba verde de cerdas duras 24\"",onChange:function(ev){set("name_es",ev.target.value)}}),same?same+" other "+(same===1?"item shows":"items show")+" this exact name \u2014 add the size or type so foremen can tell them apart":"Say it the way the crews say it, with the size"),
+          twins.length?PJh("div",{className:"ct-twins"},PJh("div",{className:"ct-twins-h"},PJh("b",null,"SAME NAME ON THE FOREMAN'S PHONE \u00B7 "+(twins.length+1)+" PRODUCTS"),PJh("em",null,"Foremen see these as one. Same item: merge. Different items: rename each with its size or type.")),
+            (function(){var g=[row].concat(twins),df=CTdiff(g);return g.map(function(r,i){return CTtwin(r,{me:i===0,info:p.info,diff:df[i],actions:i===0?null:[
+              PJh("button",{key:"o",type:"button",className:"btn sm",disabled:busy,onClick:function(){doOpen(r)}},"Open"),
+              PJh("button",{key:"m",type:"button",className:"btn sm primary",disabled:busy||!row.active,onClick:function(){doMerge(r)}},"Merge into this one"),
+              PJh("button",{key:"h",type:"button",className:"btn sm",disabled:busy,onClick:function(){doHide(r)}},"Hide")]})})})()):null,
           fld("Search words",PJh("div",{className:"ct-words"},words.map(function(x){return PJh("button",{key:x,type:"button",className:"ct-chip",onClick:function(){dropWord(x)},title:"Remove"},x," \u00D7")}),
             PJh("input",{className:"inp ct-wordin",value:word,placeholder:words.length?"add another":"cepillo, barredora, escoba verde\u2026",onChange:function(ev){setWord(ev.target.value)},onKeyDown:function(ev){if(ev.key==="Enter"||ev.key===","){ev.preventDefault();addWord()}},onBlur:addWord})),"Nicknames from the job site. Foremen find the item by any of these."),
           PJh("div",{className:"ct-2"},
@@ -1464,7 +1493,7 @@ function CTedit(p){var row=p.row,isNew=!row,tok=p.tok,all=p.all||[];
 function CTroom({d:e,now:t,t:tok,onChanged:rf}){
   var V0=(0,M.useState)(function(){try{return localStorage.getItem("muniz_ct_view")||"all"}catch(x){return"all"}}),view=V0[0],setView0=V0[1];
   var setView=function(v){try{localStorage.setItem("muniz_ct_view",v)}catch(x){}setView0(v);setLim(120)};
-  var A=(0,M.useState)("ALL"),ven=A[0],setVen=A[1],B=(0,M.useState)(""),q=B[0],setQ=B[1],C=(0,M.useState)("used"),sort=C[0],setSort=C[1],D0=(0,M.useState)(null),open=D0[0],setOpen=D0[1],E0=(0,M.useState)(0),tick=E0[1],F0=(0,M.useState)(120),lim=F0[0],setLim=F0[1],G0=(0,M.useState)(null),pick=G0[0],setPick=G0[1],H0=(0,M.useState)(""),pq=H0[0],setPq=H0[1],I0=(0,M.useState)({}),gone=I0[0],setGone=I0[1],J0=(0,M.useState)("all"),um=J0[0],setUm=J0[1];
+  var A=(0,M.useState)("ALL"),ven=A[0],setVen=A[1],B=(0,M.useState)(""),q=B[0],setQ=B[1],C=(0,M.useState)("used"),sort=C[0],setSort=C[1],D0=(0,M.useState)(null),open=D0[0],setOpen=D0[1],E0=(0,M.useState)(0),tick=E0[1],F0=(0,M.useState)(120),lim=F0[0],setLim=F0[1],G0=(0,M.useState)(null),pick=G0[0],setPick=G0[1],H0=(0,M.useState)(""),pq=H0[0],setPq=H0[1],I0=(0,M.useState)({}),gone=I0[0],setGone=I0[1],J0=(0,M.useState)("all"),um=J0[0],setUm=J0[1],K1=(0,M.useState)(!1),cbusy=K1[0],setCbusy=K1[1];
   (0,M.useEffect)(function(){CTVS.forEach(function(v){CTfotos(v,function(){tick(function(x){return x+1})})})},[]);
   var rows=e.catalog||[],stats={};(e.ctStats||[]).forEach(function(x){stats[x.item_id]=x});
   if(!Array.isArray(e.catalog))return PJh("div",{className:"room"},PJh(ve,null,"Loading the catalog\u2026"));if(!rows.length)return PJh("div",{className:"room"},PJh(ve,null,"The catalog came back empty. Reload the page in a minute."));
@@ -1488,7 +1517,13 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
   var markUnl=async function(x){try{await CTpost("catalog_unlisted_done",{vendor:x.vendor,code_key:x.code_key,action:"ignored",by:(tok.user&&tok.user.email)||null},tok.access_token);setGone(function(o){var n=Object.assign({},o);n["u|"+x.vendor+"|"+x.code_key]=1;return n});MZtoast("Hidden from this list","ok")}catch(y){MZtoast(CTerr(y),"err")}};
   var tie=async function(x,r){try{await CTpost("catalog_alt_codes",{vendor:r.vendor,code_key:x.code_key||CTkey(x.code),code:x.code,item_id:r.id,by:(tok.user&&tok.user.email)||null},tok.access_token,!0);setGone(function(o){var n=Object.assign({},o);n["u|"+x.vendor+"|"+x.code_key]=1;return n});setPick(null);setPq("");MZtoast(x.code+" now counts as "+r.name_es,"ok");after()}catch(y){MZtoast(CTerr(y),"err")}};
   var addWordTo=async function(x,r){try{var cur=String(r.aliases||"").trim(),w=String(x.text||"").trim().toLowerCase();if((" "+CTn(cur)+" ").indexOf(" "+CTn(w)+" ")<0)await Eo("catalog_items?id=eq."+r.id,{aliases:(cur+" "+w).trim()},tok.access_token);await markDemand(x,"alias",r.id);setPick(null);setPq("");MZtoast("\u201C"+w+"\u201D now finds "+r.name_es,"ok");after()}catch(y){MZtoast(CTerr(y),"err")}};
-  var tabs=[["all","All products",act.length],["fix","Needs attention",act.filter(needs).length],["unlisted","Bought, not orderable",unl.length],["demand","Couldn't find",dem.length],["changes","Changes",null],["hidden","Hidden",rows.length-act.length]];
+  var info=function(r){return{n:useN(r),last:lastU(r),rank:rank[r.id],s:stats[r.id]}};
+  var nGroups=Object.keys(nm).filter(function(k){return nm[k]>1}).length;
+  var keepOne=async function(r,g){var others=g.filter(function(x){return x.id!==r.id});if(!(await MZconfirm("Keep "+r.code+" and merge the other "+(others.length===1?"one":others.length)+" into it?\n\n"+others.map(function(x){return"\u2022 "+x.code+(x.name_en?" \u00B7 "+x.name_en:"")}).join("\n")+"\n\nTheir codes count as "+r.code+" (invoices and orders), they're hidden from foremen, and their search words move to "+r.code+". Each can be undone from Hidden.",{ok:"Merge"})))return;
+    setCbusy(!0);var done=0;try{for(var i=0;i<others.length;i++){await Gi("catalog_merge",{p_keep:r.id,p_drop:others[i].id},tok.access_token);done++}MZtoast(done+" merged into "+r.code,"ok")}catch(y){MZtoast((done?done+" merged, then: ":"")+CTerr(y),"err")}finally{setCbusy(!1);after()}};
+  var hideOne=async function(r){if(!(await MZconfirm("Hide "+r.code+" from the foreman app?\n\nIts history stays. It moves to Hidden, where you can show it again.",{ok:"Hide"})))return;
+    setCbusy(!0);try{await Eo("catalog_items?id=eq."+r.id,{active:!1},tok.access_token);MZtoast(r.code+" hidden from foremen","ok")}catch(y){MZtoast(CTerr(y),"err")}finally{setCbusy(!1);after()}};
+  var tabs=[["all","All products",act.length],["fix","Needs attention",act.filter(needs).length],["same","Same name",nGroups],["unlisted","Bought, not orderable",unl.length],["demand","Couldn't find",dem.length],["changes","Changes",null],["hidden","Hidden",rows.length-act.length]];
   var row=function(r){var s=stats[r.id],th=CTthumb(r),n=sameN(r);
     return PJh("button",{key:r.id,className:"ct-row",onClick:function(){setOpen({id:r.id})}},
       PJh("span",{className:"ct-th"},th?PJh("img",{src:th,alt:"",loading:"lazy"}):PJh("i",null,"sin foto")),
@@ -1515,6 +1550,18 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
         pk?PJh("div",{className:"ct-pick"},PJh("input",{className:"inp",autoFocus:!0,value:pq,placeholder:"Search "+(CTV[x.vendor]||x.vendor)+" products for the one this code is",onChange:function(ev){setPq(ev.target.value)}}),
           sug.length?sug.map(function(r){return PJh("div",{key:r.id,className:"ct-pick-r"},PJh("span",{className:"ct-th sm"},CTthumb(r)?PJh("img",{src:CTthumb(r),alt:""}):null),PJh("span",{className:"ct-main"},PJh("b",null,r.name_es),PJh("span",null,r.code+" \u00B7 "+(r.name_en||""))),PJh("button",{className:"btn sm primary",onClick:function(){tie(x,r)}},"Same item"))}):PJh("div",{className:"dim xs",style:{padding:"8px 2px"}},"No match yet \u2014 type part of the name.")):null)}),
       ul.length>lim&&shown.length>=lim?PJh("button",{className:"btn ct-more",onClick:function(){setLim(lim+200)}},"Show more"):null):PJh(ve,{ok:!0},um==="all"?"Everything bought on 2026 invoices is in the catalog.":"Nothing here."))}
+  else if(view==="same"){var grp={};act.forEach(function(r){if(ven!=="ALL"&&r.vendor!==ven)return;var k=r.vendor+"|"+CTn(r.name_es);(grp[k]=grp[k]||[]).push(r)});
+    var tot=function(g){return g.reduce(function(a2,r){return a2+useN(r)},0)};
+    var gs=Object.keys(grp).map(function(k){return grp[k]}).filter(function(g){return g.length>1&&g.some(hit)}).map(function(g){return g.slice().sort(function(x,y){return useN(y)-useN(x)||lastU(y).localeCompare(lastU(x))||String(x.code).localeCompare(String(y.code))})}).sort(function(a2,b2){return tot(b2)-tot(a2)||a2[0].name_es.localeCompare(b2[0].name_es)});
+    body=PJh(G,{title:"SAME NAME ON THE FOREMAN'S PHONE \u00B7 "+gs.length+" GROUPS",right:PJh("span",{className:"dim xs"},"same vendor, same Spanish name \u00B7 most bought first")},
+      gs.length?PJh("div",{className:"ct-groups"},gs.slice(0,lim).map(function(g){var df=CTdiff(g),n=tot(g);
+        return PJh("div",{key:g[0].vendor+"|"+CTn(g[0].name_es),className:"ct-group"},
+          PJh("div",{className:"ct-group-h"},PJh("b",null,g[0].name_es),PJh("span",null,(CTV[g[0].vendor]||g[0].vendor)+" \u00B7 "+g.length+" products \u00B7 "+(n?"bought "+n+" times together":"not bought in 2026")+" \u00B7 same item? Keep one. Different? Open each and add the size or type to its name.")),
+          g.map(function(r,i){return CTtwin(r,{info:info,diff:df[i],actions:[
+            PJh("button",{key:"o",className:"btn sm",disabled:cbusy,onClick:function(){setOpen({id:r.id})}},"Open"),
+            PJh("button",{key:"k",className:"btn sm primary",disabled:cbusy,onClick:function(){keepOne(r,g)}},"Keep this one"),
+            PJh("button",{key:"h",className:"btn sm",disabled:cbusy,onClick:function(){hideOne(r)}},"Hide")]})}))}),
+        gs.length>lim?PJh("button",{className:"btn ct-more",onClick:function(){setLim(lim+120)}},"Show more"):null):PJh(ve,{ok:!0},q?"No look-alikes match that search.":"No two products look the same to foremen."))}
   else if(view==="demand")body=PJh(G,{title:"WHAT FOREMEN COULDN'T FIND \u00B7 LAST 180 DAYS",right:PJh("span",{className:"dim xs"},"searches with no result + items typed by hand in orders")},
     dem.length?PJh("div",{className:"ct-list"},dem.slice().sort(function(x,y){return y.n-x.n||String(y.last_seen).localeCompare(String(x.last_seen))}).slice(0,lim).map(function(x){var pk=pick===x.text_key,pv=CTn(pq||x.text).split(" ").filter(Boolean);
       var sug=pk?act.filter(function(r){var h=" "+CTn([r.name_es,r.name_en,r.aliases,r.code].join(" "))+" ";return pv.some(function(w){return w.length>=3&&h.indexOf(" "+w)>=0})}).map(function(r){var h=" "+CTn([r.name_es,r.name_en,r.aliases].join(" "))+" ";return[pv.filter(function(w){return h.indexOf(" "+w)>=0}).length,r]}).sort(function(a2,b2){return b2[0]-a2[0]||used(b2[1])-used(a2[1])}).slice(0,6).map(function(z2){return z2[1]}):[];
@@ -1545,7 +1592,7 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
         PJh("button",{className:"btn primary",onClick:function(){setOpen({id:null})}},"+ Add product"),
         PJh("button",{className:"btn",onClick:function(){CTcsv(rows,stats,rank)}},"Export CSV"))),
     body,
-    open?PJh(CTedit,{key:(open.id||"new")+"|"+(open.prefill?open.prefill.code||open.prefill.name_es||"":""),row:openRow,alts:openRow?altBy[openRow.id]||[]:[],refresh:after,prefill:open.prefill,context:open.context,all:rows,tok:tok,onClose:function(){setOpen(null)},
+    open?PJh(CTedit,{key:(open.id||"new")+"|"+(open.prefill?open.prefill.code||open.prefill.name_es||"":""),row:openRow,alts:openRow?altBy[openRow.id]||[]:[],refresh:after,info:info,onOpen:function(id){setOpen({id:id})},prefill:open.prefill,context:open.context,all:rows,tok:tok,onClose:function(){setOpen(null)},
       onSaved:function(id){if(open.demand)markDemand(open.demand,"added",id);after()}}):null)}
 (function(){try{var css=
 ".rb-catalog{--ic:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.2 1.2 0 0 1 0 1.7l-7 7a1.2 1.2 0 0 1-1.7 0z'/%3E%3Ccircle cx='8.2' cy='8.2' r='1.6'/%3E%3C/svg%3E\")}"+
@@ -1575,6 +1622,7 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
 "@media(max-width:640px){.ct-match{margin-left:6px}.ct-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ct-3{grid-template-columns:1fr 1fr}.ct-pick{padding-left:6px}.ct-btns{grid-column:1/-1;justify-content:flex-start}.ct-row .ct-num{display:none}.ct-static .ct-num{display:flex}}";
   var st=document.createElement("style");st.setAttribute("data-ct","v178");st.textContent=css;document.head.appendChild(st)}catch(e){}})();
 (function(){try{var st=document.createElement("style");st.setAttribute("data-ct","v182");st.textContent=".ct-main .ct-use{font-size:12px;color:inherit;opacity:.85}.ct-main .ct-use.ct-old{opacity:.5}.ct-cov{font-size:12.5px;color:var(--dim);padding:2px 6px 10px}.ct-cov.warn{color:#B25E00}";document.head.appendChild(st)}catch(e){}})();
+(function(){try{var st=document.createElement("style");st.setAttribute("data-ct","v186");st.textContent=".ct-twins{border:1px solid var(--line);border-radius:12px;padding:8px;margin:2px 0 14px;background:var(--panel2,transparent)}.ct-twins-h{display:flex;flex-direction:column;gap:3px;margin:2px 4px 8px}.ct-twins-h b{font:700 11px/1.2 var(--sans);letter-spacing:.08em;color:var(--amber)}.ct-twins-h em{font-style:normal;font-size:12.5px;color:var(--dim)}.ct-twin{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 6px;border-top:1px solid var(--line)}.ct-twin:first-of-type{border-top:0}.ct-twins .ct-twin:nth-child(2){border-top:0}.ct-twin.me{background:var(--tint-amber,rgba(232,163,61,.08));border-radius:10px}.ct-twin .ct-main span{white-space:normal}.ct-diff{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:1px}.ct-diff em{font-style:normal;font-size:11.5px;color:var(--dim)}.ct-diff i{font-style:normal;font:600 11.5px/1.5 var(--mono,monospace);padding:0 6px;border-radius:6px;background:var(--tint-amber,rgba(232,163,61,.15));color:var(--tint-amber-ink,var(--amber))}.ct-twin .ct-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.ct-groups{display:flex;flex-direction:column;gap:12px}.ct-group{border:1px solid var(--line);border-radius:12px;padding:6px 8px}.ct-group-h{display:flex;flex-direction:column;gap:3px;padding:6px 6px 8px}.ct-group-h b{font:700 15px/1.3 var(--sans)}.ct-group-h span{font-size:12.5px;color:var(--dim)}.ct-group .ct-twin:first-of-type{border-top:1px solid var(--line)}.ct-merged{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}@media (max-width:760px){.ct-twin{grid-template-columns:40px minmax(0,1fr)}.ct-twin .ct-btns{grid-column:1/-1;justify-content:flex-start}}";document.head.appendChild(st)}catch(e){}})();
 
 /* ===== PERMITS · City of Austin ROW permits + Texas 811 tickets, with the PDFs ===========
    Every site needs an active right-of-way permit (City of Austin) and a current 811 locate
