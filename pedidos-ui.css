@@ -6,6 +6,8 @@
    v2: never animate whole screens or long lists. The catalog draws 500+
    cards; animating them (or the giant screen behind them) ran the iPhone
    out of graphics memory and Safari killed the page.
+   v3: a long list (the names, the catalog) appears whole instead of rising 12 cards at a time
+       (that left a hole at the top); confetti dots stay invisible until they fly.
    ===================================================================== */
 :root{
   --pz-bg:#F2F2F7; --pz-card:#FFFFFF; --pz-ink:#1C1C1E; --pz-ink2:#3A3A3C; --pz-dim:#6E6E73; --pz-faint:#8E8E93;
@@ -87,9 +89,10 @@ button[style*="border:3px solid"] [style*="border-radius:14px"]{border-radius:99
 @keyframes pzBurst{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
 
 @media (prefers-reduced-motion:no-preference){
-  /* only the first 12 cards of a grid rise in; the rest just appear.
+  /* v3: only a short grid (12 cards or fewer) rises in. A long list appears whole: rising just its
+     first 12 left a hole at the top while the rest were already there.
      whole screens are never animated (the catalog screen is huge) */
-  #root .grid>*:nth-child(-n+12){animation:pzRise .45s var(--pz-ease) both}
+  #root .grid:not(:has(>:nth-child(13)))>*{animation:pzRise .45s var(--pz-ease) both}
   #root .grid>*:nth-child(2){animation-delay:.02s}#root .grid>*:nth-child(3){animation-delay:.04s}#root .grid>*:nth-child(4){animation-delay:.06s}
   #root .grid>*:nth-child(5){animation-delay:.08s}#root .grid>*:nth-child(6){animation-delay:.10s}#root .grid>*:nth-child(7){animation-delay:.12s}
   #root .grid>*:nth-child(8){animation-delay:.14s}#root .grid>*:nth-child(9){animation-delay:.16s}#root .grid>*:nth-child(10){animation-delay:.18s}
@@ -105,7 +108,7 @@ button[style*="border:3px solid"] [style*="border-radius:14px"]{border-radius:99
   .text-8xl{animation:pzRise .7s .15s var(--pz-ease) both}
   .pz-bump{animation:pzBump .55s var(--pz-ease)}
 }
-.pz-burst{position:fixed;width:9px;height:9px;border-radius:3px;pointer-events:none;z-index:100000;animation:pzBurst .9s cubic-bezier(.2,.7,.3,1) forwards}
+.pz-burst{position:fixed;width:9px;height:9px;border-radius:3px;pointer-events:none;opacity:0;z-index:100000;animation:pzBurst .9s cubic-bezier(.2,.7,.3,1) forwards}
 
 /* ---------- toast ---------- */
 .pz-toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 90px);transform:translateX(-50%);z-index:100001;max-width:88vw;

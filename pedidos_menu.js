@@ -1,5 +1,7 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.8
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.9
+   v2.9: PEDIR PARA vive dentro del app (app.js 7.8). Se quitaron la pastilla flotante y el reloj de 0.7 s que
+         cambiaba el texto del botón, tocaba OFICINA y apretaba los botones del app por control remoto.
    v2.8: mientras el menú o el combustible están encima, el app de abajo (#root) se oculta: ya no se
          ve la lista de tiendas por un instante detrás de la pantalla que entra.
    ---------------------------------------------------------------------
@@ -90,7 +92,7 @@
     return false;
   }
   function getPara() { try { return sessionStorage.getItem(K_PARA) || ""; } catch (e) { return ""; } }
-  function setPara(p) { try { if (p) sessionStorage.setItem(K_PARA, p); else sessionStorage.removeItem(K_PARA); } catch (e) { } window.__ofPara = p || ""; window.__mzNeedOfOff = !!p; paraPill(); }
+  function setPara(p) { try { if (p) sessionStorage.setItem(K_PARA, p); else sessionStorage.removeItem(K_PARA); } catch (e) { } window.__ofPara = p || ""; try { window.dispatchEvent(new Event("mz-para")); } catch (e) { } }
   function peopleForPicker() {
     var c = window.MUNIZ_CONFIG || {}, F = c.COMBUSTIBLE || {}, seen = {}, groups = { may: [], sup: [], pm: [] };
     var office = {}; Object.keys(c.OFICINA || {}).forEach(function (k) { office[upk(k)] = 1; });
@@ -105,7 +107,7 @@
     ["may", "sup", "pm"].forEach(function (g) { groups[g].sort(); });
     return groups;
   }
-  function showPara(name) {
+  function showPara(name, fromApp) {
     if (!overlay) return;
     var g = peopleForPicker();
     function grid(title, color, list) {
@@ -124,85 +126,19 @@
         grid("MAYORDOMOS", "#1C1C1E", g.may) + grid("SUPERVISORES", "#0071E3", g.sup) + grid("GERENTES DE PROYECTO", "#7A4E1D", g.pm) +
         '<button id="mz-para-me" style="margin-top:22px;width:100%;min-height:48px;border-radius:12px;border:2px dashed #C7C7CC;background:transparent;font:800 13px/1 system-ui,sans-serif;color:#6E6E73">PARA LA OFICINA (a mi nombre)</button>' +
       '</div>';
-    overlay.querySelector("#mz-para-back").onclick = function () { hide(); show(name); };
+    overlay.querySelector("#mz-para-back").onclick = function () { hide(); if (!fromApp) show(name); };   // desde la franja PARA del app: ← regresa al pedido
     overlay.querySelector("#mz-para-me").onclick = function () { setPara(""); markSeen(name); hide(); };
     Array.prototype.forEach.call(overlay.querySelectorAll("[data-para]"), function (b) {
       b.onclick = function () { setPara(b.getAttribute("data-para")); markSeen(name); hide(); };
     });
   }
-  var paraEl = null;
-  function paraPill() {
-    var p = getPara(), me = who() || tapped;
-    var show = p && isOfficeName(me) && !overlay && !panel && !hasText(/Toca tu nombre/i, "h1,h2,h3,div,p");
-    if (!show) { if (paraEl) paraEl.style.display = "none"; return; }
-    if (!paraEl) {
-      paraEl = document.createElement("button");
-      paraEl.setAttribute("aria-label", "Cambiar para qui\u00e9n es el pedido");
-      paraEl.style.cssText = "position:fixed;left:10px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:9998;background:#0071E3;color:#fff;border:0;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:8px 11px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.35);letter-spacing:.03em;display:flex;align-items:center;gap:6px;max-width:58vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
-      paraEl.onclick = function () { var n = who() || tapped; if (!overlay) { dlg(true); overlay = document.createElement("div"); document.body.appendChild(overlay); } showPara(n); };
-      document.body.appendChild(paraEl);
-    }
-    paraEl.innerHTML = "\ud83d\udccb PARA: " + p + " \u270e";
-    paraEl.style.display = "flex";
-    paraScreen(p);
-  }
-  var paraCss = false;
-  function paraScreen(p) {
-    if (!paraCss) {
-      var st = document.createElement("style");
-      st.textContent = "[data-mz-label]{font-size:0 !important}[data-mz-label]::after{content:attr(data-mz-label);font-size:17px;line-height:1.2}" +
-        "[data-mz-route]{font-size:0 !important}[data-mz-route]::after{content:attr(data-mz-route);font-size:11px;font-weight:800;color:#0071E3}";
-      document.head.appendChild(st); paraCss = true;
-    }
-    // 1) una sola vez por pedido: salir de MODO OFICINA para que aparezca el botón de mandar (el catálogo sigue sin bloqueos)
-    if (window.__mzNeedOfOff) {
-      var tg = Array.prototype.find.call(document.querySelectorAll("button"), function (b) { return (b.textContent || "").trim() === "OFICINA"; });
-      if (tg && /2E5C8A/i.test(tg.className || "")) { tg.click(); window.__mzNeedOfOff = false; }
-    }
-    // 2) el botón y el renglón de ruta dicen lo que de verdad pasa
-    Array.prototype.forEach.call(document.querySelectorAll("a[href^='sms:']"), function (a) {
-      var t = (a.textContent || "").replace(/\s+/g, " ").trim();
-      var m2 = /MANDAR A [A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1 ]+?\s*\u00b7\s*(.+)$/.exec(t);
-      if (m2) a.setAttribute("data-mz-label", "\u2705 PEDIR PARA " + p + " \u00b7 " + m2[1]);
-    });
-    Array.prototype.forEach.call(document.querySelectorAll("div"), function (d) {
-      if (d.children.length === 0 && /^SIN SUPERVISOR ASIGNADO/.test((d.textContent || "").trim()))
-        d.setAttribute("data-mz-route", "A nombre de " + p + " \u00b7 lo apruebas t\u00fa \u00b7 sale el PO al instante");
-    });
-    // 3) la pantalla de "toca la flecha en Mensajes" no aplica: no se abrió Mensajes. Se cubre con la verdad.
-    var sentAt = 0; try { sentAt = Number(sessionStorage.getItem("muniz_para_sent") || 0); } catch (e) { }
-    if (!paraDoneEl && sentAt && Date.now() - sentAt < 5 * 60e3 &&
-        Array.prototype.some.call(document.querySelectorAll("button"), function (b) { return /S[I\u00cd], YA LO MAND/i.test(b.textContent || ""); })) paraDone(p);
-  }
-  var paraDoneEl = null;
-  function paraDone(p) {
-    paraDoneEl = document.createElement("div");
-    paraDoneEl.style.cssText = "position:fixed;inset:0;z-index:9999;background:#1C1C1E;color:#fff;display:flex;flex-direction:column;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 24px) 22px calc(env(safe-area-inset-bottom,0px) + 24px);font-family:system-ui,-apple-system,sans-serif;text-align:center";
-    paraDoneEl.innerHTML =
-      '<div style="width:88px;height:88px;border-radius:50%;background:#248A3D;margin:0 auto;display:flex;align-items:center;justify-content:center;font:900 48px/1 system-ui">\u2713</div>' +
-      '<div style="font:900 30px/1.05 \'Archivo Black\',system-ui,sans-serif;margin-top:22px">PEDIDO REGISTRADO</div>' +
-      '<div style="font:800 17px/1.35 system-ui,sans-serif;margin-top:14px;color:#E9E9EE">A nombre de <span style="color:#F5B800">' + p + '</span></div>' +
-      '<div style="font:700 14px/1.45 system-ui,sans-serif;margin-top:12px;color:#B4BCC8">Lo aprobaste t\u00fa. No hay que mandar nada.<br>El PO sale en segundos y le aparece a \u00e9l en <b style="color:#fff">MIS PEDIDOS</b>.</div>' +
-      '<button id="mz-para-fin" style="margin-top:34px;width:100%;min-height:62px;border-radius:16px;border:0;background:#248A3D;color:#fff;font:900 20px/1 \'Archivo Black\',system-ui,sans-serif">TERMINAR</button>' +
-      '<button id="mz-para-otro" style="margin-top:10px;width:100%;min-height:50px;border-radius:14px;border:2px solid #3C4046;background:transparent;color:#E9E9EE;font:800 14px/1 system-ui,sans-serif">OTRO PEDIDO PARA ' + p + '</button>';
-    document.body.appendChild(paraDoneEl);
-    function btn(re) { return Array.prototype.find.call(document.querySelectorAll("button"), function (b) { return re.test((b.textContent || "").trim()); }); }
-    function finish(keepPara) {
-      try { sessionStorage.removeItem("muniz_para_sent"); } catch (e) { }  // ya se vio: no vuelve a salir
-      if (!keepPara) setPara("");                                         // TERMINAR = ya acabé con este mayordomo
-      var yes = btn(/S[I\u00cd], YA LO MAND/i); if (yes) yes.click();     // el app cierra y registra el pedido a su manera
-      // su pantalla siguiente dice "para TITO · toca ENVIAR en Mensajes": no aplica, se salta
-      setTimeout(function () {
-        var again = btn(/^HACER OTRO PEDIDO$/i); if (again) again.click();
-        if (!keepPara) setTimeout(function () { for (var i = 0; i < 4; i++) { if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) break; appBack(); } }, 250);
-        if (paraDoneEl && paraDoneEl.parentNode) paraDoneEl.parentNode.removeChild(paraDoneEl);
-        paraDoneEl = null;
-      }, 350);
-    }
-    paraDoneEl.querySelector("#mz-para-fin").onclick = function () { finish(false); };
-    paraDoneEl.querySelector("#mz-para-otro").onclick = function () { finish(true); window.__mzNeedOfOff = true; };
-  }
-  setInterval(paraPill, 700);
+  /* v2.9 · el renglón, el botón PEDIR PARA, la pantalla PEDIDO REGISTRADO, TERMINAR y OTRO PEDIDO viven en el app.
+     Aquí sólo queda la lista ¿PARA QUIÉN ES?; la franja azul PARA: … de la cabecera del app la abre con esto. */
+  window.__mzOpenPara = function () {
+    var n = who() || tapped; if (!n) return;
+    if (!overlay) { dlg(true); overlay = document.createElement("div"); document.body.appendChild(overlay); }
+    showPara(n, true);
+  };
 
   /* choferes de camión (config COMBUSTIBLE.CHOFERES_CAMION): solo combustible.
      Sin menú, sin MATERIALES: el nombre abre la estación directo. */

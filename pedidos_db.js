@@ -1,5 +1,8 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v1.7
+   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v1.8
+   v1.8: PEDIR PARA (oficina a nombre de alguien): registerPara() registra directo desde el botón del app y cada
+         resultado sale como evento mz-db-order para que la pantalla del app lo muestre. MIS PEDIDOS se esconde
+         cuando el app ya lo trae en su cabecera (ya no tapa la franja de la tienda).
    v1.7: la pastilla MIS PEDIDOS no sale en la pantalla de nombres (tapaba una tarjeta).
    ---------------------------------------------------------------------
    Qué hace: en el instante en que alguien toca MANDAR / APROBAR /
@@ -23,7 +26,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.7";
+  var VERSION = "1.8";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -63,6 +66,27 @@
     try { var o = ((window.MUNIZ_CONFIG || {}).COMBUSTIBLE || {}).OBRA_SEMANA || {}, t = String(n || "").toUpperCase().trim();
       for (var k in o) if (String(k).toUpperCase().trim() === t) return String(o[k] || ""); } catch (e) { }
     return "";
+  }
+
+  /* ---------- v1.8 · PEDIR PARA: el app registra directo y muestra el resultado en su pantalla ----------
+     registerPara(href) toma el mismo link que antes abría Mensajes (mismo pedido, mismo código), lo pone a nombre
+     de la persona y lo registra sin abrir Mensajes. Devuelve el id del pedido. Cada resultado sale como evento
+     "mz-db-order" ({id, state: ok | dup | queued | offline | retry | error}). Si la pantalla del app lo muestra,
+     no sale aviso arriba; si ya nadie lo muestra (la persona ya salió de esa pantalla), sale el aviso de siempre. */
+  function note(d) { try { window.dispatchEvent(new CustomEvent("mz-db-order", { detail: d })); return !!d.handled; } catch (e) { return false; } }
+  function errText(t) { var m = String(t || ""); try { var j = JSON.parse(m); m = j.message || j.hint || j.details || m; } catch (e) { } return String(m).replace(/\s+/g, " ").trim().slice(0, 110) || "La base de datos no lo acept\u00f3"; }
+  function registerPara(href, fromLink) {
+    var sms = parseSms(href); if (!sms || !sms.tok) return null;
+    var para = paraQuien(); if (!para) return null;
+    var tok = sms.tok; tok.to = sms.to;
+    tok.pb = whoAmI();                                    // quién lo pidió de verdad
+    tok.f = para;                                         // de quién es el pedido
+    var obra = obraDe(para); tok.j = obra || null;        // su obra (si no, la decide el rol del servidor)
+    var id = "SOLICITADO|" + para + "|" + (tok.ts || "") + "|" + (PROVS[tok.p] ? tok.p : "ACE");
+    if (fromLink) toast("\u23f3 Registrando el pedido de " + para + "\u2026", "gray", 3000);
+    enrich(tok).then(function (payload) { enqueue("SOLICITADO", payload, true, true); });
+    logEvent("sent", { meta: { prov: tok.p, lines: (tok.o || []).length, para: para } });
+    return id;
   }
 
   /* ---------- catálogos: código -> {es, p}. Mismo archivo que usa el app (ya está en caché) ---------- */
@@ -117,15 +141,15 @@
   function sentMap() { return ls(K_SENT, {}) || {}; }
   function markSent(id) { try { var m = sentMap(); m[id] = Date.now(); var ks = Object.keys(m); if (ks.length > 200) { ks.sort(function (a, b) { return m[a] - m[b]; }).slice(0, ks.length - 200).forEach(function (k) { delete m[k]; }); } lsSet(K_SENT, m); } catch (e) { } }
   function wasSent(id) { return !!sentMap()[id]; }
-  function enqueue(stage, payload, showToast) {
+  function enqueue(stage, payload, showToast, notify) {
     var out = ls(K_OUT, []);
     var id = stage + "|" + (payload.f || "") + "|" + (payload.ts || payload.po || "") + "|" + (payload.p || "");
     if (stage !== "TICKET") {
-      if (wasSent(id)) { if (showToast) toast(stage === "SOLICITADO" ? "\u2713 Este pedido ya est\u00e1 registrado \u2014 no se manda dos veces" : "\u2713 Ya estaba registrado", "gray", 4000); return; }
-      if (out.some(function (i) { return i.id === id; })) { if (showToast) toast("\u23f3 Ese pedido ya va en camino", "gray", 3000); return; }   // en la cola, esperando se\u00f1al
+      if (wasSent(id)) { if (!(notify && note({ id: id, state: "dup" })) && showToast) toast(stage === "SOLICITADO" ? "\u2713 Este pedido ya est\u00e1 registrado \u2014 no se manda dos veces" : "\u2713 Ya estaba registrado", "gray", 4000); return; }
+      if (out.some(function (i) { return i.id === id; })) { if (!(notify && note({ id: id, state: "queued" })) && showToast) toast("\u23f3 Ese pedido ya va en camino", "gray", 3000); return; }   // en la cola, esperando se\u00f1al
     }
     payload.client_ref = id;                                          // para que el servidor tambi\u00e9n pueda deduplicar
-    out.push({ id: id, stage: stage, payload: payload, dev: deviceId(), t: Date.now(), toast: !!showToast, tries: 0 });
+    out.push({ id: id, stage: stage, payload: payload, dev: deviceId(), t: Date.now(), toast: !!showToast, ev: !!notify, tries: 0 });
     lsSet(K_OUT, out.slice(-60));
     if (stage === "SOLICITADO" || stage === "APROBADO") lsSet(K_LAST, { stage: stage, f: payload.f, ts: payload.ts, p: payload.p, t: Date.now() });
     flush();
@@ -133,7 +157,7 @@
   var flushing = false;
   function flush() {
     if (flushing) return; var out = ls(K_OUT, []); if (!out.length) return;
-    if (navigator.onLine === false) { if (out.some(function (i) { return i.toast; })) toast("⏳ Sin señal — el pedido se registra solo al tener señal", "amber", 4500); return; }
+    if (navigator.onLine === false) { var hd = {}; out.forEach(function (i) { if (i.ev && note({ id: i.id, state: "offline" })) hd[i.id] = 1; }); if (out.some(function (i) { return i.toast && !hd[i.id]; })) toast("⏳ Sin señal — el pedido se registra solo al tener señal", "amber", 4500); return; }
     flushing = true;
     var item = out[0];
     /* si este pedido ya sali\u00f3 una vez y no supimos si lleg\u00f3 (se fue la se\u00f1al a medias), primero
@@ -142,7 +166,7 @@
     check.then(function (there) {
       if (there) {
         var cur0 = ls(K_OUT, []).filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur0); markSent(item.id);
-        if (item.toast) toast("\u2713 Pedido registrado en la oficina", "green", 4000);
+        if (!(item.ev && note({ id: item.id, state: "ok", req: "" })) && item.toast) toast("\u2713 Pedido registrado en la oficina", "green", 4000);
         flushing = false; if (cur0.length) setTimeout(flush, 50); return;
       }
       sendItem(item);
@@ -177,7 +201,8 @@
         var row = null; try { var j = JSON.parse(res.txt); row = Array.isArray(j) ? j[0] : j; } catch (e) { }
         cur = cur.filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur); markSent(item.id);
         setTimeout(refreshMine, 1500);
-        if (item.toast) {
+        var hOk = item.ev && note({ id: item.id, state: "ok", req: row && row.req_no ? String(row.req_no) : "", dm: !!item.payload.dm });
+        if (item.toast && !hOk) {
           var no = row && row.req_no ? " · " + row.req_no : "";
           if (item.payload.dm) toast("🎓 Práctica registrada (no cuenta)" + no, "gray", 3500);
           else if (item.payload.pb) toast("\u2713 Pedido de " + item.payload.f + no + " \u00b7 aprobado por la oficina \u00b7 el PO sale en segundos", "green", 7000);
@@ -195,11 +220,11 @@
         // la base de datos lo rechazó (proveedor raro, sin nombre, etc.): no reintentar para siempre
         cur = cur.filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur);
         logEvent("error", { who: item.payload.f, meta: { stage: item.stage, status: res.status, err: String(res.txt).slice(0, 300) } });
-        if (item.toast) toast("⚠ No se pudo registrar el pedido — avisa a Tito", "red", 6000);
-      }
+        if (!(item.ev && note({ id: item.id, state: "error", err: errText(res.txt) })) && item.toast) toast("⚠ No se pudo registrar el pedido — avisa a Tito", "red", 6000);
+      } else if (item.ev) note({ id: item.id, state: "retry" });
       // 5xx o sin cuerpo: se queda en la cola y se reintenta
     }).catch(function () {
-      if (item.toast) toast("⏳ Sin señal — el pedido se registra solo al tener señal", "amber", 4500);
+      if (!(item.ev && note({ id: item.id, state: "offline" })) && item.toast) toast("⏳ Sin señal — el pedido se registra solo al tener señal", "amber", 4500);
     }).finally(function () {
       flushing = false;
       var left = ls(K_OUT, []);
@@ -261,17 +286,11 @@
     var stage = STAGE[sms.kind]; if (!stage) return;
     var tok = sms.tok; tok.to = sms.to;
 
-    // la oficina pide a nombre de un mayordomo: el pedido es de él, lo decide la oficina, sin texto a nadie
-    var para = stage === "SOLICITADO" ? paraQuien() : "";
-    if (para) {
-      ev.preventDefault();                                  // no abre Mensajes
-      tok.pb = whoAmI();                                    // quién lo pidió de verdad
-      tok.f  = para;                                        // de quién es el pedido
-      var obra = obraDe(para); tok.j = obra || null;        // su obra (si no, la decide el rol del servidor)
-      try { sessionStorage.setItem("muniz_para_sent", String(Date.now())); } catch (e) { }   // la pantalla de "listo" sale sólo tras un envío real
-      toast("\u23f3 Registrando el pedido de " + para + "\u2026", "gray", 3000);
-      enrich(tok).then(function (payload) { enqueue(stage, payload, true); });
-      logEvent("sent", { meta: { prov: tok.p, lines: (tok.o || []).length, para: para } });
+    // la oficina pide a nombre de alguien: desde v1.8 el app usa su propio botón (registerPara) y aquí ya no llega
+    // un link de Mensajes en ese modo. Si llegara, se registra igual y no se abre Mensajes.
+    if (stage === "SOLICITADO" && paraQuien()) {
+      ev.preventDefault();
+      if (!registerPara(href, true)) toast("\u26a0 No se pudo leer el pedido", "red", 5000);
       return;
     }
     if (stage === "APROBADO" && !tok.s) tok.s = whoAmI() || null;   // quien aprueba desde este teléfono
@@ -280,7 +299,7 @@
   }, true);
 
   /* ---------- puerta permanente a MIS PEDIDOS (el app no tiene esta pantalla) ---------- */
-  var misBtn = null;
+  var misBtn = null, misKey = "";
   function misPedidosButton() {
     try {
       var pend = ls(K_OUT, []).length;
@@ -294,6 +313,7 @@
         document.body.appendChild(misBtn);
       }
       misBtn.innerHTML = "📋 MIS PEDIDOS" + (badge ? '<span style="background:#F5B800;color:#111;border-radius:999px;padding:2px 6px;font-size:10px">' + badge + "</span>" : "") + (pend ? '<span style="background:#B45309;border-radius:999px;padding:2px 6px;font-size:10px">⏳' + pend + "</span>" : "");
+      var mk = badge + "|" + pend; if (mk !== misKey) { misKey = mk; try { window.dispatchEvent(new Event("mz-mis")); } catch (e) { } }   // el MIS PEDIDOS de la cabecera del app se actualiza
       misVis();
     } catch (e) { }
   }
@@ -304,7 +324,8 @@
       if (!misBtn) return;
       var hash = location.hash || "", names = false;
       try { var h = document.querySelector("#root .px-3.pt-3.pb-2"); names = !!(h && /Toca tu nombre/i.test(h.textContent || "")); } catch (e) { }
-      var want = (/^#[rtp]=/.test(hash) || names) ? "none" : "flex";
+      var inApp = !!document.querySelector("#root [data-mz-mis]");   // el app ya lo trae en su cabecera
+      var want = (/^#[rtp]=/.test(hash) || names || inApp) ? "none" : "flex";
       if (misBtn.style.display !== want) misBtn.style.display = want;
     } catch (e) { }
   }
@@ -351,5 +372,5 @@
   setTimeout(function () { flush(); logEvent("open"); refreshMine(); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
   setInterval(refreshMine, 120e3);
 
-  window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; }, wasSent: wasSent };
+  window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; }, wasSent: wasSent, registerPara: registerPara };
 })();
