@@ -1,5 +1,7 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v1.8
+   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v1.9
+   v1.9: PEDIR PARA: el PO sale en el renglón de PEDIDO REGISTRADO (sin aviso encima que se quedaba 9 s en la
+         siguiente pantalla); en el teléfono de la oficina el aviso del PO ya no dice "pasa a recoger".
    v1.8: PEDIR PARA (oficina a nombre de alguien): registerPara() registra directo desde el botón del app y cada
          resultado sale como evento mz-db-order para que la pantalla del app lo muestre. MIS PEDIDOS se esconde
          cuando el app ya lo trae en su cabecera (ya no tapa la franja de la tienda).
@@ -26,7 +28,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.8";
+  var VERSION = "1.9";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -200,7 +202,7 @@
       if (res.ok) {
         var row = null; try { var j = JSON.parse(res.txt); row = Array.isArray(j) ? j[0] : j; } catch (e) { }
         cur = cur.filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur); markSent(item.id);
-        setTimeout(refreshMine, 1500);
+        setTimeout(refreshMine, 1500); if (item.ev) { setTimeout(refreshMine, 4000); setTimeout(refreshMine, 9000); }   // PEDIR PARA: el PO sale en segundos y la pantalla del app lo muestra
         var hOk = item.ev && note({ id: item.id, state: "ok", req: row && row.req_no ? String(row.req_no) : "", dm: !!item.payload.dm });
         if (item.toast && !hOk) {
           var no = row && row.req_no ? " · " + row.req_no : "";
@@ -346,7 +348,12 @@
               var seenPo = ls("muniz_db_po_seen", {});
               lsSet("muniz_db_lastpo", { po: String(top.po), req: top.req_no || "", prov: String(top.prov || top.provider || "").toUpperCase(), at: top.po_at || top.updated_at || top.created_at || new Date().toISOString(), name: whoAmI() || (top.foreman || "") });
               if (!seenPo[key]) { seenPo[key] = Date.now(); lsSet("muniz_db_po_seen", seenPo);
-                toast("\u2713 PO " + top.po + " \u00b7 " + String(top.prov || top.provider || "ACE").toUpperCase() + " ya lo tiene \u00b7 pasa a recoger", "green", 9000, "./bandeja.html#mis"); }
+                var pv = String(top.prov || top.provider || "ACE").toUpperCase(), me = whoAmI(), de = String(top.foreman || "").toUpperCase().trim();
+                // la pantalla PEDIDO REGISTRADO del app lo pone en su renglón: entonces no sale aviso encima
+                if (!note({ state: "po", req: String(top.req_no || ""), po: String(top.po), prov: pv })) {
+                  if (isOfficeName(me) && de && de !== me) toast("\u2713 PO " + top.po + " \u00b7 " + pv + " \u00b7 pedido de " + de, "green", 5000, "./bandeja.html#mis");   // la oficina pidió por él: no es "pasa a recoger"
+                  else toast("\u2713 PO " + top.po + " \u00b7 " + pv + " ya lo tiene \u00b7 pasa a recoger", "green", 9000, "./bandeja.html#mis");
+                } }
               try { if (window.__mzRefreshMenuCards) window.__mzRefreshMenuCards(); } catch (e) { }
             }
           } catch (e) { }

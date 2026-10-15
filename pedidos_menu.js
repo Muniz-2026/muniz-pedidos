@@ -1,5 +1,6 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.9
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.10
+   v2.10: al escoger PARA QUIÉN, el app ya trae la franja PARA en el primer cuadro (antes llegaba 1-2 cuadros tarde).
    v2.9: PEDIR PARA vive dentro del app (app.js 7.8). Se quitaron la pastilla flotante y el reloj de 0.7 s que
          cambiaba el texto del botón, tocaba OFICINA y apretaba los botones del app por control remoto.
    v2.8: mientras el menú o el combustible están encima, el app de abajo (#root) se oculta: ya no se
@@ -92,7 +93,10 @@
     return false;
   }
   function getPara() { try { return sessionStorage.getItem(K_PARA) || ""; } catch (e) { return ""; } }
-  function setPara(p) { try { if (p) sessionStorage.setItem(K_PARA, p); else sessionStorage.removeItem(K_PARA); } catch (e) { } window.__ofPara = p || ""; try { window.dispatchEvent(new Event("mz-para")); } catch (e) { } }
+  function setPara(p) { try { if (p) sessionStorage.setItem(K_PARA, p); else sessionStorage.removeItem(K_PARA); } catch (e) { } window.__ofPara = p || "";
+    // llamada directa, no evento: así el app se redibuja ANTES de que se quite esta pantalla, en el mismo cuadro
+    // (con un evento el app esperaba al siguiente cuadro y se veía 1-2 cuadros sin la franja PARA)
+    try { if (window.__mzParaRefresh) window.__mzParaRefresh(); else window.dispatchEvent(new Event("mz-para")); } catch (e) { } }
   function peopleForPicker() {
     var c = window.MUNIZ_CONFIG || {}, F = c.COMBUSTIBLE || {}, seen = {}, groups = { may: [], sup: [], pm: [] };
     var office = {}; Object.keys(c.OFICINA || {}).forEach(function (k) { office[upk(k)] = 1; });
