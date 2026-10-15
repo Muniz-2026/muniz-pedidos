@@ -1353,6 +1353,9 @@ function SDroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
    to the public "catalog" bucket. Old photos in fotos_*.json keep working until replaced.
    ============================================================================= */
 var CTV={ACE:"ACE",CMC:"CMC",RSS:"RSS",WHITECAP:"WHITE CAP"},CTVS=["ACE","CMC","RSS","WHITECAP"];
+/* v188 · categories are stored in Spanish (the foreman app shows them); the Command Center shows them in English */
+var CTCATEN={"acabado de concreto":"Concrete finishing","albanileria":"Masonry","clavos alambre y amarre":"Nails, wire & ties","consumibles":"Consumables","discos y abrasivos":"Blades & abrasives","equipo de obra":"Job site equipment","herramienta de mano":"Hand tools","herramienta electrica":"Power tools","madera":"Lumber","pintura y marcado":"Paint & marking","quimicos y parches":"Chemicals & patching","seguridad epp":"Safety (PPE)","varilla y estacas":"Rebar & stakes"};
+function CTcat(c){return CTCATEN[CTn(c)]||c||""}
 var CTCATS=["Acabado de concreto","Albanileria","Clavos, alambre y amarre","Consumibles","Discos y abrasivos","Equipo de obra","Herramienta de mano","Herramienta electrica","Madera","Pintura y marcado","Quimicos y parches","Seguridad (EPP)","Varilla y estacas"];
 function CTn(x){return String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim()}
 function CTkey(c){return String(c||"").toUpperCase().replace(/[^A-Z0-9]/g,"").replace(/^0+/,"")}
@@ -1389,9 +1392,9 @@ function CTuse(n,d,s){if(!n&&!d)return"Not bought in 2026";var t=n?"Bought "+n+(
 function CTcov(cov,ven){var vs=(ven==="ALL"?CTVS:[ven]).filter(function(v){return cov[v]});if(!vs.length)return null;var old=vs.filter(function(v){return CTold(cov[v])||Date.now()-new Date(cov[v]+"T12:00:00").getTime()>30*864e5});
   return PJh("div",{className:"ct-cov"+(old.length?" warn":"")},"Top 50 = bought most often in 2026, then everything else by last purchase \u00B7 Invoices loaded through "+vs.map(function(v){return(CTV[v]||v)+" "+CTday(cov[v])}).join(", ")+(old.length?" \u2014 after that date only orders placed in the app count":""))}
 function CTwho(e){return String(e||"").split("@")[0].replace(/[._]/g," ").replace(/\b\w/g,function(c){return c.toUpperCase()})}
-function CTcsv(rows,stats,rank){rank=rank||{};var h=["vendor","code","name_es","name_en","category","search_words","price","max_qty","office_only","tag","in_app","photo","bought_2026","ordered_in_app","times_bought","last_bought","times_ordered_app","last_ordered_app","top_50","updated","updated_by"];
+function CTcsv(rows,stats,rank){rank=rank||{};var h=["vendor","code","name_es","name_en","category","category_app","search_words","price","max_qty","office_only","tag","in_app","photo","bought_2026","ordered_in_app","times_bought","last_bought","times_ordered_app","last_ordered_app","top_50","updated","updated_by"];
   var q=function(v){v=v==null?"":String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  var L=rows.map(function(r){var s=stats[r.id]||{};return[r.vendor,r.code,r.name_es,r.name_en,r.category,r.aliases,r.price,r.max_qty,r.blocked?"yes":"",r.flag,r.active?"yes":"hidden",r.photo_path?"uploaded":r.legacy_photo?"old":r.image_url?"web link":"none",s.bought_lines||0,s.ordered_lines||0,s.times_bought!=null?s.times_bought:"",s.last_bought||"",s.times_ordered!=null?s.times_ordered:"",s.last_ordered||"",rank[r.id]||"",String(r.updated_at||"").slice(0,16).replace("T"," "),r.updated_by].map(q).join(",")});
+  var L=rows.map(function(r){var s=stats[r.id]||{};return[r.vendor,r.code,r.name_es,r.name_en,CTcat(r.category),r.category,r.aliases,r.price,r.max_qty,r.blocked?"yes":"",r.flag,r.active?"yes":"hidden",r.photo_path?"uploaded":r.legacy_photo?"old":r.image_url?"web link":"none",s.bought_lines||0,s.ordered_lines||0,s.times_bought!=null?s.times_bought:"",s.last_bought||"",s.times_ordered!=null?s.times_ordered:"",s.last_ordered||"",rank[r.id]||"",String(r.updated_at||"").slice(0,16).replace("T"," "),r.updated_by].map(q).join(",")});
   var b=new Blob(["\uFEFF"+[h.join(",")].concat(L).join("\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="Muniz_Catalog_"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},500)}
 /* v186 · products that look identical on the foreman's phone: same vendor, same Spanish name (name_es),
    ignoring capitals, accents and punctuation. CTdiff = the words only that product's vendor description has. */
@@ -1404,7 +1407,7 @@ function CTtwin(r,o){var th=CTthumb(r),inf=o.info?o.info(r):{};
     PJh("span",{className:"ct-th"},th?PJh("img",{src:th,alt:"",loading:"lazy"}):PJh("i",null,"sin foto")),
     PJh("span",{className:"ct-main"},PJh("b",null,(o.me?"THIS ONE \u00B7 ":"")+r.code+(r.price!=null?" \u00B7 "+le(r.price):"")),
       PJh("span",null,r.name_en||"no vendor description"),
-      PJh("span",{className:"ct-use"},[inf.rank?"TOP 50 #"+inf.rank:null,CTuse(inf.n||0,inf.last||"",inf.s),r.blocked?"office only":"can order",r.category].filter(Boolean).join(" \u00B7 ")),
+      PJh("span",{className:"ct-use"},[inf.rank?"TOP 50 #"+inf.rank:null,CTuse(inf.n||0,inf.last||"",inf.s),r.blocked?"office only":"can order",CTcat(r.category)].filter(Boolean).join(" \u00B7 ")),
       o.diff&&o.diff.length?PJh("span",{className:"ct-diff"},PJh("em",null,"only this one says"),o.diff.map(function(x){return PJh("i",{key:x},x)})):null,
       o.sug&&CTn(o.sug.name)!==CTn(r.name_es)?PJh("span",{className:"ct-sug"+(o.sug.kind==="misnamed"?" warn":"")},PJh("em",null,o.sug.kind==="misnamed"?"\u26A0 rename to":o.sug.auto?"suggested (automatic)":"suggested name"),PJh("b",null,o.sug.name),
         o.onUse?PJh("button",{type:"button",className:"btn sm primary",disabled:o.busy,onClick:o.onUse},o.useLabel||"Use"):null,o.onEdit?PJh("button",{type:"button",className:"btn sm",disabled:o.busy,onClick:o.onEdit},"Edit"):null):null,
@@ -1472,7 +1475,7 @@ function CTedit(p){var row=p.row,isNew=!row,tok=p.tok,all=p.all||[];
           fld("Search words",PJh("div",{className:"ct-words"},words.map(function(x){return PJh("button",{key:x,type:"button",className:"ct-chip",onClick:function(){dropWord(x)},title:"Remove"},x," \u00D7")}),
             PJh("input",{className:"inp ct-wordin",value:word,placeholder:words.length?"add another":"cepillo, barredora, escoba verde\u2026",onChange:function(ev){setWord(ev.target.value)},onKeyDown:function(ev){if(ev.key==="Enter"||ev.key===","){ev.preventDefault();addWord()}},onBlur:addWord})),"Nicknames from the job site. Foremen find the item by any of these."),
           PJh("div",{className:"ct-2"},
-            fld("Category",PJh("select",{className:"inp",value:f.category,onChange:function(ev){set("category",ev.target.value)}},(CTCATS.indexOf(f.category)<0?[f.category].concat(CTCATS):CTCATS).map(function(k){return PJh("option",{key:k,value:k},k)}))),
+            fld("Category",PJh("select",{className:"inp",value:f.category,onChange:function(ev){set("category",ev.target.value)}},(CTCATS.indexOf(f.category)<0?[f.category].concat(CTCATS):CTCATS).slice().sort(function(a2,b2){return CTcat(a2).localeCompare(CTcat(b2))}).map(function(k){return PJh("option",{key:k,value:k},CTcat(k))}))),
             fld("Foreman access",PJh("div",{className:"segs ct-seg"},PJh("button",{type:"button",className:f.blocked?"":"on",onClick:function(){set("blocked",!1)}},"Can order"),PJh("button",{type:"button",className:f.blocked?"on":"",onClick:function(){set("blocked",!0)}},"Office only")))),
           PJh("div",{className:"ct-3"},
             fld("Price limit (NTE)",PJh("input",{className:"inp",inputMode:"decimal",value:f.price,placeholder:"0.00",onChange:function(ev){set("price",ev.target.value.replace(/[^0-9.]/g,""))}})),
@@ -1514,7 +1517,7 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
   /* v182 · Top 50: the 50 products of each vendor bought most often in 2026 (invoices, plus app orders placed after the last loaded invoice) */
   var rank={};CTVS.forEach(function(v){act.filter(function(r){return r.vendor===v&&useN(r)>0}).sort(function(x,y){return useN(y)-useN(x)||lastU(y).localeCompare(lastU(x))||x.name_es.localeCompare(y.name_es)}).slice(0,50).forEach(function(r,i){rank[r.id]=i+1})});
   var cov={};(e.ctStats||[]).forEach(function(x){var r=byId[x.item_id];if(r&&x.invoices_through&&String(x.invoices_through).slice(0,10)>(cov[r.vendor]||""))cov[r.vendor]=String(x.invoices_through).slice(0,10)});
-  var qq=CTn(q).split(" ").filter(Boolean),hit=function(r){if(!qq.length)return!0;var alts=(altBy[r.id]||[]).map(function(x){return x.code}),h=" "+CTn([r.name_es,r.name_en,r.code,r.aliases,r.category].concat(alts).join(" "))+" ";return qq.every(function(w){var kw=CTkey(w);return h.indexOf(" "+w)>=0||kw.length>=3&&[r.code].concat(alts).some(function(c){return CTkey(c).indexOf(kw)>=0})})};
+  var qq=CTn(q).split(" ").filter(Boolean),hit=function(r){if(!qq.length)return!0;var alts=(altBy[r.id]||[]).map(function(x){return x.code}),h=" "+CTn([r.name_es,r.name_en,r.code,r.aliases,r.category,CTcat(r.category)].concat(alts).join(" "))+" ";return qq.every(function(w){var kw=CTkey(w);return h.indexOf(" "+w)>=0||kw.length>=3&&[r.code].concat(alts).some(function(c){return CTkey(c).indexOf(kw)>=0})})};
   var list=(view==="hidden"?rows.filter(function(r){return!r.active}):act).filter(function(r){return(ven==="ALL"||r.vendor===ven)&&(view!=="fix"||needs(r))&&hit(r)});
   list.sort(sort==="az"?function(x,y){return x.name_es.localeCompare(y.name_es)}:sort==="recent"?function(x,y){return String(y.updated_at).localeCompare(String(x.updated_at))}:function(x,y){var rx=rank[x.id]||999,ry=rank[y.id]||999;if(rx!==ry)return rx-ry;var lx=lastU(x),ly=lastU(y);if(lx!==ly)return ly.localeCompare(lx);return useN(y)-useN(x)||x.name_es.localeCompare(y.name_es)});
   var openRow=open&&open.id?byId[open.id]:null;
@@ -1542,7 +1545,7 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
   var row=function(r){var s=stats[r.id],th=CTthumb(r),n=sameN(r);
     return PJh("button",{key:r.id,className:"ct-row",onClick:function(){setOpen({id:r.id})}},
       PJh("span",{className:"ct-th"},th?PJh("img",{src:th,alt:"",loading:"lazy"}):PJh("i",null,"sin foto")),
-      PJh("span",{className:"ct-main"},PJh("b",null,r.name_es),PJh("span",null,(CTV[r.vendor]||r.vendor)+" \u00B7 "+r.code+" \u00B7 "+r.category),PJh("span",{className:"ct-use"+(CTold(lastU(r))?" ct-old":"")},CTuse(useN(r),lastU(r),s))),
+      PJh("span",{className:"ct-main"},PJh("b",null,r.name_es),PJh("span",null,(CTV[r.vendor]||r.vendor)+" \u00B7 "+r.code+" \u00B7 "+CTcat(r.category)),PJh("span",{className:"ct-use"+(CTold(lastU(r))?" ct-old":"")},CTuse(useN(r),lastU(r),s))),
       PJh("span",{className:"ct-tags"},rank[r.id]?PJh(V,{c:_.green},"TOP 50 \u00B7 #"+rank[r.id]):null,r.blocked?PJh(V,{c:_.amber},"OFFICE ONLY"):null,r.flag?PJh(V,{c:_.violet},r.flag):null,!r.active?PJh(V,{c:_.faint},"HIDDEN"):null,
         CTnoPhoto(r)?PJh(V,{c:_.red,dim:!0},"no photo"):null,n>1?PJh(V,{c:_.amber,dim:!0},"same name \u00D7"+n):null,noWords(r)?PJh(V,{c:_.faint,dim:!0},"no search words"):null),
       PJh("span",{className:"ct-num"},PJh("b",null,r.price!=null?le(r.price):"\u2014"),null))};
