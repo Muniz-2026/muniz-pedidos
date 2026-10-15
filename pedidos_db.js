@@ -1,5 +1,6 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v1.0
+   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v1.7
+   v1.7: la pastilla MIS PEDIDOS no sale en la pantalla de nombres (tapaba una tarjeta).
    ---------------------------------------------------------------------
    Qué hace: en el instante en que alguien toca MANDAR / APROBAR /
    RECHAZAR / TICKET en el app de pedidos, el pedido queda registrado en
@@ -22,7 +23,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.6";
+  var VERSION = "1.7";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -293,9 +294,18 @@
         document.body.appendChild(misBtn);
       }
       misBtn.innerHTML = "📋 MIS PEDIDOS" + (badge ? '<span style="background:#F5B800;color:#111;border-radius:999px;padding:2px 6px;font-size:10px">' + badge + "</span>" : "") + (pend ? '<span style="background:#B45309;border-radius:999px;padding:2px 6px;font-size:10px">⏳' + pend + "</span>" : "");
-      // se esconde cuando hay un modal del app abierto (para no tapar sus botones)
-      var hash = location.hash || "";
-      misBtn.style.display = (/^#[rtp]=/.test(hash)) ? "none" : "flex";
+      misVis();
+    } catch (e) { }
+  }
+  // dónde NO se ve: con un modal del app abierto (no tapar sus botones) y en la pantalla de nombres
+  // (ahí tapaba una tarjeta de nombre y todavía no hay "mis pedidos" de nadie)
+  function misVis() {
+    try {
+      if (!misBtn) return;
+      var hash = location.hash || "", names = false;
+      try { var h = document.querySelector("#root .px-3.pt-3.pb-2"); names = !!(h && /Toca tu nombre/i.test(h.textContent || "")); } catch (e) { }
+      var want = (/^#[rtp]=/.test(hash) || names) ? "none" : "flex";
+      if (misBtn.style.display !== want) misBtn.style.display = want;
     } catch (e) { }
   }
   // cuántos pedidos míos siguen esperando (para el numerito). Solo lectura, por teléfono.
@@ -326,6 +336,12 @@
   document.addEventListener("DOMContentLoaded", misPedidosButton);
   window.addEventListener("hashchange", misPedidosButton);
   setInterval(misPedidosButton, 3000);
+  // la pantalla cambia sin cambiar el hash: al cambiar el DOM se revisa dónde estamos (una vez por cuadro)
+  try {
+    var misRaf = 0;
+    new MutationObserver(function () { if (misRaf) return; misRaf = requestAnimationFrame(function () { misRaf = 0; misVis(); }); })
+      .observe(document.documentElement, { childList: true, subtree: true });
+  } catch (e) { }
 
   /* ---------- reintentos y presencia ---------- */
   window.addEventListener("online", flush);

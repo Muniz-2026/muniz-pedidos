@@ -1,5 +1,7 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.7
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.8
+   v2.8: mientras el menú o el combustible están encima, el app de abajo (#root) se oculta: ya no se
+         ve la lista de tiendas por un instante detrás de la pantalla que entra.
    ---------------------------------------------------------------------
    Toca tu nombre → ¿Qué vas a hacer?
      🧱 MATERIALES   → sigue igual (¿A qué tienda vas?)
@@ -26,7 +28,7 @@
   function hide() {
     if (!overlay || hiding) return; hiding = true;
     var el = overlay; overlay = null;
-    if (el.parentNode) el.parentNode.removeChild(el); hiding = false; if (!panel) showPills();
+    if (el.parentNode) el.parentNode.removeChild(el); hiding = false; if (!panel) { showPills(); dlg(false); }
   }
   /* el último PO de combustible de esta persona en este teléfono (lo guarda fuel.js) */
   function lastFuelPO(name) {
@@ -137,7 +139,7 @@
       paraEl = document.createElement("button");
       paraEl.setAttribute("aria-label", "Cambiar para qui\u00e9n es el pedido");
       paraEl.style.cssText = "position:fixed;left:10px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:9998;background:#0071E3;color:#fff;border:0;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:8px 11px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.35);letter-spacing:.03em;display:flex;align-items:center;gap:6px;max-width:58vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
-      paraEl.onclick = function () { var n = who() || tapped; if (!overlay) { overlay = document.createElement("div"); document.body.appendChild(overlay); } showPara(n); };
+      paraEl.onclick = function () { var n = who() || tapped; if (!overlay) { dlg(true); overlay = document.createElement("div"); document.body.appendChild(overlay); } showPara(n); };
       document.body.appendChild(paraEl);
     }
     paraEl.innerHTML = "\ud83d\udccb PARA: " + p + " \u270e";
@@ -212,6 +214,7 @@
   var directFuel = false;
   function show(name) {
     if (overlay || panel) return;
+    dlg(true);
     if (isDriver(name)) {
       directFuel = true; markSeen(name);
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }
@@ -357,6 +360,7 @@
 function openFuel(name, por) {
     if (panel) return;
     if (!(window.MunizFuel && window.MunizFuel.mount)) { alert("No cargó combustible (fuel.js). Recarga el app."); return; }
+    dlg(true);
     panel = document.createElement("div");
     panel.setAttribute("role", "dialog");
     panel.className = "mzf-scroll";
@@ -372,12 +376,23 @@ function openFuel(name, por) {
     window.__mzFuelPor = "";
     if (fuelHandle) { try { fuelHandle.unmount(); } catch (e) { } fuelHandle = null; }
     if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
-    panel = null; document.body.style.overflow = ""; window.__mzBusy = false;
+    panel = null; document.body.style.overflow = ""; window.__mzBusy = false; if (!overlay) dlg(false);
     if (overlay) { hidePills(); try { var sub = overlay.querySelector("#mz-fuel-sub"); if (sub) sub.innerHTML = fuelSubHTML(who() || tapped); var cta = overlay.querySelector("#mz-fuel > div:last-child"); if (cta && lastFuelPO(who() || tapped)) cta.textContent = "OTRO PO →"; } catch (e) { } }
     else showPills();
     if (window.__mzFlushReload) window.__mzFlushReload();   // si llegó una versión nueva mientras cargaba, ahora sí
     if (directFuel) { directFuel = false; clearSeen(); appBack(); return; }   // chofer: de regreso a la lista de nombres
     clearSeen(); check();                           // de vuelta al menú ¿QUÉ VAS A HACER?
+  }
+  /* mientras hay una pantalla nuestra encima (menú, PARA, combustible), el app de abajo no se ve:
+     la pantalla que entra se dibuja sobre el fondo liso, no sobre la lista de tiendas */
+  function dlg(on) {
+    try {
+      var H = document.documentElement;
+      if (on) {
+        if (!document.getElementById("mz-dialog-css")) { var c = document.createElement("style"); c.id = "mz-dialog-css"; c.textContent = "html.mz-dialog #root{visibility:hidden}"; document.head.appendChild(c); }
+        H.classList.add("mz-dialog");
+      } else H.classList.remove("mz-dialog");
+    } catch (e) { }
   }
   /* la pastilla flotante "MIS PEDIDOS" (pedidos_db.js) no debe verse encima del combustible */
   function hidePills() {
