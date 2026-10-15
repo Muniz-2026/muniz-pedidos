@@ -1381,10 +1381,16 @@ async function CTupload(vendor,code,id,src,tok){var big=await CTresize(src,1000)
   return path}
 async function CTpost(table,row,tok,ret){var r=await Vr(vt+"/rest/v1/"+table,{method:"POST",headers:{"Content-Type":"application/json",Prefer:ret?"return=representation":"return=minimal,resolution=merge-duplicates"},body:JSON.stringify(row)},tok);if(!ret)return null;var j=await r.json();return Array.isArray(j)?j[0]:j}
 function CTwhen(ts,t){if(!ts)return"";var d=new Date(ts),n=new Date(t||Date.now());return d.toDateString()===n.toDateString()?d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}):d.toLocaleDateString("en-US",{month:"short",day:"numeric"})}
+/* v182 · purchase history on each product */
+function CTday(d){if(!d)return"";var x=new Date(String(d).slice(0,10)+"T12:00:00");if(isNaN(x.getTime()))return"";return x.toLocaleDateString("en-US",x.getFullYear()===new Date().getFullYear()?{month:"short",day:"numeric"}:{month:"short",day:"numeric",year:"numeric"})}
+function CTold(d){if(!d)return!1;var x=new Date(String(d).slice(0,10)+"T12:00:00").getTime();return!isNaN(x)&&Date.now()-x>120*864e5}
+function CTuse(n,d,s){if(!n&&!d)return"Not bought in 2026";var t=n?"Bought "+n+(n===1?" time":" times"):"";if(d){var app=s&&s.last_ordered&&String(s.last_ordered).slice(0,10)===d&&(!s.last_bought||String(s.last_bought).slice(0,10)<d);t+=(t?" \u00B7 ":"")+"last "+CTday(d)+(app?" (app order)":"")}return t}
+function CTcov(cov,ven){var vs=(ven==="ALL"?CTVS:[ven]).filter(function(v){return cov[v]});if(!vs.length)return null;var old=vs.filter(function(v){return CTold(cov[v])||Date.now()-new Date(cov[v]+"T12:00:00").getTime()>30*864e5});
+  return PJh("div",{className:"ct-cov"+(old.length?" warn":"")},"Top 50 = bought most often in 2026, then everything else by last purchase \u00B7 Invoices loaded through "+vs.map(function(v){return(CTV[v]||v)+" "+CTday(cov[v])}).join(", ")+(old.length?" \u2014 after that date only orders placed in the app count":""))}
 function CTwho(e){return String(e||"").split("@")[0].replace(/[._]/g," ").replace(/\b\w/g,function(c){return c.toUpperCase()})}
-function CTcsv(rows,stats){var h=["vendor","code","name_es","name_en","category","search_words","price","max_qty","office_only","tag","in_app","photo","bought_2026","ordered_in_app","updated","updated_by"];
+function CTcsv(rows,stats,rank){rank=rank||{};var h=["vendor","code","name_es","name_en","category","search_words","price","max_qty","office_only","tag","in_app","photo","bought_2026","ordered_in_app","times_bought","last_bought","times_ordered_app","last_ordered_app","top_50","updated","updated_by"];
   var q=function(v){v=v==null?"":String(v);return/[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
-  var L=rows.map(function(r){var s=stats[r.id]||{};return[r.vendor,r.code,r.name_es,r.name_en,r.category,r.aliases,r.price,r.max_qty,r.blocked?"yes":"",r.flag,r.active?"yes":"hidden",r.photo_path?"uploaded":r.legacy_photo?"old":r.image_url?"web link":"none",s.bought_lines||0,s.ordered_lines||0,String(r.updated_at||"").slice(0,16).replace("T"," "),r.updated_by].map(q).join(",")});
+  var L=rows.map(function(r){var s=stats[r.id]||{};return[r.vendor,r.code,r.name_es,r.name_en,r.category,r.aliases,r.price,r.max_qty,r.blocked?"yes":"",r.flag,r.active?"yes":"hidden",r.photo_path?"uploaded":r.legacy_photo?"old":r.image_url?"web link":"none",s.bought_lines||0,s.ordered_lines||0,s.times_bought!=null?s.times_bought:"",s.last_bought||"",s.times_ordered!=null?s.times_ordered:"",s.last_ordered||"",rank[r.id]||"",String(r.updated_at||"").slice(0,16).replace("T"," "),r.updated_by].map(q).join(",")});
   var b=new Blob(["\uFEFF"+[h.join(",")].concat(L).join("\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="Muniz_Catalog_"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},500)}
 /* the product editor (drawer) */
 function CTedit(p){var row=p.row,isNew=!row,tok=p.tok,all=p.all||[];
@@ -1467,10 +1473,15 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
   var sameN=function(r){return nm[r.vendor+"|"+CTn(r.name_es)]||0},noWords=function(r){return!String(r.aliases||"").trim()},needs=function(r){return CTnoPhoto(r)||sameN(r)>1||noWords(r)};
   var unl=(e.ctUnlisted||[]).filter(function(x){return!gone["u|"+x.vendor+"|"+x.code_key]}),dem=(e.ctDemand||[]).filter(function(x){return!gone["d|"+x.text_key]});
   var nNo=act.filter(CTnoPhoto).length,nSame=act.filter(function(r){return sameN(r)>1}).length,nWords=act.filter(noWords).length;
-  var used=function(r){var s=stats[r.id];return(s?(Number(s.bought_lines)||0)+(Number(s.ordered_lines)||0)*2:0)*1000+(r.freq||0)};
+  var useN=function(r){var s=stats[r.id];if(!s)return 0;return s.times_used!=null?Number(s.times_used)||0:(Number(s.bought_lines)||0)+(Number(s.ordered_lines)||0)},
+      lastU=function(r){var s=stats[r.id];if(!s)return"";var a=String(s.last_used||s.last_bought||"").slice(0,10),b=String(s.last_ordered||"").slice(0,10);return a>b?a:b},
+      used=function(r){return useN(r)*1000+(r.freq||0)};
+  /* v182 · Top 50: the 50 products of each vendor bought most often in 2026 (invoices, plus app orders placed after the last loaded invoice) */
+  var rank={};CTVS.forEach(function(v){act.filter(function(r){return r.vendor===v&&useN(r)>0}).sort(function(x,y){return useN(y)-useN(x)||lastU(y).localeCompare(lastU(x))||x.name_es.localeCompare(y.name_es)}).slice(0,50).forEach(function(r,i){rank[r.id]=i+1})});
+  var cov={};(e.ctStats||[]).forEach(function(x){var r=byId[x.item_id];if(r&&x.invoices_through&&String(x.invoices_through).slice(0,10)>(cov[r.vendor]||""))cov[r.vendor]=String(x.invoices_through).slice(0,10)});
   var qq=CTn(q).split(" ").filter(Boolean),hit=function(r){if(!qq.length)return!0;var alts=(altBy[r.id]||[]).map(function(x){return x.code}),h=" "+CTn([r.name_es,r.name_en,r.code,r.aliases,r.category].concat(alts).join(" "))+" ";return qq.every(function(w){var kw=CTkey(w);return h.indexOf(" "+w)>=0||kw.length>=3&&[r.code].concat(alts).some(function(c){return CTkey(c).indexOf(kw)>=0})})};
   var list=(view==="hidden"?rows.filter(function(r){return!r.active}):act).filter(function(r){return(ven==="ALL"||r.vendor===ven)&&(view!=="fix"||needs(r))&&hit(r)});
-  list.sort(sort==="az"?function(x,y){return x.name_es.localeCompare(y.name_es)}:sort==="recent"?function(x,y){return String(y.updated_at).localeCompare(String(x.updated_at))}:function(x,y){return used(y)-used(x)||x.name_es.localeCompare(y.name_es)});
+  list.sort(sort==="az"?function(x,y){return x.name_es.localeCompare(y.name_es)}:sort==="recent"?function(x,y){return String(y.updated_at).localeCompare(String(x.updated_at))}:function(x,y){var rx=rank[x.id]||999,ry=rank[y.id]||999;if(rx!==ry)return rx-ry;var lx=lastU(x),ly=lastU(y);if(lx!==ly)return ly.localeCompare(lx);return useN(y)-useN(x)||x.name_es.localeCompare(y.name_es)});
   var openRow=open&&open.id?byId[open.id]:null;
   var after=function(){rf&&rf()};
   var markDemand=async function(x,action,itemId){try{await CTpost("catalog_demand_done",{text_key:x.text_key,action:action,item_id:itemId||null,by:(tok.user&&tok.user.email)||null},tok.access_token);setGone(function(o){var n=Object.assign({},o);n["d|"+x.text_key]=1;return n})}catch(y){MZtoast(CTerr(y),"err")}};
@@ -1481,10 +1492,10 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
   var row=function(r){var s=stats[r.id],th=CTthumb(r),n=sameN(r);
     return PJh("button",{key:r.id,className:"ct-row",onClick:function(){setOpen({id:r.id})}},
       PJh("span",{className:"ct-th"},th?PJh("img",{src:th,alt:"",loading:"lazy"}):PJh("i",null,"sin foto")),
-      PJh("span",{className:"ct-main"},PJh("b",null,r.name_es),PJh("span",null,(CTV[r.vendor]||r.vendor)+" \u00B7 "+r.code+" \u00B7 "+r.category)),
-      PJh("span",{className:"ct-tags"},r.blocked?PJh(V,{c:_.amber},"OFFICE ONLY"):null,r.flag?PJh(V,{c:_.violet},r.flag):null,!r.active?PJh(V,{c:_.faint},"HIDDEN"):null,
+      PJh("span",{className:"ct-main"},PJh("b",null,r.name_es),PJh("span",null,(CTV[r.vendor]||r.vendor)+" \u00B7 "+r.code+" \u00B7 "+r.category),PJh("span",{className:"ct-use"+(CTold(lastU(r))?" ct-old":"")},CTuse(useN(r),lastU(r),s))),
+      PJh("span",{className:"ct-tags"},rank[r.id]?PJh(V,{c:_.green},"TOP 50 \u00B7 #"+rank[r.id]):null,r.blocked?PJh(V,{c:_.amber},"OFFICE ONLY"):null,r.flag?PJh(V,{c:_.violet},r.flag):null,!r.active?PJh(V,{c:_.faint},"HIDDEN"):null,
         CTnoPhoto(r)?PJh(V,{c:_.red,dim:!0},"no photo"):null,n>1?PJh(V,{c:_.amber,dim:!0},"same name \u00D7"+n):null,noWords(r)?PJh(V,{c:_.faint,dim:!0},"no search words"):null),
-      PJh("span",{className:"ct-num"},PJh("b",null,r.price!=null?le(r.price):"\u2014"),PJh("span",null,s&&Number(s.bought_lines)?"bought "+s.bought_lines+"\u00D7":"")))};
+      PJh("span",{className:"ct-num"},PJh("b",null,r.price!=null?le(r.price):"\u2014"),null))};
   var body;
   if(view==="unlisted"){var ul=unl.filter(function(x){return ven==="ALL"||x.vendor===ven}).map(function(x){return{x:x,m:CTmatch(x,rows)}}),nm2=ul.filter(function(o){return o.m}).length;
     var shown=ul.filter(function(o){return um==="match"?o.m:um==="new"?!o.m:!0}).sort(function(a2,b2){return b2.x.lines-a2.x.lines}).slice(0,lim);
@@ -1516,8 +1527,8 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
   else if(view==="changes")body=PJh(G,{title:"RECENT CHANGES",right:PJh("span",{className:"dim xs"},"who changed what, newest first")},
     (e.ctHist||[]).length?PJh("div",{className:"ct-list"},(e.ctHist||[]).slice(0,lim).map(function(x){var r=byId[x.item_id];return PJh("button",{key:x.id,className:"ct-row ct-chg",onClick:function(){r&&setOpen({id:r.id})}},
       PJh("span",{className:"ct-when mono"},CTwhen(x.at,t)),PJh("span",{className:"ct-main"},PJh("b",null,(r?r.name_es:x.code)+""),PJh("span",null,CTwho(x.by)+" \u00B7 "+(x.field==="created"?"added it":x.field==="photo_path"?"new photo":x.field.replace("name_es","name").replace("name_en","vendor description").replace("blocked","foreman access").replace("aliases","search words")+": "+(x.old_value==null?"\u2014":String(x.old_value).slice(0,60))+" \u2192 "+(x.new_value==null?"\u2014":String(x.new_value).slice(0,60))))))})):PJh(ve,null,"No changes yet."));
-  else body=PJh(G,{title:(view==="fix"?"NEEDS ATTENTION":view==="hidden"?"HIDDEN FROM THE APP":"ALL PRODUCTS")+" \u00B7 "+list.length,right:PJh("div",{className:"segs"},[["used","Most used"],["az","A\u2013Z"],["recent","Recently changed"]].map(function(o){return PJh("button",{key:o[0],className:sort===o[0]?"on":"",onClick:function(){setSort(o[0])}},o[1])}))},
-    list.length?PJh("div",{className:"ct-list"},list.slice(0,lim).map(row),list.length>lim?PJh("button",{className:"btn ct-more",onClick:function(){setLim(lim+200)}},"Show "+Math.min(200,list.length-lim)+" more"):null):PJh(ve,{ok:view==="fix"},view==="fix"?"Nothing needs attention here.":"Nothing matches."));
+  else body=PJh(G,{title:(view==="fix"?"NEEDS ATTENTION":view==="hidden"?"HIDDEN FROM THE APP":"ALL PRODUCTS")+" \u00B7 "+list.length,right:PJh("div",{className:"segs"},[["used","Most bought"],["az","A\u2013Z"],["recent","Recently changed"]].map(function(o){return PJh("button",{key:o[0],className:sort===o[0]?"on":"",onClick:function(){setSort(o[0])}},o[1])}))},
+    sort==="used"?CTcov(cov,ven):null,list.length?PJh("div",{className:"ct-list"},list.slice(0,lim).map(row),list.length>lim?PJh("button",{className:"btn ct-more",onClick:function(){setLim(lim+200)}},"Show "+Math.min(200,list.length-lim)+" more"):null):PJh(ve,{ok:view==="fix"},view==="fix"?"Nothing needs attention here.":"Nothing matches."));
   return PJh("div",{className:"room ct-room"},
     PJh("div",{className:"strip ct-kpis"},
       PJh(K,{label:"PRODUCTS",value:act.length,sub:CTVS.map(function(v){return(CTV[v]||v)+" "+act.filter(function(r){return r.vendor===v}).length}).join(" \u00B7 ")}),
@@ -1532,7 +1543,7 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
         PJh("div",{className:"segs"},[["ALL","All"]].concat(CTVS.map(function(v){return[v,CTV[v]]})).map(function(o){return PJh("button",{key:o[0],className:ven===o[0]?"on":"",onClick:function(){setVen(o[0])}},o[1])})),
         view==="all"||view==="fix"||view==="hidden"?PJh("input",{className:"inp ct-q",value:q,placeholder:"Search name, code, search word\u2026",onChange:function(ev){setQ(ev.target.value);setLim(120)}}):null,
         PJh("button",{className:"btn primary",onClick:function(){setOpen({id:null})}},"+ Add product"),
-        PJh("button",{className:"btn",onClick:function(){CTcsv(rows,stats)}},"Export CSV"))),
+        PJh("button",{className:"btn",onClick:function(){CTcsv(rows,stats,rank)}},"Export CSV"))),
     body,
     open?PJh(CTedit,{key:(open.id||"new")+"|"+(open.prefill?open.prefill.code||open.prefill.name_es||"":""),row:openRow,alts:openRow?altBy[openRow.id]||[]:[],refresh:after,prefill:open.prefill,context:open.context,all:rows,tok:tok,onClose:function(){setOpen(null)},
       onSaved:function(id){if(open.demand)markDemand(open.demand,"added",id);after()}}):null)}
@@ -1563,6 +1574,7 @@ function CTroom({d:e,now:t,t:tok,onChanged:rf}){
 "@media(max-width:820px){.ct-ed{grid-template-columns:1fr}.ct-ed-r{order:-1}.ct-phone{max-width:260px;margin:0 auto}.ct-row{grid-template-columns:52px minmax(0,1fr) auto}.ct-tags{grid-column:2/-1;justify-content:flex-start;max-width:none}}"+
 "@media(max-width:640px){.ct-match{margin-left:6px}.ct-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ct-3{grid-template-columns:1fr 1fr}.ct-pick{padding-left:6px}.ct-btns{grid-column:1/-1;justify-content:flex-start}.ct-row .ct-num{display:none}.ct-static .ct-num{display:flex}}";
   var st=document.createElement("style");st.setAttribute("data-ct","v178");st.textContent=css;document.head.appendChild(st)}catch(e){}})();
+(function(){try{var st=document.createElement("style");st.setAttribute("data-ct","v182");st.textContent=".ct-main .ct-use{font-size:12px;color:inherit;opacity:.85}.ct-main .ct-use.ct-old{opacity:.5}.ct-cov{font-size:12.5px;color:var(--dim);padding:2px 6px 10px}.ct-cov.warn{color:#B25E00}";document.head.appendChild(st)}catch(e){}})();
 
 /* ===== PERMITS · City of Austin ROW permits + Texas 811 tickets, with the PDFs ===========
    Every site needs an active right-of-way permit (City of Austin) and a current 811 locate
