@@ -1398,3 +1398,89 @@ html[data-theme] .dh .dn-row{display:flex;align-items:center;gap:12px}
 html[data-theme] .dh .dn-edit{flex:none;font:500 11px/1 var(--sans);letter-spacing:0;padding:5px 9px;border-radius:6px;background:var(--btn);border:1px solid var(--mini-line);color:var(--ink2);cursor:pointer;transition:background-color .12s,border-color .12s,color .12s}
 html[data-theme] .dh .dn-edit:hover{background:var(--btn-hover);border-color:var(--btn-line-hover);color:var(--ink)}
 html[data-theme] .dh .dn-edit:disabled{opacity:.5;cursor:default}
+
+/* ---------- LIVE · the landing page (v199) ----------
+   Tiles are buttons (every number goes somewhere), the fleet panel is a dispatch
+   board beside the map, Call / Text / Map are the same quiet buttons as "edit unit".
+   Everything is drawn from the theme tokens, so it reads the same in dark and light. */
+.lv-tile{overflow:hidden}
+.lv-tile.lv-go{cursor:pointer;transition:border-color .15s ease,background-color .15s ease,transform .15s ease}
+.lv-tile.lv-go:hover{border-color:var(--line2)}
+.lv-tile:focus-visible{outline:2px solid var(--accent,#0A84FF);outline-offset:2px}
+.lv-arrow{position:absolute;right:14px;top:12px;font:400 18px/1 var(--sans);color:var(--faint);opacity:0;transition:opacity .15s ease,transform .15s ease}
+.lv-tile.lv-go:hover .lv-arrow,.lv-tile.lv-go:focus-visible .lv-arrow{opacity:1;transform:translateX(2px)}
+.lv-tile .ms{padding-right:14px}
+.lv-sub.lv-go{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;text-decoration-color:var(--faint)}
+.lv-sub.lv-go:hover{color:var(--ink)}
+.lv-maph{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.lv-mb{display:flex;align-items:stretch;flex:1 1 auto;min-height:0}
+.lv-board{flex:0 0 332px;max-width:46%;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--panel);min-height:460px;max-height:580px}
+.lv-mb>.mapwrap{flex:1 1 auto;min-height:460px}
+.lv-tabs{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.lv-tabsw{display:flex;flex:1 1 auto;gap:2px;min-width:0}
+.lv-tab{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--line2);background:transparent;color:var(--dim);font:600 10.5px var(--cond);letter-spacing:.14em;text-transform:uppercase;padding:6px 4px;cursor:pointer}
+.lv-tab.on{color:var(--ink);border-color:var(--dim)}
+.lv-tc{font:500 10px var(--mono);color:var(--faint)}
+.lv-x{border:0;background:transparent;color:var(--faint);font:400 20px/1 var(--sans);width:26px;height:26px;cursor:pointer}
+.lv-bl{overflow:auto;flex:1 1 auto;min-height:0;overflow-anchor:none;overscroll-behavior:contain}
+.lv-bh{padding:9px 14px 4px;font:600 10px var(--cond);letter-spacing:.16em;color:var(--faint);text-transform:uppercase}
+.lv-r{display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line)}
+.lv-r:last-child{border-bottom:0}
+.lv-r.lv-go{cursor:pointer}
+.lv-r:hover{background:rgba(255,255,255,.025)}
+.lv-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:0 0 9px;margin-top:5px;box-shadow:0 0 0 0 currentColor}
+.lv-dot.pulse{animation:lvPing 1.8s ease-out infinite}
+.lv-rb{flex:1 1 auto;min-width:0}
+.lv-rn{display:flex;align-items:baseline;gap:7px;font-size:13px;min-width:0}
+.lv-rn b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv-tag{font:500 10.5px var(--mono);color:var(--faint);flex:0 0 auto}
+.lv-rl{font-size:12px;color:var(--ink);margin-top:2px;line-height:1.35;overflow-wrap:anywhere}
+.lv-rl.dim{color:var(--dim)}
+.lv-ra{display:inline-flex;gap:4px;flex:0 0 auto;align-items:center}
+.lv-rc{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.lv-act,a.lv-act{text-decoration:none;display:inline-flex;align-items:center;white-space:nowrap}
+.lv-kind{font:600 10px var(--cond);letter-spacing:.14em;width:46px;flex:0 0 46px}
+.lv-at{line-height:1.35;overflow-wrap:anywhere}
+.lv-wait{white-space:nowrap}
+.lv-att .row.lv-ar{align-items:center}
+.row.lv-go{cursor:pointer}
+.foot.lv-go,.dual.lv-go{cursor:pointer}
+@keyframes lvPing{0%{box-shadow:0 0 0 0 currentColor}100%{box-shadow:0 0 0 9px transparent}}
+@media (max-width:900px){
+  .lv-mb{flex-direction:column}
+  .lv-board{flex:0 0 auto;max-width:none;max-height:380px;min-height:0;border-right:0;border-bottom:1px solid var(--line)}
+  .lv-mb>.mapwrap{min-height:340px}
+}
+
+/* the same rules in the themed (Apple-style) layer: hairlines, chips, quiet buttons */
+html[data-theme] .lv-tile.lv-go:hover{border-color:var(--card-line);background:var(--row-hover)}
+html[data-theme] .lv-tile.lv-go:active{transform:scale(.995)}
+html[data-theme] .lv-arrow{color:var(--faint);right:16px;top:14px}
+html[data-theme] .lv-hero .ms{color:var(--ink2);font-size:12.5px}
+html[data-theme] .lv-board{border-right:1px solid var(--hair);background:var(--card)}
+html[data-theme] .lv-tabs{padding:10px 12px;gap:8px;border-bottom:1px solid var(--hair)}
+html[data-theme] .lv-tabsw{background:var(--fill-ctl);border-radius:9px;padding:2px}
+html[data-theme] .lv-tab{font:600 11.5px/1 var(--sans);letter-spacing:.02em;text-transform:none;color:var(--ink2);border:0;border-radius:7px;padding:7px 6px;transition:background-color .15s ease,color .15s ease,box-shadow .15s ease}
+html[data-theme] .lv-tab:hover{color:var(--ink);background:var(--seg-hover)}
+html[data-theme] .lv-tab.on{background:var(--seg-on);color:var(--ink);box-shadow:var(--seg-on-shadow)}
+html[data-theme] .lv-tc{font:600 10.5px/1 var(--sans);color:var(--dim);background:var(--chip);border-radius:999px;padding:3px 6px}
+html[data-theme] .lv-tab.on .lv-tc{color:var(--ink)}
+html[data-theme] .lv-x{border-radius:8px;transition:background-color .12s,color .12s}
+html[data-theme] .lv-x:hover{background:var(--hover-fill);color:var(--ink)}
+html[data-theme] .lv-bh{font:600 10.5px/1.3 var(--sans);letter-spacing:.06em;color:var(--faint);padding:10px 16px 5px}
+html[data-theme] .lv-r{border-bottom:1px solid var(--hair);padding:9px 16px;transition:background-color .12s}
+html[data-theme] .lv-r:hover{background:var(--row-hover)}
+html[data-theme] .lv-rn{font-size:13.5px}
+html[data-theme] .lv-tag{font:500 11px var(--sans);color:var(--faint)}
+html[data-theme] .lv-rl{font-size:12.5px;color:var(--ink2)}
+html[data-theme] .lv-rl.dim{color:var(--dim)}
+html[data-theme] .lv-act{font:500 11px/1 var(--sans);letter-spacing:0;padding:5px 9px;border-radius:6px;background:var(--btn);border:1px solid var(--mini-line);color:var(--ink2);box-shadow:none;transition:background-color .12s,border-color .12s,color .12s}
+html[data-theme] .lv-act:hover{background:var(--btn-hover);border-color:var(--btn-line-hover);color:var(--ink)}
+html[data-theme] .lv-kind{font:600 10.5px/1.3 var(--sans);letter-spacing:.05em}
+html[data-theme] .lv-feed{max-height:580px}
+html[data-theme] .lv-board .lv-bl::-webkit-scrollbar{width:6px}
+@media (max-width:900px){
+  html[data-theme] .lv-board{border-bottom:1px solid var(--hair)}
+  html[data-theme] .lv-act{min-height:34px;padding:0 11px;font-size:12px}
+  html[data-theme] .lv-arrow{display:none}
+}
