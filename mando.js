@@ -2400,7 +2400,7 @@ var MZdict=[  [/\+(\d+) art[i\u00ED]culo\(s\): Agregado por la oficina \(([^)]+)
   [/^DE FERNANDO$/,"Fernando's own PO list"],  [/Od[o\u00F3]metro menor que la \u00FAltima carga/gi,"Odometer lower than the last fill"],[/autorizado por oficina/gi,"allowed by office"],[/corregir la lectura anterior/gi,"fix the earlier reading"],[/Pedido por oficina/gi,"Ordered by office"],[/a nombre de otra persona/gi,"under someone else's name"],[/Pedido por /gi,"Ordered by "],
  [/Mismo veh[i\u00ED]culo carg[o\u00F3] hace (\d+) h/gi,"Same vehicle fueled $1 h ago"],
  [/Placa dictada por la persona/gi,"Plate typed by the person"],[/\(no registrada\)/gi,"(not registered)"],
- [/Placa nueva \u00B7 se da de alta con este PO/gi,"New plate \u00B7 added with this PO"],[/Placa nueva/gi,"New plate"],[/el registro le tiene/gi,"the registry has"],
+ [/Placa nueva \u00B7 se da de alta con este PO/gi,"New plate \u00B7 added with this PO"],[/Placa nueva/gi,"New plate"],[/el registro le tiene/gi,"the registry has"],[/actualizar (?:la )?flota/gi,"update Fleet"],
  [/Unidad dada de alta con este PO/gi,"New unit added by this PO"],[/ponerle nombre en la flota/gi,"name it in Fleet"],
  [/Obra del rol no reconocida/gi,"Roster jobsite not recognized"],[/Obra distinta al rol de la semana/gi,"Different jobsite than this week's roster"],
  [/Obra distinta al rol/gi,"Different jobsite than the roster"],[/Obra escrita a mano/gi,"Jobsite typed by hand"],
