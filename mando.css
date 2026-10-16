@@ -1391,3 +1391,10 @@ html[data-theme] .mz-ptr.ok .mz-ptr-ic{background:var(--green-f,#30D158);
 html[data-theme] .mz-ptr-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @keyframes mzPtrSpin{to{transform:rotate(360deg)}}
 html:not(.mz-motion) .mz-ptr.spin .mz-ptr-ic{animation-duration:1.6s}
+
+/* v197 · the edit control beside a drawer's big number (a fuel PO's number):
+   the same quiet button as "edit unit" / "edit" in the rows below, centered on the number */
+html[data-theme] .dh .dn-row{display:flex;align-items:center;gap:12px}
+html[data-theme] .dh .dn-edit{flex:none;font:500 11px/1 var(--sans);letter-spacing:0;padding:5px 9px;border-radius:6px;background:var(--btn);border:1px solid var(--mini-line);color:var(--ink2);cursor:pointer;transition:background-color .12s,border-color .12s,color .12s}
+html[data-theme] .dh .dn-edit:hover{background:var(--btn-hover);border-color:var(--btn-line-hover);color:var(--ink)}
+html[data-theme] .dh .dn-edit:disabled{opacity:.5;cursor:default}
