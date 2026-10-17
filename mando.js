@@ -51,8 +51,8 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
 /* room-aware refresh: history that only one room shows (invoices, the PO log, station statements,
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
-var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationVisits:["fuel"],fuelGps:["fuel"],fuelTest:["fuel"],
-  haulStops:["haul","projects"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],sdAlerts:["haul"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],ctSugg:["catalog"]};
+var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationVisits:["fuel"],stationStops:["situation"],fuelGps:["fuel","situation"],fuelTest:["fuel"],
+  haulStops:["haul","projects","situation"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects","situation"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel","situation"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],sdAlerts:["haul","situation"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],ctSugg:["catalog"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -84,6 +84,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["fuel",30e3,1,()=>inc("fuel",{full:"fuel_pos_flagged?select=*&order=created_at.desc&limit=3000",recent:()=>"fuel_pos_flagged?select=*&order=created_at.desc&limit=300",every:300e3,key:r=>r.id,sort:"created_at",keep:3000})],
   ["fleet",30e3,1,()=>He($e("gps_fleet_now?select=*&order=last_seen.desc",c))],
   ["sdAlerts",60e3,1,()=>He($e("dump_idle_alerts?select=*&order=started_at.desc&limit=300",c))],
+  ["stationStops",60e3,1,()=>He($e("gps_positions?select=actsoft_id,ts,geofence,status&status=eq.1&or=(geofence.ilike.*leo*,geofence.ilike.*tex*con*,geofence.ilike.*chevron*)&ts=gte."+encodeURIComponent(new Date(Date.now()-36*36e5).toISOString())+"&order=ts.desc&limit=400",c))],
   ["catalog",300e3,2,()=>He(go("catalog_items?select=*&order=vendor.asc,name_es.asc",c,6)).then(r=>{if(r.length){window.__MZCATROWS=r;try{if(!MZcat)MZcat={};r.forEach(function(i){if(i.code&&i.name_en)MZcat[String(i.code).toUpperCase()]=MZpretty(i.name_en)})}catch(x){}}return r})],
   ["ctStats",900e3,3,()=>He(go("catalog_stats?select=*",c,6))],
   ["ctUnlisted",900e3,3,()=>He(go("catalog_unlisted?select=*&order=lines.desc",c,3))],
@@ -128,7 +129,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
+   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],stationStops:d.stationStops||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
  /* escalate_pending / verify_pending_fuel run on the server every 2 min (parche39); browsers no longer call them */
  const rpc=()=>{};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
@@ -155,7 +156,70 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  timer=setTimeout(round,S.first?Math.random()*600:0);
  return()=>{alive=!1;clearTimeout(timer);document.removeEventListener("visibilitychange",vis);window.removeEventListener("mz-wake",vis);window.removeEventListener("mz-force",force);window.removeEventListener("mz-pull",pull)}},[e,r]);
 return[t,()=>l(o=>o+1)]}
-function jd(e){let t={};return(e||[]).forEach(n=>{(n.stage==="APROBADO"||n.stage==="RECHAZADO")&&n.actor&&!t[n.order_id]&&(t[n.order_id]=n.actor)}),t}var mt=(e,t)=>e.decided_by||t&&t[e.id]||null,hn=e=>e.jobsite||e.jobsite_week||null,Tm=e=>!e.jobsite&&!!e.jobsite_week;function Pm(e){let t=[],n=Object.fromEntries((e.orders||[]).map(l=>[l.id,l]));(e.oev||[]).forEach(l=>{let o=n[l.order_id];if(!o||o.is_practice)return;let i={SOLICITADO:["order",_.amber,`${z(o.foreman)} requested ${o.requested_lines} line${o.requested_lines===1?"":"s"} \xB7 ${o.provider}${o.est_total?" \xB7 "+le(o.est_total):""}`],APROBADO:["order",l.actor==="REGLAS"?_.green:_.cyan,l.actor==="REGLAS"?`Rules auto-approved ${o.req_no} \xB7 ${z(o.foreman)} \xB7 ${le(o.est_total)}`:`${z(l.actor)} approved ${o.req_no} \xB7 ${z(o.foreman)}${l.meta?.removed?.length?` \xB7 cut ${l.meta.removed.length}`:""}`],RECHAZADO:["order",_.red,l.actor==="REGLAS"?`Rules rejected ${o.req_no} \xB7 ${z(o.foreman)}`:`${z(l.actor)} rejected ${o.req_no} \xB7 ${z(o.foreman)}`],TICKET:["order",_.green,`PO ${l.meta?.po||o.po} issued \xB7 ${o.req_no} \xB7 ${z(o.foreman)}`],ESCALADO:["order",_.red,`${o.req_no} escalated to ${z(l.meta?.to)} \xB7 no decision in ${l.meta?.after_min}m`],JUSTIFICADO:["order",_.amber,`${z(o.foreman)} justified held equipment on ${o.req_no}`],CONFIRMADO:null}[l.stage];i&&t.push({ts:new Date(l.ts).getTime(),kind:i[0],c:i[1],text:i[2],ref:{room:"orders",id:o.id}})}),(e.fuel||[]).slice(0,150).forEach(l=>t.push({ts:l.ts,kind:"fuel",c:l.gps_check==="NO_ESTABA"?_.red:l.gps_check==="VERIFICADO"?_.green:_.amber,text:`Fuel PO ${l.po} \xB7 ${z(l.who)} \xB7 ${l.vehicle_id||l.plate||""} \xB7 ${l.station}${l.gps_check?" \xB7 GPS "+({VERIFICADO:"\u2713 verified",NO_ESTABA:"\u2717 unit not at station",SIN_GPS:"no fix",SIN_UNIDAD:"no tracker",REVISAR:"outside all fences",PENDIENTE:"waiting for the station visit"}[l.gps_check]||""):""}`,ref:{room:"fuel",id:l.id}}));let r=new Set;return(e.stationVisits||[]).forEach(l=>{let o=`${l.actsoft_id}|${l.geofence}|${Math.floor(new Date(l.ts).getTime()/18e5)}`;if(r.has(o)||l.status!==1)return;r.add(o);let i=(e.fleet||[]).find(c=>c.actsoft_id===l.actsoft_id),u=l.geofence;/Leos|Texcon|Chevron/i.test(u)&&t.push({ts:new Date(l.ts).getTime(),kind:"gps",c:_.cyan,text:`${z(i?.person||i?.assigned_to||(i?.name||"Unit").replace(/\s*VIN.*$/i,""))} stopped at ${u}`,ref:{room:"fleet",id:l.actsoft_id}})}),(e.ev||[]).filter(l=>l.event==="error").slice(0,20).forEach(l=>t.push({ts:new Date(l.ts).getTime(),kind:"sys",c:_.red,text:`App error \xB7 ${l.who||"unknown"} \xB7 ${[l.meta?.stage,l.meta?.status&&"HTTP "+l.meta.status,l.meta?.err,l.meta?.msg,l.meta?.error].filter(Boolean).join(" \xB7 ")||JSON.stringify(l.meta||{}).slice(0,80)}`.slice(0,140)})),t.sort((l,o)=>o.ts-l.ts).slice(0,120)}/* ===== LIVE · the landing page =================================================
+function jd(e){let t={};return(e||[]).forEach(n=>{(n.stage==="APROBADO"||n.stage==="RECHAZADO")&&n.actor&&!t[n.order_id]&&(t[n.order_id]=n.actor)}),t}var mt=(e,t)=>e.decided_by||t&&t[e.id]||null,hn=e=>e.jobsite||e.jobsite_week||null,Tm=e=>!e.jobsite&&!!e.jobsite_week;/* ===== SIGNAL FEED · everything that happened, newest first (v200) ================
+   The feed hears the operation, not just the paperwork. Lanes, all from data the
+   page already holds: order events (requested, approved, rejected, PO issued —
+   TICKET and PO_AUTO —, escalated, justified, confirmed by text), fuel POs with
+   their GPS verdict, verdicts that landed late, station stops, idle sessions on
+   trucks, dump trucks past the idle rule (and who was alerted), haul loads and
+   unloads, deliveries, trackers going dark, crews arriving at and leaving jobsites
+   (watched live from the fleet while the page is open) and app errors.
+   Each entry carries where a click goes: an order, a fuel PO, the fuel GPS witness,
+   the small-dump board, or a point on the map.
+   ============================================================================= */
+var LVFEEDH=48;                                   /* hours of history the feed shows */
+var LVLOGK="muniz_live_crewlog";                  /* crew arrivals / departures seen by this browser */
+var LVprev={},LVlog=null;
+function LVlogLoad(){if(LVlog)return LVlog;try{var v=JSON.parse(localStorage.getItem(LVLOGK)||"[]");LVlog=Array.isArray(v)?v:[]}catch(x){LVlog=[]}return LVlog}
+function LVlogPush(ev){var L=LVlogLoad(),cut=Date.now()-LVFEEDH*36e5;L.push(ev);while(L.length&&L[0].ts<cut)L.shift();if(L.length>300)L.splice(0,L.length-300);try{localStorage.setItem(LVLOGK,JSON.stringify(L))}catch(x){}}
+/* called by LVmodel every tick with the crew rows: a crew entering or leaving a learned jobsite spot becomes a feed entry */
+function LVwatchCrews(crews,e,t){var hyst=200;crews.forEach(function(x){var u=x.u;if(!u||u.actsoft_id==null||!x.st||x.st.k==="dark"||u.last_lat==null)return;var aid=u.actsoft_id,sp=LVspot(u,e),cur=sp&&!LVyard(sp.jobsite)?sp.jobsite:"",p=LVprev[aid];
+  if(p===undefined){LVprev[aid]={spot:cur};return}
+  if(cur===p.spot)return;
+  if(!cur&&p.spot){var ps=(e.spots||[]).find(function(q){return q.jobsite===p.spot});if(ps&&ps.lat!=null&&PJhav(u.last_lat,u.last_lon,ps.lat,ps.lon)<=(+ps.radius_m||300)+hyst)return}
+  LVprev[aid]={spot:cur};
+  LVlogPush({ts:t,aid:aid,who:z(x.n),text:cur?(p.spot?z(x.n)+" moved from "+p.spot+" to "+cur:z(x.n)+" arrived at "+cur):z(x.n)+" left "+p.spot,lat:u.last_lat,lon:u.last_lon,in:!!cur})})}
+function Pm(e,t){t=t||Date.now();var out=[],cut=t-LVFEEDH*36e5,push=function(ts,kind,c,text,go){if(!(ts>cut)||ts>t+36e5)return;out.push({ts:ts,kind:kind,c:c,text:text,go:go||null})};
+  var orders={};(e.orders||[]).forEach(function(o){orders[o.id]=o});var byPo={};(e.orders||[]).forEach(function(o){if(o.po)byPo[String(o.po).toUpperCase()]=o});
+  /* orders */
+  (e.oev||[]).forEach(function(l){var o=orders[l.order_id];if(!o||o.is_practice)return;var m=l.meta||{},who=l.actor,rules=/^REGLAS/.test(String(who||"")),ts=Date.parse(l.ts),go={room:"orders",id:o.id},f=z(o.foreman),sw={
+    SOLICITADO:[_.amber,f+" requested "+(o.requested_lines||"")+" line"+(o.requested_lines===1?"":"s")+" \u00B7 "+o.provider+(o.est_total?" \u00B7 "+le(o.est_total):"")],
+    CONFIRMADO:[_.cyan,f+" confirmed "+o.req_no+" by text"],
+    APROBADO:[rules?_.green:_.cyan,(rules?"Rules auto-approved ":z(who)+" approved ")+o.req_no+" \u00B7 "+f+(m.removed&&m.removed.length?" \u00B7 cut "+m.removed.length:"")],
+    RECHAZADO:[_.red,(rules?"Rules rejected ":z(who)+" rejected ")+o.req_no+" \u00B7 "+f],
+    TICKET:[_.green,"PO "+(m.po||o.po)+" issued \u00B7 "+o.req_no+" \u00B7 "+f+(rules?"":" \u00B7 by "+z(who))],
+    PO_AUTO:[_.green,"PO "+(m.po||o.po)+" issued \u00B7 "+o.req_no+" \u00B7 "+f+(rules?" \u00B7 on approval":" \u00B7 by "+z(who))],
+    ESCALADO:[_.red,o.req_no+" escalated to "+z(m.to)+" \u00B7 no decision in "+(m.after_min||"?")+" min"],
+    JUSTIFICADO:[_.amber,f+" justified held equipment on "+o.req_no]}[l.stage];
+    if(sw)push(ts,"ORDER",sw[0],sw[1],go)});
+  /* fuel POs, with the GPS verdict the row carries */
+  var verdict={VERIFICADO:"GPS \u2713 verified",NO_ESTABA:"GPS \u2717 unit not at the station",SIN_GPS:"GPS no fix",SIN_UNIDAD:"no tracker on the unit",REVISAR:"GPS outside every fence",PENDIENTE:"GPS pending"};
+  var fuelById={};(e.fuel||[]).forEach(function(l){fuelById[l.id]=l;if(l.is_practice||l.statement)return;push(l.ts,"FUEL",l.gps_check==="NO_ESTABA"?_.red:l.gps_check==="VERIFICADO"?_.green:_.amber,"Fuel PO "+l.po+" \u00B7 "+z(l.who)+" \u00B7 "+(l.vehicle_id||l.plate||"")+" \u00B7 "+(ho[l.station]||l.station||"")+(l.gps_check?" \u00B7 "+(verdict[l.gps_check]||""):""),{room:"fuel",id:l.id})});
+  /* a verdict that landed well after the PO (the unit was not where the PO said) is its own moment */
+  (e.fuelGps||[]).forEach(function(k){if(k.gps_check!=="NO_ESTABA"||!k.created_at)return;var f=fuelById[k.id];if(!f||f.is_practice)return;var ts=Date.parse(k.created_at);if(!(ts-f.ts>10*6e4))return;push(ts,"GPS",_.red,"GPS witness \u00B7 "+f.po+" \u00B7 "+z(f.who)+" \u00B7 "+(f.vehicle_id||f.plate||"")+" was not at "+(ho[f.station]||f.station||"the station")+(k.gps_note?" \u00B7 "+k.gps_note:""),{room:"fuel",id:f.id})});
+  /* station stops (one per unit per station per half hour) */
+  var seen={},fl={};(e.fleet||[]).forEach(function(u){fl[u.actsoft_id]=u});
+  (e.stationStops||e.stationVisits||[]).forEach(function(l){if(l.status!==1||!/leo|tex|chevron/i.test(l.geofence||""))return;var ts=Date.parse(l.ts),k=l.actsoft_id+"|"+l.geofence+"|"+Math.floor(ts/18e5);if(seen[k])return;seen[k]=1;var u=fl[l.actsoft_id];push(ts,"STOP",_.cyan,(u?LVwho(u):"Unit "+l.actsoft_id)+" stopped at "+l.geofence,{room:"fuel",view:"gps"})});
+  /* idle sessions on trucks (45 min+), where it happened */
+  (e.idleSess||[]).forEach(function(l){var ts=Date.parse(l.end_ts||l.start_ts);var u=null;for(var k in fl)if(fl[k].vehicle_id===l.vehicle_id){u=fl[k];break}
+    push(ts,"IDLE",_.amber,(l.vehicle_id||"Unit")+(u&&(u.person||u.assigned_to)?" \u00B7 "+LVwho(u):"")+" \u00B7 idled "+SDmin(l.minutes)+(l.geofence?" at "+l.geofence:"")+" \u00B7 from "+Fd(Date.parse(l.start_ts)),l.lat!=null?{fly:[l.lat,l.lon,l.vehicle_id+" \u00B7 idled "+SDmin(l.minutes)]}:null)});
+  /* dump trucks past the idle rule, and who was told */
+  (e.sdAlerts||[]).forEach(function(a){var ts=Date.parse(a.alerted_at||a.started_at);push(ts,"DUMP",_.red,"Dump "+(a.unit||"?")+(a.driver?" \u00B7 "+z(a.driver):"")+" \u00B7 idle "+SDmin(a.minutes)+(a.place?" at "+a.place:"")+(a.push_ok===!1?" \u00B7 push failed":a.pushed_to&&a.pushed_to.length?" \u00B7 alert \u2192 "+a.pushed_to.map(function(m){return String(m).split("@")[0]}).join(", "):" \u00B7 logged"),{room:"haul",side:"dump"})});
+  /* haul loads and unloads */
+  (e.haulStops||[]).forEach(function(s){if(!/^(supplier|dump|jobsite|fuel)$/.test(s.kind||""))return;var ts=Date.parse(s.arrive);var w={supplier:"loaded at",dump:"unloaded at",jobsite:"at jobsite",fuel:"fuel stop at"}[s.kind];
+    push(ts,"HAUL",s.kind==="supplier"?_.orange:s.kind==="dump"?_.violet:_.cyan,z(s.person)+" \u00B7 "+w+" "+(s.place||"an unnamed place")+(s.minutes?" \u00B7 "+SDmin(s.minutes):""),s.lat!=null?{fly:[s.lat,s.lon,z(s.person)]}:{room:"haul",side:"truckers"})});
+  /* deliveries */
+  (e.dtix||[]).forEach(function(k){if(!k.delivered_at)return;var ts=Date.parse(k.delivered_at);var o=k.po?byPo[String(k.po).toUpperCase()]:null;
+    push(ts,"DELIVERY",_.green,(k.vendor||"Delivery")+(k.load_cy?" \u00B7 "+k.load_cy+" cy":"")+(k.material?" \u00B7 "+k.material:"")+(k.jobsite?" \u00B7 "+k.jobsite:"")+(k.po?" \u00B7 PO "+k.po:"")+(k.ticket_no?" \u00B7 ticket "+k.ticket_no:""),o?{room:"orders",id:o.id}:null)});
+  /* trackers going dark: the moment of the last signal */
+  (e.fleet||[]).forEach(function(u){if(!(u.secs_since_seen>86400)||!u.last_seen)return;var ts=Date.parse(u.last_seen);push(ts,"FLEET",_.faint,(u.vehicle_id||u.name||"Unit")+(u.person||u.assigned_to?" \u00B7 "+LVwho(u):"")+" \u00B7 last signal \u00B7 dark since",{room:"fleet"})});
+  /* crews arriving and leaving, as this browser saw them */
+  LVlogLoad().forEach(function(l){push(l.ts,"CREW",l.in?_.green:_.cyan,l.text,l.lat!=null?{fly:[l.lat,l.lon,l.who]}:{board:"crews"})});
+  /* app errors */
+  (e.ev||[]).forEach(function(l){if(l.event!=="error")return;var m=l.meta||{};push(Date.parse(l.ts),"SYS",_.red,("App error \u00B7 "+(l.who||"unknown")+" \u00B7 "+[m.stage,m.status&&"HTTP "+m.status,m.err,m.msg,m.error].filter(Boolean).join(" \u00B7 ")).slice(0,140),null)});
+  out.sort(function(a,b){return b.ts-a.ts});return out.slice(0,200)}
+var LVLANES={all:null,orders:{ORDER:1},fuel:{FUEL:1,GPS:1,STOP:1},fleet:{IDLE:1,DUMP:1,HAUL:1,FLEET:1},crews:{CREW:1}};
+/* ===== LIVE · the landing page =================================================
    One question, answered at a glance: are we in business right now, and what is
    waiting on a decision? Every number is a question, every tile is an answer and
    every click is an action — open the order, fly the map to the truck, call the
@@ -247,6 +311,7 @@ function LVmodel(e,t){
     var rank={dark:0,yard:1,idle:2,parked:3,moving:4,site:5,none:6}[k];
     return{n:r.n,crew:r.crew,project:r.project,loc:r.loc,planned:r.planned,u:u,st:st,k:k,c:c,txt:txt,ex:ex,rank:rank,phone:phoneOf(r.n),lat:u&&u.last_lat,lon:u&&u.last_lon,ls:ls,dm:dm}});
   var crewOfUnit={};crews.forEach(function(x){if(x.u&&x.u.actsoft_id!=null)crewOfUnit[x.u.actsoft_id]=x});
+  try{LVwatchCrews(crews,e,t)}catch(x){}
   crews.sort(function(a,b){return a.rank-b.rank||a.n.localeCompare(b.n)});
   var cc={total:crews.length,site:0,moving:0,yard:0,idle:0,parked:0,dark:0,none:0};crews.forEach(function(x){cc[x.k]++});
   var sups=ppl.filter(function(p){return p.active&&p.role==="SUPERVISOR"&&!(p.same_as&&byName[p.same_as])}).map(function(p){var u=unitOf(p.name),st=u?LVst(u,t):null,where=u?SDplace(u,e):"",sp=u?LVspot(u,e):null;
@@ -294,12 +359,17 @@ function LVrow(p){var acts=(p.actions||[]).filter(Boolean);return PJh("div",{cla
     acts.length?PJh("div",{className:"lv-rc"},acts):null))}
 function Rm({d:e,now:t,go:n,mapNode:r,mapGo:fly}){
   var m=(0,M.useMemo)(function(){return LVmodel(e,t)},[e,t]);
-  var feed=(0,M.useMemo)(function(){return Pm(e)},[e]);
+  var feed=(0,M.useMemo)(function(){return Pm(e,t)},[e,t]);
+  var ls=(0,M.useState)(function(){try{return localStorage.getItem("muniz_live_lane")||"all"}catch(x){return"all"}}),lane=ls[0],setLane0=ls[1];
+  var setLane=function(v){try{localStorage.setItem("muniz_live_lane",v)}catch(x){}setLane0(v)};
+  var shown=(0,M.useMemo)(function(){var L=LVLANES[lane];return L?feed.filter(function(k){return L[k.kind]}):feed},[feed,lane]);
+  var quiet=feed.length&&t-feed[0].ts>36e5?"Quiet since "+Fd(feed[0].ts)+" \u00B7 "+Ze((t-feed[0].ts)/1e3)+" \u00B7 listening on every lane":null;
   var bs=(0,M.useState)(function(){try{var v=localStorage.getItem("muniz_live_board");return v===""?null:(v||"crews")}catch(x){return"crews"}}),board=bs[0],setBoard0=bs[1];
   var setBoard=function(v){try{localStorage.setItem("muniz_live_board",v||"")}catch(x){}setBoard0(v)};
   var open=function(v){setBoard(v);setTimeout(function(){try{var el=document.querySelector(".lv-map");el&&el.scrollIntoView({behavior:"smooth",block:"nearest"})}catch(x){}},30)};
-  var goFuel=function(id,view){try{window.__mzFuelFocus={id:id||null,view:view||null,at:Date.now()}}catch(x){}n("fuel",id||null)};
-  var goDump=function(){try{localStorage.setItem("muniz_haul_side","dump")}catch(x){}n("haul")};
+  var goFuel=function(id,view){try{window.__mzFuelFocus={id:id||null,view:view||null}}catch(x){}n("fuel",id||null)};
+  var goHaul=function(side){try{localStorage.setItem("muniz_haul_side",side||"dump")}catch(x){}n("haul")},goDump=function(){goHaul("dump")};
+  var feedGo=function(g){if(!g)return;if(g.fly)return flyTo(g.fly[0],g.fly[1],g.fly[2]);if(g.board)return open(g.board);if(g.room==="fuel")return goFuel(g.id||null,g.view||null);if(g.room==="haul")return goHaul(g.side);n(g.room,g.id||null)};
   var flyTo=function(lat,lon,label){if(lat==null||lon==null||typeof fly!=="function")return;fly(lat,lon,label)};
   var fitAll=function(){try{var mp=window.__mzMap;mp&&mp._mzPts&&mp._mzPts.length&&mp.fitBounds(mp._mzPts,{padding:[24,24],maxZoom:12})}catch(x){}};
   var attGo=function(a){if(a.go){if(a.go.room==="fuel")return goFuel(a.go.id,"gps");if(a.go.room==="haul")return goDump();return n(a.go.room,a.go.id||null)}if(a.lat!=null){open(a.board||"idling");setTimeout(function(){flyTo(a.lat,a.lon,a.label||"")},80)}else if(a.board)open(a.board)};
@@ -359,9 +429,13 @@ function Rm({d:e,now:t,go:n,mapNode:r,mapGo:fly}){
                 onClick:x.u.last_lat!=null?function(){flyTo(x.u.last_lat,x.u.last_lon,x.who)}:null,actions:[mapBtn({lat:x.u.last_lat,lon:x.u.last_lon},x.who)].concat(ph(ph1,x.who)||[])})}))):null,
           r)),
       PJh(G,{title:"SIGNAL FEED",flush:!0,right:PJh("span",{className:"legend"},PJh(ae,{c:_.green,pulse:!0})," live")},
-        PJh("div",{className:"feed lv-feed"},feed.length?null:PJh(ve,null,"Nothing yet. Every order, decision, fuel PO and station stop lands here the second it happens."),
-          feed.slice(0,60).map(function(k){return PJh("div",{key:(+k.ts||0)+"|"+k.kind+"|"+k.text+"|"+(k.ref&&k.ref.id||""),className:"sig",onClick:function(){if(!k.ref)return;if(k.ref.room==="fuel")return goFuel(k.ref.id,null);if(k.ref.room==="fleet"){var u=(e.fleet||[]).find(function(q){return q.actsoft_id===k.ref.id});if(u&&u.last_lat!=null)return flyTo(u.last_lat,u.last_lon,LVwho(u))}n(k.ref.room,k.ref.id)}},
-            PJh("span",{className:"st"},Fd(k.ts)),PJh(ae,{c:k.c}),PJh("span",{className:"sk"},k.kind),PJh("span",{className:"sx"},k.text))})))),
+        PJh("div",{className:"lv-lanes"},PJh("div",{className:"lv-tabsw"},[["all","All"],["orders","Orders"],["fuel","Fuel"],["fleet","Fleet"],["crews","Crews"]].map(function(q){return PJh("button",{key:q[0],className:"lv-tab"+(lane===q[0]?" on":""),onClick:function(){setLane(q[0])}},q[1])}))),
+        PJh("div",{className:"feed lv-feed"},
+          quiet?PJh("div",{className:"sig lv-quiet"},PJh("span",{className:"st"},Fd(t)),PJh(ae,{c:_.faint}),PJh("span",{className:"sk"},"QUIET"),PJh("span",{className:"sx"},quiet)):null,
+          shown.length?null:PJh(ve,null,feed.length?"Nothing on this lane in the last "+LVFEEDH+" hours.":"Nothing yet. Every order, decision, PO, fuel PO, station stop, idle session, dump alert, haul load, delivery and crew move lands here the moment it happens."),
+          (function(){var rows=[],prevDay=qt(t),today=qt(t),yday=qt(t-864e5);shown.slice(0,120).forEach(function(k,i){var dk=qt(k.ts);if(dk!==prevDay){prevDay=dk;rows.push(PJh("div",{key:"d"+dk,className:"lv-day"},dk===today?"Today":dk===yday?"Yesterday":new Date(k.ts).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})))}
+            rows.push(PJh("div",{key:(+k.ts||0)+"|"+k.kind+"|"+k.text,className:"sig"+(k.go?" lv-go":""),onClick:function(){feedGo(k.go)}},
+              PJh("span",{className:"st"},Fd(k.ts)),PJh(ae,{c:k.c}),PJh("span",{className:"sk"},k.kind),PJh("span",{className:"sx"},k.text)))});return rows})()))),
     PJh("div",{className:"g3"},
       PJh(G,{title:"DECISIONS OUTSTANDING",right:PJh("span",{className:"dim"},"oldest first")},
         !m.P.length&&!m.R.length?PJh(ve,{ok:!0},"Queue clear. Nothing is waiting on anyone."):null,
@@ -761,7 +835,7 @@ Ev=async vid=>{let v=(e.veh||[]).find(x=>x.id===vid);if(!v){MZtoast(`Unit ${vid}
   try{let r=await Gi("office_edit_vehicle",{p_id:v.id,p_changes:ch,p_reason:f.reason},l.access_token)||{};Object.assign(v,r.row||{});Fs(x=>x?{...x}:x);
     MZtoast(`${v.id} saved \xB7 ${(r.changed||[]).join(" \xB7 ")||"no change"}`+((r.warnings||[]).length?` \xB7 ${r.warnings.join(" \xB7 ")}`:""),"ok",7000);o()}
   catch(x){let Q=String(x.message||x);try{Q=JSON.parse(Q).message||Q}catch{}MZtoast(Q.slice(0,220),"err")}},c=async(m,L)=>{if(m.statement)return;let k=String(m.id).replace(/^t/,"");if((await MZconfirm(`${L?"Mark as TEST":"Count as real"} \xB7 ${m.po} \xB7 ${z(m.who)}?
-${L?"It stops counting toward any total, flag, or the truck's odometer check.":""}`))){u(m.id);try{await Eo(`fuel_pos?id=eq.${k}`,{is_practice:L,notes:L?((m.notes||"")+" \xB7 TEST from Ops").trim():m.notes||null},l.access_token),Fs(null),o()}catch(v){MZtoast(String(v.message||v).slice(0,200),"err")}finally{u("")}}},[p,w]=(0,M.useState)(7),[S,y]=(0,M.useState)("pos"),__lvf=(0,M.useEffect)(()=>{/* v199 · a hint left by the Live page: open this view / this PO */try{let f=window.__mzFuelFocus;if(!f)return;if(f.at&&Date.now()-f.at>6e4){window.__mzFuelFocus=null;return}if(f.view)y(f.view);if(f.id){let mm=(e.fuel||[]).find(x=>String(x.id)===String(f.id));if(!mm)return;Fs(mm)}window.__mzFuelFocus=null}catch(x){window.__mzFuelFocus=null}},[e.fuel]),E=Object.fromEntries((e.fuelGps||[]).map(m=>[m.id,m])),h=e.veh||[],O=e.tickets||[],D=(0,M.useMemo)(()=>[...new Set(O.map(m=>m.ticket_date.slice(0,7)))].sort().reverse(),[O]),a=typeof p=="string",f=(0,M.useMemo)(()=>Object.fromEntries(h.filter(m=>m.plate).map(m=>[m.plate,m])),[h]),d=m=>{let L=f[m.plate];return{id:"t"+m.id,po:m.po_raw||"\u2014",ts:new Date(m.ticket_date+"T12:00:00").getTime(),who:m.creator||"(no PO owner)",vehicle_id:L?.id||null,vehicle_desc:L?.descr||m.plate||"",plate:m.plate,comb:/DIESEL/.test(m.fuel_type||"")?"DIESEL":"GASOLINA",reading:null,jobsite:m.project||m.job_hand||"",station:m.station==="LEOS"?"LEO'S":m.station==="TEXCON"?"TEX-CON":m.station,gallons:m.gallons,amount:m.amount,flags:m.flags||[],statement:!0}},N=(0,M.useMemo)(()=>{if(a)return O.filter(T=>T.ticket_date.slice(0,7)===p).map(d);let m=(e.fuel||[]).filter(T=>p===0||T.ts>=t-p*864e5).map(T=>({...T})),L=Object.fromEntries(m.map(T=>[String(T.po).toUpperCase(),T])),k=[];O.filter(T=>p===0||new Date(T.ticket_date+"T12:00:00").getTime()>=t-p*864e5).forEach(T=>{let F=T.po_raw&&L[String(T.po_raw).toUpperCase()];F?(F.gallons=(Number(F.gallons)||0)+(Number(T.gallons)||0)||F.gallons,F.amount=(Number(F.amount)||0)+(Number(T.amount)||0)||F.amount,F.plate=F.plate||T.plate,F.reconciled=!0,T.fuel_type&&F.comb&&/DIESEL/.test(T.fuel_type||"")!==(F.comb==="DIESEL")&&(T.gallons||0)>12&&(F.flags=[...F.flags||[],`Statement says ${T.fuel_type}, PO says ${F.comb}`])):k.push(d(T))});let v=(e.fuelTest||[]).filter(T=>p===0||new Date(T.created_at).getTime()>=t-p*864e5).map(T=>({id:T.id,po:T.po,ts:new Date(T.created_at).getTime(),who:T.who,role:T.role,vehicle_id:T.vehicle_id,vehicle_desc:T.vehicle_desc,plate:T.plate,comb:T.comb,reading:T.reading,jobsite:T.jobsite,station:T.station,gallons:T.gallons,amount:T.amount,flags:[],is_practice:!0,notes:T.notes}));return[...m,...k,...a?[]:v].sort((T,F)=>F.ts-T.ts)},[e.fuel,e.fuelTest,O,p,t,f,a]),Re=N.filter(m=>!m.is_practice),TE=N.filter(m=>m.is_practice),
+${L?"It stops counting toward any total, flag, or the truck's odometer check.":""}`))){u(m.id);try{await Eo(`fuel_pos?id=eq.${k}`,{is_practice:L,notes:L?((m.notes||"")+" \xB7 TEST from Ops").trim():m.notes||null},l.access_token),Fs(null),o()}catch(v){MZtoast(String(v.message||v).slice(0,200),"err")}finally{u("")}}},[p,w]=(0,M.useState)(7),[S,y]=(0,M.useState)("pos"),__lvf=(0,M.useEffect)(()=>{/* v200 · a hint left by the Live page: open this view / this PO */try{let f=window.__mzFuelFocus;if(!f)return;if(f.at&&Date.now()-f.at>6e4){window.__mzFuelFocus=null;return}if(f.view)y(f.view);if(f.id){let mm=(e.fuel||[]).find(x=>String(x.id)===String(f.id));if(!mm)return;Fs(mm)}window.__mzFuelFocus=null}catch(x){window.__mzFuelFocus=null}},[e.fuel]),E=Object.fromEntries((e.fuelGps||[]).map(m=>[m.id,m])),h=e.veh||[],O=e.tickets||[],D=(0,M.useMemo)(()=>[...new Set(O.map(m=>m.ticket_date.slice(0,7)))].sort().reverse(),[O]),a=typeof p=="string",f=(0,M.useMemo)(()=>Object.fromEntries(h.filter(m=>m.plate).map(m=>[m.plate,m])),[h]),d=m=>{let L=f[m.plate];return{id:"t"+m.id,po:m.po_raw||"\u2014",ts:new Date(m.ticket_date+"T12:00:00").getTime(),who:m.creator||"(no PO owner)",vehicle_id:L?.id||null,vehicle_desc:L?.descr||m.plate||"",plate:m.plate,comb:/DIESEL/.test(m.fuel_type||"")?"DIESEL":"GASOLINA",reading:null,jobsite:m.project||m.job_hand||"",station:m.station==="LEOS"?"LEO'S":m.station==="TEXCON"?"TEX-CON":m.station,gallons:m.gallons,amount:m.amount,flags:m.flags||[],statement:!0}},N=(0,M.useMemo)(()=>{if(a)return O.filter(T=>T.ticket_date.slice(0,7)===p).map(d);let m=(e.fuel||[]).filter(T=>p===0||T.ts>=t-p*864e5).map(T=>({...T})),L=Object.fromEntries(m.map(T=>[String(T.po).toUpperCase(),T])),k=[];O.filter(T=>p===0||new Date(T.ticket_date+"T12:00:00").getTime()>=t-p*864e5).forEach(T=>{let F=T.po_raw&&L[String(T.po_raw).toUpperCase()];F?(F.gallons=(Number(F.gallons)||0)+(Number(T.gallons)||0)||F.gallons,F.amount=(Number(F.amount)||0)+(Number(T.amount)||0)||F.amount,F.plate=F.plate||T.plate,F.reconciled=!0,T.fuel_type&&F.comb&&/DIESEL/.test(T.fuel_type||"")!==(F.comb==="DIESEL")&&(T.gallons||0)>12&&(F.flags=[...F.flags||[],`Statement says ${T.fuel_type}, PO says ${F.comb}`])):k.push(d(T))});let v=(e.fuelTest||[]).filter(T=>p===0||new Date(T.created_at).getTime()>=t-p*864e5).map(T=>({id:T.id,po:T.po,ts:new Date(T.created_at).getTime(),who:T.who,role:T.role,vehicle_id:T.vehicle_id,vehicle_desc:T.vehicle_desc,plate:T.plate,comb:T.comb,reading:T.reading,jobsite:T.jobsite,station:T.station,gallons:T.gallons,amount:T.amount,flags:[],is_practice:!0,notes:T.notes}));return[...m,...k,...a?[]:v].sort((T,F)=>F.ts-T.ts)},[e.fuel,e.fuelTest,O,p,t,f,a]),Re=N.filter(m=>!m.is_practice),TE=N.filter(m=>m.is_practice),
 /* ===== ODÓMETRO vs GPS =====
    Para cada camioneta: dos cargas seguidas con lectura = un tramo.
    Odómetro = lo que el hombre escribió. GPS = las millas que Actsoft
@@ -1028,7 +1102,7 @@ function PJmodel(e,pm,t){
   /* feed */
   var byId={};ords.forEach(function(o){byId[o.id]=o});var feed=[];
   (e.oev||[]).forEach(function(ev){var o=byId[ev.order_id];if(!o)return;var ts=Date.parse(ev.ts);var map={SOLICITADO:["order",_.amber,PJfirst(o.foreman)+" requested "+(o.requested_lines||"")+" item"+(o.requested_lines===1?"":"s")+" · "+o.provider+" · "+H(o.est_total)],
-    APROBADO:["ok",_.cyan,(ev.actor==="REGLAS"?"Rules":z(ev.actor))+" approved "+o.req_no+" · "+PJfirst(o.foreman)],TICKET:["po",_.green,"PO "+((ev.meta&&ev.meta.po)||o.po)+" issued · "+o.req_no+" · "+PJfirst(o.foreman)],
+    APROBADO:["ok",_.cyan,(ev.actor==="REGLAS"?"Rules":z(ev.actor))+" approved "+o.req_no+" · "+PJfirst(o.foreman)],TICKET:["po",_.green,"PO "+((ev.meta&&ev.meta.po)||o.po)+" issued · "+o.req_no+" · "+PJfirst(o.foreman)],PO_AUTO:["po",_.green,"PO "+((ev.meta&&ev.meta.po)||o.po)+" issued · "+o.req_no+" · "+PJfirst(o.foreman)],CONFIRMADO:["ok",_.cyan,PJfirst(o.foreman)+" confirmed "+o.req_no+" by text"],
     RECHAZADO:["x",_.red,z(ev.actor)+" rejected "+o.req_no],ESCALADO:["x",_.red,o.req_no+" escalated · no decision yet"]}[ev.stage];if(map)feed.push({ts:ts,c:map[1],t:map[2],id:o.id})});
   fuelT.forEach(function(f){feed.push({ts:f.ts,c:_.orange,t:"Fuel PO "+f.po+" · "+PJfirst(f.who)+" · "+(f.station||"")+(f.jobsite?" · "+f.jobsite:"")})});
   bills.forEach(function(v){feed.push({ts:PJts(v.inv_date),c:_.violet,t:v.vendor+" invoice "+v.invoice+" · "+H(num(v))+(v.foreman?" · "+PJfirst(v.foreman):"")})});
