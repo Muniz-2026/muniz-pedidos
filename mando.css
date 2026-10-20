@@ -1502,11 +1502,11 @@ html[data-theme] .onote{display:grid;gap:5px;padding:10px 13px;border:1px solid 
 html[data-theme] .onote-m{display:flex;align-items:center;gap:8px;font:500 12px/1.3 var(--sans);color:var(--dim)}
 html[data-theme] .onote-m b{font-weight:600;color:var(--ink)}
 html[data-theme] .onote-b{font:13.5px/1.45 var(--sans);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
-html[data-theme] :is(.onote-x,.fx-x){margin-left:auto;font:500 11px/1 var(--sans);letter-spacing:0;padding:5px 9px;border-radius:6px;background:var(--btn);border:1px solid var(--mini-line);color:var(--ink2);cursor:pointer;transition:background-color .12s,border-color .12s,color .12s}
+html[data-theme] :is(.onote-x,.fx-x,.vr-x){margin-left:auto;font:500 11px/1 var(--sans);letter-spacing:0;padding:5px 9px;border-radius:6px;background:var(--btn);border:1px solid var(--mini-line);color:var(--ink2);cursor:pointer;transition:background-color .12s,border-color .12s,color .12s}
 html[data-theme] .dim .onote-x{margin-left:4px}
-html[data-theme] :is(.onote-x,.fx-x):hover{background:var(--btn-hover);border-color:var(--btn-line-hover);color:var(--ink)}
-html[data-theme] :is(.onote-x,.fx-x):focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-html[data-theme] :is(.onote-x,.fx-x):disabled{opacity:.4;cursor:default}
+html[data-theme] :is(.onote-x,.fx-x,.vr-x):hover{background:var(--btn-hover);border-color:var(--btn-line-hover);color:var(--ink)}
+html[data-theme] :is(.onote-x,.fx-x,.vr-x):focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+html[data-theme] :is(.onote-x,.fx-x,.vr-x):disabled{opacity:.4;cursor:default}
 html[data-theme] .onotes-add{display:flex;gap:8px;align-items:flex-end}
 html[data-theme] .onotes-add textarea{flex:1;min-width:0;min-height:40px;resize:vertical;font:13.5px/1.4 var(--sans)}
 html[data-theme] .onotes-add .btn{flex:0 0 auto}
@@ -1524,3 +1524,8 @@ html[data-theme] .fx-num{font:500 12px/1.2 var(--mono);color:var(--ink2);white-s
 html[data-theme] .tbl td.fx-odo{white-space:nowrap;min-width:150px}
 html[data-theme] .tbl td.fx-odo b{font-weight:600;color:var(--ink)}
 @media (max-width:640px){html[data-theme] .fx-hide-sm{display:none}html[data-theme] .fx-id{min-width:70px}}
+
+/* ---------- sidebar · version note (v204) ---------- */
+html[data-theme] .mz-ver{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font:500 11.5px/1.3 var(--sans);color:var(--faint)}
+html[data-theme] .mz-ver .amber{color:var(--amber);font-weight:600}
+html[data-theme] .mz-ver .vr-x{margin-left:0}
