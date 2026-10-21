@@ -1,5 +1,8 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.10
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.11
+   v2.11: COMBUSTIBLE de la oficina: PARA MÍ va arriba, grande, con tu nombre (antes era un renglón gris al
+          final de la lista y Tito no lo encontraba). La gente de oficina sale en la lista (Claudia, Lupe…):
+          la oficina también carga gasolina (Tito, Oct 20).
    v2.10: al escoger PARA QUIÉN, el app ya trae la franja PARA en el primer cuadro (antes llegaba 1-2 cuadros tarde).
    v2.9: PEDIR PARA vive dentro del app (app.js 7.8). Se quitaron la pastilla flotante y el reloj de 0.7 s que
          cambiaba el texto del botón, tocaba OFICINA y apretaba los botones del app por control remoto.
@@ -219,6 +222,7 @@
     (Array.isArray(c.GERENTES) ? c.GERENTES : Object.keys(c.GERENTES || {})).forEach(function (n) { add(n, "GERENTE"); });
     (F.USUARIOS_EXTRA || []).forEach(function (n) { add(n, "PERSONAL"); });
     (c.PERSONAL || []).forEach(function (n) { add(n, "PERSONAL"); });
+    Object.keys(c.OFICINA || {}).forEach(function (n) { add(n, "OFICINA"); });
     return out;
   }
   function loadFuelPeople(cb) {
@@ -236,18 +240,17 @@
       .catch(function () { finish(null); });
   }
   function fuelGroups(list, me) {
-    var c = window.MUNIZ_CONFIG || {}, F = c.COMBUSTIBLE || {}, office = {}, trucks = {}, seenN = {}, g = { cam: [], all: [] };
-    Object.keys(c.OFICINA || {}).forEach(function (k) { office[upk(k)] = 1; });
+    var c = window.MUNIZ_CONFIG || {}, F = c.COMBUSTIBLE || {}, trucks = {}, seenN = {}, g = { cam: [], all: [] };
     (F.CHOFERES_CAMION || []).forEach(function (k) { trucks[upk(k)] = 1; });
     list.forEach(function (x) {
-      var n = upk(x.name); if (!n || seenN[n] || office[n] || n === upk(me) || x.role === "OFICINA") return; seenN[n] = 1;
+      var n = upk(x.name); if (!n || seenN[n] || n === upk(me)) return; seenN[n] = 1;   // quien pide va arriba, en PARA MÍ
       (trucks[n] || x.role === "CHOFER" ? g.cam : g.all).push({ name: n, role: x.role || "" });
     });
     function byName(a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; }
     g.cam.sort(byName); g.all.sort(byName);
     return g;
   }
-  var ROLE_ES = { CHOFER: "chofer", MAYORDOMO: "mayordomo", SUPERVISOR: "supervisor", GERENTE: "gerente de proyecto", PERSONAL: "personal" };
+  var ROLE_ES = { CHOFER: "chofer", MAYORDOMO: "mayordomo", SUPERVISOR: "supervisor", GERENTE: "gerente de proyecto", PERSONAL: "personal", OFICINA: "oficina" };
   function showFuelPara(name) {
     if (!overlay) return;
     overlay.innerHTML =
@@ -257,9 +260,15 @@
           '<div><div style="font:900 22px/1.05 \'Archivo Black\',system-ui,sans-serif;color:#1C1C1E">\u00bfPARA QUI\u00c9N ES EL COMBUSTIBLE?</div>' +
           '<div style="font:700 12px/1.3 system-ui,sans-serif;color:#6E6E73;margin-top:3px">El PO sale a nombre de quien va a cargar, con su unidad. Queda anotado que lo pediste t\u00fa.</div></div>' +
         '</div>' +
-        '<input id="mz-fpara-q" type="search" placeholder="Buscar nombre\u2026" autocomplete="off" autocapitalize="characters" style="margin-top:14px;width:100%;box-sizing:border-box;min-height:50px;border-radius:12px;border:2px solid #C7C7CC;background:#fff;padding:0 14px;font:800 16px/1 system-ui,sans-serif;color:#1C1C1E">' +
+        '<button id="mz-fpara-me" style="margin-top:16px;width:100%;min-height:68px;border-radius:16px;border:0;background:#1E3A8A;color:#fff;padding:12px 16px;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer">' +
+          '<span style="font-size:30px;line-height:1;flex:none">\u26FD</span>' +
+          '<span style="flex:1;min-width:0"><span style="display:block;font:900 20px/1.05 \'Archivo Black\',system-ui,sans-serif;letter-spacing:-.01em">PARA M\u00cd</span>' +
+          '<span style="display:block;font:700 12px/1.25 system-ui,sans-serif;opacity:.85;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fEsc(name) + ' \u00b7 a mi nombre</span></span>' +
+          '<span style="font:900 22px/1 system-ui;flex:none">\u2192</span>' +
+        '</button>' +
+        '<div style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.1em;color:#6E6E73;margin:22px 2px 0">O A NOMBRE DE OTRA PERSONA</div>' +
+        '<input id="mz-fpara-q" type="search" placeholder="Buscar nombre\u2026" autocomplete="off" autocapitalize="characters" style="margin-top:8px;width:100%;box-sizing:border-box;min-height:50px;border-radius:12px;border:2px solid #C7C7CC;background:#fff;padding:0 14px;font:800 16px/1 system-ui,sans-serif;color:#1C1C1E">' +
         '<div id="mz-fpara-list"><div style="padding:28px 0;text-align:center;font:700 13px/1.3 system-ui,sans-serif;color:#6E6E73">Cargando nombres\u2026</div></div>' +
-        '<button id="mz-fpara-me" style="margin-top:22px;width:100%;min-height:48px;border-radius:12px;border:2px dashed #C7C7CC;background:transparent;font:800 13px/1 system-ui,sans-serif;color:#6E6E73">PARA M\u00cd (a mi nombre)</button>' +
       '</div>';
     var listEl = overlay.querySelector("#mz-fpara-list"), q = overlay.querySelector("#mz-fpara-q");
     overlay.querySelector("#mz-fpara-back").onclick = function () { hide(); show(name); };
