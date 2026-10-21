@@ -1363,6 +1363,15 @@ html[data-theme] .idle-tbl tr.hot td{background:color-mix(in srgb,#FF453A 7%,tra
 html[data-theme] .idle-tbl td.xs{white-space:normal;max-width:220px}
 html[data-theme] .idle-msg{width:100%;font:12.5px/1.45 var(--mono);resize:vertical;min-height:220px;margin-bottom:8px}
 html[data-theme] .idle-note{padding:0 4px}
+/* v206 · foremen idle 1 h+: one row per foreman, one column per hour; the darker, the more often */
+html[data-theme] .fi-kpis{padding:14px 14px 4px}
+html[data-theme] .fi-wrap{overflow-x:auto}
+html[data-theme] .fi-tbl td,html[data-theme] .fi-tbl th{white-space:nowrap}
+html[data-theme] .fi-tbl th.fi-hh{text-align:center;padding-left:2px;padding-right:2px;font-size:10px}
+html[data-theme] .fi-tbl td.fi-c{text-align:center;min-width:28px;padding-left:2px;padding-right:2px;font:600 11px/1 var(--mono);color:var(--ink);
+  background:color-mix(in srgb,var(--red) calc(var(--h,0)*58%),transparent);border-left:1px solid var(--hair)}
+html[data-theme] .fi-tbl td.xs{white-space:normal;max-width:200px}
+html[data-theme] .fi-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 18px;padding:10px 14px 12px;border-top:1px solid var(--hair)}
 html[data-theme] .segs.sm button{font-size:10.5px;padding:4px 8px}
 @media (max-width:720px){html[data-theme] .idle-kpis{grid-template-columns:1fr 1fr}}
 /* ===== vendor statements panel (Ledger) ===== */

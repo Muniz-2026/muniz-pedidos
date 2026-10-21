@@ -52,7 +52,7 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
 var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationVisits:["fuel"],stationStops:["situation"],fuelGps:["fuel","situation"],fuelTest:["fuel"],
-  haulStops:["haul","projects","situation"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects","situation"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel","situation"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],sdAlerts:["haul","situation"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],ctSugg:["catalog"]};
+  haulStops:["haul","projects","situation"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects","situation"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel","situation"],fiAlerts:["fuel"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],sdAlerts:["haul","situation"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],ctSugg:["catalog"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -88,6 +88,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["fleetioOdo",600e3,2,()=>He($e("fleetio_odometer_now?select=vehicle_id,fleetio_odometer,meter_unit,fleetio_date,gps_miles_since,expected_now",c))],
   ["fleetioLog",600e3,2,()=>He($e("fleetio_sync_log?select=at,ok,vehicles,meters,note&order=at.desc&limit=3",c))],
   ["sdAlerts",60e3,1,()=>He($e("dump_idle_alerts?select=*&order=started_at.desc&limit=300",c))],
+  ["fiAlerts",60e3,1,()=>He($e("foreman_idle_alerts?select=*&order=alerted_at.desc&limit=300",c))],
   ["stationStops",60e3,1,()=>He($e("gps_positions?select=actsoft_id,ts,geofence,status&status=eq.1&or=(geofence.ilike.*leo*,geofence.ilike.*tex*con*,geofence.ilike.*chevron*)&ts=gte."+encodeURIComponent(new Date(Date.now()-36*36e5).toISOString())+"&order=ts.desc&limit=400",c))],
   ["catalog",300e3,2,()=>He(go("catalog_items?select=*&order=vendor.asc,name_es.asc",c,6)).then(r=>{if(r.length){window.__MZCATROWS=r;try{if(!MZcat)MZcat={};r.forEach(function(i){if(i.code&&i.name_en)MZcat[String(i.code).toUpperCase()]=MZpretty(i.name_en)})}catch(x){}}return r})],
   ["ctStats",900e3,3,()=>He(go("catalog_stats?select=*",c,6))],
@@ -115,7 +116,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["stmts",600e3,3,()=>He($e("vendor_statements?select=*&order=statement_date.desc",c))],
   ["stmtChk",600e3,3,()=>He(go("vendor_statement_check?select=*",c,3))],
   ["idleDay",600e3,3,()=>He(go("idle_day?select=*&day=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10)+"&order=day.desc",c,8))],
-  ["idleSess",600e3,3,()=>He($e("idle_sessions?select=vehicle_id,start_ts,end_ts,minutes,geofence,lat,lon&kind=eq.IDLE&minutes=gte.45&start_ts=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10)+"&order=start_ts.desc&limit=1500",c))],
+  ["idleSess",600e3,3,()=>He(go("idle_sessions?select=vehicle_id,start_ts,end_ts,minutes,geofence,lat,lon&kind=eq.IDLE&minutes=gte.45&start_ts=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10)+"&order=start_ts.desc",c,5))],
   ["permits",600e3,3,()=>He($e("permits_status?select=*&order=crew_no.asc,kind.asc,created_at.desc",c))],
   ["removedPeople",600e3,3,()=>He($e("people_removed?select=id,name,outcome,removed_by,removed_at,refs&restored_at=is.null&order=removed_at.desc&limit=30",c))],
   ["crewDay",600e3,3,()=>He(go("crew_day_office?select=day,crew_no,name_raw,person,project,location&day=gte."+new Date(Date.now()-120*864e5).toISOString().slice(0,10)+"&order=day.desc",c,4))],
@@ -133,7 +134,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fleetio:d.fleetio||[],fleetioOdo:d.fleetioOdo||[],fleetioLog:d.fleetioLog||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],stationStops:d.stationStops||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
+   notif:d.notif||[],rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationVisits:d.stationVisits||[],stationStops:d.stationStops||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],fiAlerts:d.fiAlerts||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
  /* escalate_pending / verify_pending_fuel run on the server every 2 min (parche39); browsers no longer call them */
  const rpc=()=>{};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
@@ -589,6 +590,7 @@ let Rq=async()=>{let to=(Ra||"").trim();if(!to)return;if(!(await MZconfirm(`Reas
      (0,s.jsx)("button",{className:"btn sm",style:{marginLeft:0},onClick:()=>sJe(null),children:"CANCEL"})]})
   :(0,s.jsxs)("span",{style:{display:"inline-flex",gap:8,alignItems:"center",justifyContent:"flex-end",flexWrap:"wrap"},children:[
      (Js||"\u2014")+(Jv!==void 0?" (edited)":Js&&!e.jobsite_known?" (typed)":""),
+     Jv===void 0&&e.jobsite_given&&e.jobsite_given!==Js?(0,s.jsx)("span",{className:"dim xs",title:e.jobsite_source==="HOY"?"The exact spot in that day's crew email":"What was typed in the app",children:(e.jobsite_source==="HOY"?"crew email: ":"typed: ")+e.jobsite_given}):null,
      (0,s.jsx)("button",{className:"btn sm",style:{marginLeft:0,padding:"3px 8px",fontSize:10},onClick:()=>sJe(Js||""),title:"Change the jobsite on this order",children:"EDIT"})]})],["Rostered",e.jobsite_week||"\u2014"],["Supervisor",e.supervisor==="REGLAS (AUTO)"?"Rules (auto)":e.supervisor?z(e.supervisor)+(e.self_approved?" (self)":""):"\u2014"],["Driver",z(e.driver)||"\u2014"],["Catalog value",e.est_total?le(e.est_total):"\u2014 (unpriced)"],["Decided by",MZen(e.decided_by==="REGLAS"?"Rules engine":e.decided_by?`${z(e.decided_by)} via ${{TARJETA:"card",MANDO:"ops",REGLAS:"rules",APP:"app",OFICINA:"office",BANDEJA:"inbox",CORREO:"email",SUPERVISOR:"supervisor"}[e.decided_via]||(e.decided_via||"").toLowerCase()}`:"\u2014")],["Time to decision",e.secs_to_approve?Ze(e.secs_to_approve):"\u2014"]].map(([C,x])=>(0,s.jsxs)("div",{children:[(0,s.jsx)("span",{children:C}),(0,s.jsx)("b",{children:x})]},C))}),e.lane_note?(0,s.jsxs)("div",{className:"note",style:{borderColor:Ki[e.lane]},children:[(0,s.jsx)("span",{className:"dim xs",children:"Foreman saw: "}),MZen(e.lane_note)]}):null,(e.lane_reasons||[]).length?(0,s.jsx)("div",{className:"tags",children:e.lane_reasons.map((C,x)=>(0,s.jsx)(V,{c:C.level==="ROJO"?_.red:_.amber,dim:!0,children:C.text},x))}):null,e.justification?(0,s.jsxs)("div",{className:"note",style:{borderColor:_.cyan},children:[(0,s.jsx)("span",{className:"dim",children:"Foreman's justification: "}),"\u201C",e.justification,"\u201D"]}):null,(0,s.jsx)("div",{className:"tl",children:R.map(([C,x,A],U)=>(0,s.jsxs)("div",{children:[(0,s.jsx)("span",{className:"dim",children:C})," ",(0,s.jsx)("b",{children:Br(x)})," ",A?(0,s.jsx)("em",{children:z(A)}):null]},U))}),(0,s.jsx)("div",{className:"segs",children:D.map(C=>(0,s.jsx)("button",{className:a===C?"on":"",onClick:()=>f(C),children:{SOLICITADO:"REQUESTED",APROBADO:"APPROVED",TICKET:"TICKET"}[C]},C))}),(0,s.jsxs)("table",{className:Qaq?"tbl lines lines-adj":"tbl lines",children:[(0,s.jsx)(ht,{cols:Qaq?["#","ASKED","NEW QTY","ITEM","CODE","RULE","$ UNIT","$ NEW"]:["#","QTY","ITEM","CODE","RULE","$ UNIT","$ LINE"]}),(0,s.jsx)("tbody",{children:d.map(C=>{let x=C.removed||C.authorized===!1;return(0,s.jsxs)("tr",{className:x||Qaq&&Number(Qaq[C.pos]||0)<=0?"dead":"",children:[(0,s.jsx)("td",{className:"dim",children:C.pos}),(0,s.jsxs)("td",{className:"mono r",children:[x?C.qty_requested:C.qty,!x&&C.qty_requested!=null&&Number(C.qty_requested)!==Number(C.qty)?(0,s.jsxs)("em",{className:"dim",children:[" (",C.qty_requested,")"]}):null]}),
 Qaq?(0,s.jsx)("td",{className:"r",children:Qlk(C)?(0,s.jsx)(V,{c:_.red,dim:!0,children:"BLOCKED"}):(0,s.jsx)("input",{className:"inp mono",type:"number",min:0,step:"any",inputMode:"decimal","aria-label":"New quantity, line "+C.pos,
   value:Qaq[C.pos]==null?"":Qaq[C.pos],onChange:w=>{let v=w.target.value;sQaq(m=>({...m,[C.pos]:v}))},style:{width:78,height:28,textAlign:"right",padding:"0 6px"}})}):null,(0,s.jsxs)("td",{children:[MZitem(C.code,C.descr)||"\u2014",C.custom?(0,s.jsx)(V,{c:_.amber,dim:!0,children:"OFF-CATALOG"}):null,C.removed?(0,s.jsx)(V,{c:_.red,dim:!0,children:"CUT"}):null,C.authorized===!1?(0,s.jsx)(V,{c:_.red,dim:!0,children:"NOT AUTHORIZED"}):null]}),(0,s.jsx)("td",{className:"mono dim",children:C.code||"\u2014"}),(0,s.jsx)("td",{className:"mono dim",children:{RUTINA:"routine",RESTRINGIDO:"tool-bag",TRAILER_SI:"on trailer",FUERA_LISTA:"review",SIN_PRECIO:"unpriced"}[C.rule]||""}),(0,s.jsx)("td",{className:"mono r",children:C.unit_price!=null?le(C.unit_price):"\u2014"}),(0,s.jsx)("td",{className:"mono r",children:Qaq?C.unit_price!=null&&!Qlk(C)?le(Number(C.unit_price)*(Number(Qaq[C.pos])||0)):"\u2014":!x&&C.unit_price!=null?le(C.line_total):"\u2014"})]},C.pos)})})]}),Qaq?(0,s.jsxs)("div",{className:"note",style:{borderColor:_.amber,display:"flex",flexDirection:"column",gap:10},children:[
@@ -1713,7 +1715,7 @@ function SDroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
 /* #dump (or a room name) in the URL opens that place: the notification tap lands here */
 (function(){try{var ROOMS=["situation","projects","ledger","orders","catalog","fuel","fleet","haul","permits","people","rules"];
   var apply=function(){var h=String(location.hash||"").replace(/^#/,"").toLowerCase(),room=null,side=null;if(!h||h.indexOf("=")>=0)return;
-    if(h==="dump"||h==="dumps"||h==="haul-dump"){room="haul";side="dump"}else if(h==="truckers"||h==="haul-truckers"){room="haul";side="truckers"}else if(h==="live"||h==="feed")room="situation";else if(ROOMS.indexOf(h)>=0)room=h;
+    if(h==="dump"||h==="dumps"||h==="haul-dump"){room="haul";side="dump"}else if(h==="truckers"||h==="haul-truckers"){room="haul";side="truckers"}else if(h==="live"||h==="feed")room="situation";else if(h==="idle"||h==="foreman-idle"){room="fuel";try{window.__mzFuelFocus={view:"idle",at:Date.now()}}catch(x){}}else if(ROOMS.indexOf(h)>=0)room=h;
     if(!room)return;try{localStorage.setItem("muniz_ops_room",room);if(side)localStorage.setItem("muniz_haul_side",side)}catch(x){}
     try{history.replaceState(null,"",location.pathname+location.search)}catch(x){}
     setTimeout(function(){try{window.dispatchEvent(new CustomEvent("mz-go",{detail:room}));if(side)window.dispatchEvent(new CustomEvent("mz-haul-side",{detail:side}))}catch(x){}},0)};
@@ -2229,6 +2231,59 @@ function MZidleMsg(c){var top=c.trucks.slice(0,5),rng=c.R.label,d=function(n){re
     Math.round(c.morningPct)+"% del ralentí es entre 6 y 9 AM (unidades encendidas en la yarda o esperando en la obra).",
     "Los 5 con más ralentí:"].concat(top.map(function(u,i){return(i+1)+". "+u.who+" ("+u.id+") · "+h(u.idleH)+" h · "+h(u.perDay)+" h por día · "+Math.round(u.pct)+"% del motor · "+d(u.usd)+(u.prevPerDay!=null?(u.perDay>u.prevPerDay*1.1?" · subió":u.perDay<u.prevPerDay*.9?" · bajó":" · igual"):"")}));
   lines.push("Regla: si la unidad va a estar parada más de 5 minutos, se apaga. Diésel subió 50%.");return lines.join("\n")}
+/* ===== FOREMEN · IDLE 1 HOUR+ (v206) =========================================================
+   The foremen's trucks (Actsoft group "Foreman") that sat with the engine on and not moving for an hour
+   or more (rules · foreman_idle_alert_min, the same limit as the push from check_foreman_idle, parche169).
+   From idle_sessions (GPS, since Sep 8), so the pattern is there from day one: who, at what hour (one
+   row per foreman, one column per hour the stretch began), on which days, at the yard or on the job,
+   and against the period before. Under it, the pushes that went out (foreman_idle_alerts). ========== */
+function MZfidleDay(t){var d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function MZfidleCalc(e,R){var rules={};(e.rules||[]).forEach(function(r){rules[r.key]=r.value});
+  var thr=Math.max(15,parseInt(rules.foreman_idle_alert_min,10)||60),fm={};
+  (e.fleet||[]).forEach(function(g){if(g.group_name==="Foreman"&&g.vehicle_id)fm[g.vehicle_id]=MZidleTc(g.person||g.name||g.vehicle_id)});
+  var pf=new Date(R.from+"T12:00:00");pf.setDate(pf.getDate()-R.days);var PF=MZd(pf),loaded=MZd(new Date(Date.now()-60*864e5)),first=(e.idleDay||[]).reduce(function(a,r){return r.day&&(!a||r.day<a)?r.day:a},""),H0=5,H1=18,
+      col=function(h){return h<H0?H0:h>H1?H1:h};
+  var all=(e.idleSess||[]).filter(function(x){return fm[x.vehicle_id]&&+x.minutes>=thr}).map(function(x){var d=new Date(x.start_ts);
+      return{id:x.vehicle_id,who:fm[x.vehicle_id],day:MZfidleDay(x.start_ts),hr:d.getHours(),dow:d.getDay(),min:+x.minutes,yard:/yard|yarda|office|oficina/i.test(x.geofence||""),where:x.geofence||""}});
+  var cur=all.filter(function(x){return x.day>=R.from&&x.day<=R.to}),prv=all.filter(function(x){return x.day>=PF&&x.day<R.from}),by={},pv={};
+  cur.forEach(function(x){var u=by[x.id]||(by[x.id]={id:x.id,who:x.who,n:0,min:0,yard:0,days:{},hours:new Array(H1-H0+1).fill(0),places:{}});
+    u.n++;u.min+=x.min;if(x.yard)u.yard++;u.days[x.day]=1;u.hours[col(x.hr)-H0]++;if(x.where&&!x.yard)u.places[x.where]=(u.places[x.where]||0)+1});
+  prv.forEach(function(x){pv[x.id]=(pv[x.id]||0)+1});
+  var rows=Object.values(by).map(function(u){var top=Object.keys(u.places).sort(function(a,b){return u.places[b]-u.places[a]})[0]||"";
+      return Object.assign(u,{nd:Object.keys(u.days).length,peak:u.hours.indexOf(Math.max.apply(null,u.hours))+H0,top:top,prev:pv[u.id]||0})})
+    .sort(function(a,b){return b.n-a.n||b.min-a.min}),max=0,wk=new Array(7).fill(0),days={};
+  rows.forEach(function(u){u.hours.forEach(function(v){if(v>max)max=v})});cur.forEach(function(x){wk[x.dow]++;days[x.day]=1});
+  return{thr:thr,rows:rows,n:cur.length,h:cur.reduce(function(a,x){return a+x.min},0)/60,yard:cur.filter(function(x){return x.yard}).length,
+    early:cur.filter(function(x){return x.hr<7}).length,trucks:Object.keys(fm).length,max:max,H0:H0,H1:H1,wk:wk,nd:Object.keys(days).length,
+    prevN:prv.length,hasPrev:PF>=loaded&&!!first&&PF>=first}}
+function MZfidle(p){var c=MZfidleCalc(p.e,p.R),R=p.R,
+    hl=function(h){return h===0?"12a":h<12?h+"a":h===12?"12p":(h-12)+"p"},h1=function(n){return(Math.round(n*10)/10).toLocaleString("en-US",{minimumFractionDigits:1,maximumFractionDigits:1})},
+    lim=c.thr%60===0?(c.thr/60)+(c.thr===60?" HOUR":" HOURS"):c.thr+" MIN",
+    tr=function(now,before){if(!c.hasPrev)return PJh("span",{className:"dim xs"},"—");if(!before&&!now)return PJh("span",{className:"dim xs"},"—");
+      var r=before?now/before:9;
+      return PJh("span",{className:"xs",style:{color:r>1.1?_.red:r<.9?_.green:_.faint,fontWeight:600},title:"The "+R.days+" days before: "+before+" · these "+R.days+" days: "+now},before+" → "+now)};
+  var al=(p.e.fiAlerts||[]).filter(function(a){var d=MZfidleDay(a.alerted_at);return d>=R.from&&d<=R.to}),cols=[];for(var h=c.H0;h<=c.H1;h++)cols.push(h);
+  var top=c.rows[0];
+  return PJh(G,{title:"FOREMEN · IDLE "+lim+" OR MORE",right:PJh("span",{className:"dim"},c.trucks+" trucks in Actsoft's Foreman group · "+R.label),flush:!0},
+    c.n?PJh("div",{className:"fi"},
+      PJh("div",{className:"idle-kpis fi-kpis"},
+        PJh(K,{label:"TIMES IDLE "+lim+"+",value:String(c.n),sub:h1(c.n/(c.nd||1))+" a day · "+(c.hasPrev?c.prevN+" the "+R.days+" days before":"engine on, not moving"),tone:_.red}),
+        PJh(K,{label:"HOURS WITH THE ENGINE ON",value:h1(c.h),unit:"h",sub:"in those stretches · "+h1(c.h/(c.n||1))+" h each",tone:_.amber}),
+        PJh(K,{label:"AT THE YARD OR OFFICE",value:Math.round(c.yard/c.n*100)+"%",sub:c.yard+" of "+c.n+" · "+c.early+" began before 7 AM",tone:c.yard/c.n>.3?_.amber:_.green}),
+        top?PJh(K,{label:"MOST",value:top.who.split(" ").slice(0,2).join(" "),sub:top.n+" times on "+top.nd+" days · most at "+hl(top.peak),tone:_.red}):null),
+      PJh("div",{className:"fi-wrap"},PJh("table",{className:"tbl fi-tbl"},
+        PJh("thead",null,PJh("tr",null,PJh("th",null,"#"),PJh("th",null,"FOREMAN · TRUCK"),
+          cols.map(function(h,i){return PJh("th",{key:h,className:"fi-hh",title:"Stretches that began "+(i===0?"by ":i===cols.length-1?"from ":"at ")+hl(h)},(i===0?"≤":"")+hl(h)+(i===cols.length-1?"+":""))}),
+          ["TIMES","HOURS","DAYS","AT THE YARD","BEFORE → NOW"].map(function(x){return PJh("th",{key:x},x)}))),
+        PJh("tbody",null,c.rows.map(function(u,i){return PJh("tr",{key:u.id},
+          PJh("td",{className:"mono dim"},i+1),PJh("td",null,PJh("b",null,u.who),PJh("span",{className:"dim xs"}," · "+u.id)),
+          u.hours.map(function(v,j){return PJh("td",{key:j,className:"fi-c",style:v?{"--h":(.25+.75*v/(c.max||1)).toFixed(2)}:null,title:v?u.who+" · "+hl(cols[j])+" · "+v+(v===1?" time":" times"):null},v||"")}),
+          PJh("td",null,PJh("b",null,u.n)),PJh("td",null,h1(u.min/60)+" h"),PJh("td",null,u.nd),
+          PJh("td",null,u.yard?u.yard:PJh("span",{className:"dim"},"0")),PJh("td",null,tr(u.n,u.prev)))})))),
+      PJh("div",{className:"fi-foot dim xs"},
+        PJh("span",null,"By day: "+["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(l,i){return l+" "+c.wk[(i+1)%7]}).join(" · ")),
+        PJh("span",null,al.length?"Pushed to Enrique and Tito in this range: "+al.length+" · last "+new Date(al[0].alerted_at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+" · "+MZidleTc(al[0].driver||al[0].unit||"")+" "+Math.round(+al[0].minutes||0)+" min":"Pushes started Oct 21 (parche169) · one per stretch, to Enrique and Tito"))):
+    PJh(ve,{ok:!0},"No foreman's truck idled "+lim.toLowerCase()+" or more in this range."))}
 function MZidleTab(p){var e=p.e,R=MZidleRange(p.range,p.today),c=(0,M.useMemo)(function(){return MZidleCalc(e,R)},[e.idleDay,e.idleSess,e.veh,e.fleet,e.fuel,e.tickets,e.rules,R.from,R.to]),
   [view,setView]=(0,M.useState)("trucks"),[copied,setCopied]=(0,M.useState)(!1);
   var h1=function(n){return(Math.round(n*10)/10).toLocaleString("en-US",{minimumFractionDigits:1,maximumFractionDigits:1})},usd=function(n){return"$"+Math.round(n).toLocaleString("en-US")},
@@ -2244,6 +2299,7 @@ function MZidleTab(p){var e=p.e,R=MZidleRange(p.range,p.today),c=(0,M.useMemo)(f
       PJh(K,{label:"6–9 AM",value:Math.round(c.morningPct)+"%",sub:"of all idling · "+h1(c.morning)+" h · warm-ups and waiting",tone:c.morningPct>35?_.amber:_.green}),
       PJh(K,{label:"SESSIONS ≥ 45 MIN",value:String(c.longs),sub:"engine running, truck not moving",tone:c.longs>50?_.red:_.amber}),
       worst?PJh(K,{label:"MOST IDLE",value:worst.who.split(" ").slice(0,2).join(" "),sub:worst.id+" · "+h1(worst.perDay)+" h a day · "+usd(worst.usd),tone:_.red}):null),
+    PJh(MZfidle,{e:e,R:R}),
     PJh("div",{className:"g3"},
       PJh(G,{title:"IDLE BY HOUR OF DAY",className:"span2",right:PJh("span",{className:"dim"},"hours, trucks and pickups")},PJh(Ud,{data:c.hours.map(function(v,h){return{label:hl(h),v:Math.round(v/60)}}),color:_.red,h:110})),
       PJh(G,{title:"WHERE THEY IDLE"},PJh(No,{parts:[{label:"Yard",v:Math.round(c.yardH),c:_.amber},{label:"Jobsite",v:Math.round(c.jobH),c:_.accent||"#0A84FF"},{label:"Station",v:Math.round(c.staH),c:_.green},{label:"Elsewhere",v:Math.round(c.othH),c:_.faint}]}),
@@ -2774,7 +2830,10 @@ function MzNum(props){
 /* Server-side text (fuel flags, lane reasons, what the foreman saw) is written in Spanish by the
    field apps and the database. Command Center shows it in English: whole phrases first, then
    fragments, so messages with names/plates/amounts inside still come out right. */
-var MZdict=[  [/\+(\d+) art[i\u00ED]culo\(s\): Agregado por la oficina \(([^)]+)\) \u00B7 autoriz[o\u00F3] /g,"+$1 item(s): added by the office ($2) \u00B7 authorized by "],
+var MZdict=[
+  [/^Fuera de horario$/,"Outside work hours"],[/^Domingo$/,"Sunday"],[/^Agregado al pedido anterior$/,"Added to the previous order"],
+  [/^(\d+)\+ cargas en (\d+) d[ií]as$/,"$1+ fills in $2 days"],[/^Menos de (\d+) millas desde la [uú]ltima carga$/,"Under $1 miles since the last fill"],
+  [/^Mismo veh[ií]culo carg[oó] (\d+) veces en (\d+) h$/,"Same vehicle fueled $1 times in $2 h"],[/^Od[oó]metro\/horas retrocedieron$/,"Odometer/hours went backwards"],  [/\+(\d+) art[i\u00ED]culo\(s\): Agregado por la oficina \(([^)]+)\) \u00B7 autoriz[o\u00F3] /g,"+$1 item(s): added by the office ($2) \u00B7 authorized by "],
  [/Aprobado por la oficina \u00B7 autoriz[o\u00F3] /g,"Approved by the office \u00B7 authorized by "],
   [/^Unidad en (\S+) (\d+) min antes del PO/,"Unit at $1 $2 min before the PO"],
  [/^Unidad lleg[o\u00F3] a (\S+) ([\d.]+) (min|h) despu[e\u00E9]s del PO/,"Unit reached $1 $2 $3 after the PO"],
