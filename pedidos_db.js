@@ -1,5 +1,8 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v1.9
+   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.0
+   v2.0: para medir, sin cambiar nada en la pantalla: cada "open" lleva cómo está abierto el app (ícono de la
+         pantalla de inicio o Safari), si es iPhone o Android y si el teléfono podría recibir avisos del app
+         (en iPhone solo desde el ícono). Con eso se sabe a cuántos mayordomos les llegaría un aviso.
    v1.9: PEDIR PARA: el PO sale en el renglón de PEDIDO REGISTRADO (sin aviso encima que se quedaba 9 s en la
          siguiente pantalla); en el teléfono de la oficina el aviso del PO ya no dice "pasa a recoger".
    v1.8: PEDIR PARA (oficina a nombre de alguien): registerPara() registra directo desde el botón del app y cada
@@ -28,7 +31,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "1.9";
+  var VERSION = "2.0";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -235,10 +238,22 @@
   }
 
   /* ---------- telemetría ligera: quién está en el app (para "EN EL APP AHORA") ---------- */
+  // v2.0 · cómo está abierto el app en este teléfono (solo para medir)
+  function envMeta() {
+    var m = {};
+    try {
+      m.sa = !!(navigator.standalone === true || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches));
+      var ua = navigator.userAgent || "";
+      m.os = /iPhone|iPad|iPod/.test(ua) ? "ios" : /Android/.test(ua) ? "android" : "other";
+      m.push = ("Notification" in window && "PushManager" in window) ? String(Notification.permission) : "none";
+    } catch (e) { }
+    return m;
+  }
   function logEvent(event, extra) {
     try {
       var body = { device_id: deviceId(), app: "pedidos", event: event, who: whoAmI() || null };
       if (extra) for (var k in extra) body[k] = extra[k];
+      if (event === "open" && !body.meta) body.meta = envMeta();
       fetch(URL_ + "/rest/v1/events", { method: "POST", keepalive: true, headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(function () { });
     } catch (e) { }
   }
