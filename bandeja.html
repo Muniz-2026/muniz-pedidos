@@ -22,6 +22,7 @@ try{f=document.referrer?(new URL(document.referrer).pathname.split("/").pop()||"
 var sa=!!(navigator.standalone===true||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches));
 fetch(U+"/rest/v1/events",{method:"POST",keepalive:true,headers:{apikey:K,Authorization:"Bearer "+K,"Content-Type":"application/json"},body:JSON.stringify({device_id:d,app:"pedidos",event:"mis_open",who:w,meta:{from:f,sa:sa}})}).catch(function(){})};
 log();window.addEventListener("hashchange",log)}catch(e){}})();</script>
+<script src="./mz_track.js" data-page="bandeja"></script>
 <script src="./bandeja.js"></script>
 <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("./sw.js").catch(function(){});}</script>
 </body>
