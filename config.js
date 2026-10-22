@@ -309,8 +309,8 @@ window.MUNIZ_CONFIG = {
   /* OPCIONAL: telefonos de mayordomos (para avisos de RECHAZO directos) */
   /* ===== CHOFERES (recogen material para un mayordomo) =====
      El pedido se sigue registrando al MAYORDOMO; el chofer solo lo recoge.
-     Agrega o quita choferes aqui. Si se deja vacio {}, el boton
-     "SOY CHOFER" no aparece en el app. */
+     Desde v211 el boton "SOY CHOFER" ya no esta en la pantalla de inicio (nadie lo uso);
+     esta lista solo sale en la pantalla del PO de la oficina: "¿Quién lo recoge?". */
   CHOFERES: {
     "HECTOR SEGURA": "",
   },
