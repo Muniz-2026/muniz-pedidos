@@ -1905,6 +1905,21 @@ function ACfunnel(p){var s=p.steps,top=s.length?s[0][1]:0;
       PJh("span",{className:"r"},String(x[1])+(i&&top?" · "+pc+"%":"")))}))}
 function ACtbl(head,body){return PJh("div",{className:"ac-drawer"},PJh("table",{className:"tbl"},PJh("thead",null,PJh("tr",null,head.map(function(h,i){return PJh("th",{key:i,className:h.charAt(0)===">"?"r":""},h.replace(/^>/,""))}))),
   PJh("tbody",null,body.length?body:PJh("tr",null,PJh("td",{colSpan:head.length,className:"dim"},"Nothing yet in this period.")))))}
+/* v212 · which version each phone runs: the phones' "build" reports (updater.js 2.0, on every app open and on a return to
+   the app after 10+ min away, or when it finds it is behind), the newest per phone in the period. Behind = a lower version than the newest any phone runs or saw published.
+   A phone that used the app after the first report but sent none runs code from before v212 — behind too. */
+function ACver(ev,from){
+  var by={},act={},top=0,first=0;
+  (ev||[]).forEach(function(r){var t=Date.parse(r.ts);if(!r.device_id||!(t>=from))return;
+    if(r.event==="build"){var m=r.meta||{},b=+m.b||0,p=+m.pub||0;if(b>top)top=b;if(p>top)top=p;if(!first||t<first)first=t;
+      var x=by[r.device_id];if(!x||t>x.t)by[r.device_id]={t:t,b:b,who:r.who||(x&&x.who)||"",app:r.app,sa:!!m.sa};else if(!x.who&&r.who)x.who=r.who;return}
+    if(r.app!=="pedidos"&&r.app!=="fuel"&&r.app!=="bandeja")return;
+    var a=act[r.device_id];if(!a||t>a.t)act[r.device_id]={t:t,who:r.who||(a&&a.who)||"",app:r.app};else if(!a.who&&r.who)a.who=r.who});
+  var list=Object.keys(by).map(function(k){var x=by[k];return{dev:k,who:x.who,app:x.app,sa:x.sa,b:x.b,t:x.t,old:!!(x.b&&top&&x.b<top)}});
+  if(first)Object.keys(act).forEach(function(k){var a=act[k];if(!by[k]&&a.t>first)list.push({dev:k,who:a.who,app:a.app,sa:null,b:0,t:a.t,old:!0,pre:!0})});
+  list.sort(function(a,b){return(b.old?1:0)-(a.old?1:0)||a.b-b.b||b.t-a.t});
+  var bh=list.filter(function(x){return x.old});
+  return{top:top,list:list,n:list.length,cur:list.length-bh.length,behind:bh}}
 function ACroom({d:e,t:tok}){
   var A=(0,M.useState)(function(){try{return localStorage.getItem("muniz_ac_range")||"today"}catch(x){return"today"}}),range=A[0],setRange0=A[1],
       B0=(0,M.useState)(0),setVer=B0[1],C0=(0,M.useState)(""),dev=C0[0],setDev=C0[1],D1=(0,M.useState)("all"),fm=D1[0],setFm=D1[1],
@@ -1943,7 +1958,7 @@ function ACroom({d:e,t:tok}){
     var act=function(){if(k==="btn"){setBv("never");try{document.getElementById("ac-btns").scrollIntoView({behavior:"smooth",block:"start"})}catch(x){}return}setOpen(open===k?"":k)};
     return PJh("div",{key:k,role:"button",tabIndex:0,className:"ac-k"+(open===k?" on":""),title:k==="btn"?"Go to the list of buttons":"Show the list behind this number",onClick:act,
       onKeyDown:function(ev){if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();act()}}},PJh(K,{label:label,value:value,unit:unit,sub:sub,tone:tone}))};
-  var slow=c.fuel.steps.filter(function(s){return s[1]!=null}).sort(function(a,b){return b[1]-a[1]})[0];
+  var slow=c.fuel.steps.filter(function(s){return s[1]!=null}).sort(function(a,b){return b[1]-a[1]})[0],vr=ACver(e.ev,ACfrom(range));
   var tiles=[
     T("people","FOREMEN USING THE APP",dash(String(c.people.f)),none?"no phone has sent anything yet":"of "+c.people.of+" foremen · "+ACn(c.people.n,"person","people")+" in all · "+Math.round(c.people.perDay*10)/10+" a day",_.cyan),
     T("cat","BROWSED THE CATALOG",dash(String(c.cat.people)),none?"people who opened a store's catalog":ACn(c.cat.sessions,"visit","visits")+" · "+ACdur(c.cat.med)+" each (median) · "+ACn(c.cat.photos,"photo","photos")+" opened · "+ACn(c.cat.searches,"search","searches")+(c.cat.miss?", "+c.cat.miss+" found nothing":""),_.cyan),
@@ -1954,7 +1969,10 @@ function ACroom({d:e,t:tok}){
     T("yq","TAPPED SÍ, YA QUEDÓ",c.fuel.n?pc(c.fuel.yq,c.fuel.n):"—",c.fuel.n?c.fuel.yq+" of "+ACn(c.fuel.n,"fuel PO","fuel POs")+" · "+(c.fuel.n-c.fuel.yq)+" closed without it · "+c.fuel.back+" went back to the PO":"after the PO: “Did they write it down?” → SÍ, YA QUEDÓ",_.green),
     T("mandar","TAPPED SÍ, YA LO MANDÉ",c.mandar.n?pc(c.mandar.yes,c.mandar.n):"—",c.mandar.n?c.mandar.yes+" of "+ACn(c.mandar.n,"MANDAR tap","MANDAR taps")+" · "+ACdur(c.mandar.med)+" in Messages (median)":"after MANDAR opens Messages: did they come back and confirm",_.green),
     T("exit","WHERE THEY CLOSE THE APP",c.exit.n?ACscr(c.exit.list[0][0]):"—",c.exit.n?pc(c.exit.list[0][1],c.exit.n)+" of "+ACn(c.exit.n,"app close","app closes")+(c.exit.list[1]?" · then "+ACscr(c.exit.list[1][0])+" "+pc(c.exit.list[1][1],c.exit.n):""):"the screen they were on when they put the phone away",_.violet),
-    T("btn","BUTTONS NEVER TAPPED",c.btn.length?String(c.never):"—",c.btn.length?"of "+c.btn.length+" buttons on screen in this period · list below":"buttons that were on screen but nobody pressed",_.red)];
+    T("btn","BUTTONS NEVER TAPPED",c.btn.length?String(c.never):"—",c.btn.length?"of "+c.btn.length+" buttons on screen in this period · list below":"buttons that were on screen but nobody pressed",_.red),
+    T("ver","PHONES ON THE LATEST VERSION",vr.n?vr.cur+" of "+vr.n:"—",!vr.n?"each phone reports its version when it opens the app (front end v212 on)":
+      "v"+vr.top+(vr.behind.length?" · behind: "+vr.behind.slice(0,3).map(function(x){return ACwho(x.who)}).join(", ")+(vr.behind.length>3?" +"+(vr.behind.length-3):"")+(vr.behind.some(function(x){return x.pre})?" — older than v212: close the app and open it again":" — they update the next time they open the app"):" · every phone that opened the app is up to date"),
+      vr.behind.length?_.amber:_.green)];
   var wl=function(r){return PJh("td",null,PJh("button",{className:"ac-who",onClick:function(ev){ev.stopPropagation();setDev(r.device_id)}},ACwho(r.who||devName[r.device_id])))},drawer=null;
   if(open==="people")drawer=ACtbl(["Person","Role",">Times opened",">Days",">Last seen"],c.people.list.map(function(p){return PJh("tr",{key:p.who},PJh("td",null,z(p.who)),PJh("td",{className:"dim"},ACROLE[p.role]||"—"),PJh("td",{className:"r"},p.sess),PJh("td",{className:"r"},p.days),PJh("td",{className:"r dim"},ACago(nowT-p.last)))}));
   if(open==="cat")drawer=ACtbl(["Searched for",">Times"],c.cat.top.map(function(x){return PJh("tr",{key:x[0]},PJh("td",null,"“"+x[0]+"”"),PJh("td",{className:"r"},x[1]))}).concat(c.cat.missList.map(function(r){return PJh("tr",{key:"m"+r.id},PJh("td",null,"“"+((r.data||{}).v||"")+"” · nothing found · "+ACwho(r.who)),PJh("td",{className:"r dim"},ACwhen(r.at)))})));
@@ -1965,6 +1983,10 @@ function ACroom({d:e,t:tok}){
   if(open==="fuel"||open==="yq")drawer=ACtbl(["When","Person","PO",">Open → PO","After the PO"],c.fuel.steps.map(function(s){return PJh("tr",{key:s[0]},PJh("td",{className:"dim"},"each time"),PJh("td",null,"—"),PJh("td",null,ACscr(s[0])),PJh("td",{className:"r"},ACdur(s[1])),PJh("td",{className:"dim"},"median of "+s[2]))})
     .concat(c.fuel.list.map(function(o){var x=o.r.data||{};return PJh("tr",{key:o.r.id},PJh("td",{className:"dim"},ACwhen(o.r.at)),wl(o.r),PJh("td",null,x.po||""),PJh("td",{className:"r"},x.secs!=null?x.secs+" s":ACdur(x.ms)),PJh("td",null,o.res==="yes"?"SÍ, YA QUEDÓ":"closed without it"))})));
   if(open==="mandar")drawer=ACtbl(["When","Person",">Back and confirmed"],c.mandar.list.map(function(o){return PJh("tr",{key:o.r.id},PJh("td",{className:"dim"},ACwhen(o.r.at)),wl(o.r),PJh("td",{className:"r"},o.ms==null?"no":"after "+ACdur(o.ms)))}));
+  if(open==="ver")drawer=ACtbl(["Phone","App","Version","Opened from",">Last seen"],vr.list.map(function(x){return PJh("tr",{key:x.dev},
+    PJh("td",null,ACwho(x.who||devName[x.dev])),PJh("td",{className:"dim"},{pedidos:"Pedidos",fuel:"Fuel app",bandeja:"My orders"}[x.app]||x.app||"—"),
+    PJh("td",null,x.old?PJh("span",{className:"amber"},x.pre?"older than v212 · close the app and open it again":"v"+x.b+" · behind v"+vr.top):x.b?"v"+x.b:"unknown"),
+    PJh("td",{className:"dim"},x.sa==null?"—":x.sa?"home screen icon":"browser"),PJh("td",{className:"r dim"},ACago(nowT-x.t)))}));
   if(open==="exit")drawer=ACtbl(["Screen",">App closes",">Share"],c.exit.list.map(function(x){return PJh("tr",{key:x[0]},PJh("td",null,ACscr(x[0])),PJh("td",{className:"r"},x[1]),PJh("td",{className:"r"},pc(x[1],c.exit.n)))}));
   var btns=c.btn.filter(function(b){return bv==="all"||!b.taps}).slice(0,250),APP={pedidos:"Pedidos",fuel:"Fuel app",bandeja:"My orders"};
   var status=err?(noTable?"Waiting for parche171 · run it in Supabase, then the phones start sending":"Can't reach the database · "+err):

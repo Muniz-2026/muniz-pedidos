@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v211
+/* MUÑIZ Pedidos - service worker  ·  v212
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -11,9 +11,14 @@
        that hand-over and reloads the page - every open tab, every home-screen
        app - so a push reaches all phones the next time they look at it.
      · Product photos (remote) stay network-then-cache.
+     · sw.js itself is never answered from the phone's copy: updater.js reads it
+       to know the published version (v212).
+     · When code (html/js/css) has to come from the phone's copy, the page is
+       told (MUNIZ_STALE, and in its MUNIZ_VERSION answer): it may be running an
+       older version than the one published (v212).
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v211";
+const CACHE = "muniz-pedidos-v212";
 const SHELL = [
   "./","./index.html","./instalar.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./mando.html","./mando.js","./mando.css","./bandeja.html","./bandeja.js","./bandeja.css","./mando.webmanifest",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
@@ -78,8 +83,17 @@ self.addEventListener("message", (e) => {
   const d = e.data || {};
   if (d.type === "MUNIZ_ACK" && e.source) acked.add(e.source.id);
   if (d.type === "MUNIZ_SKIP_WAITING") self.skipWaiting();
-  if (d.type === "MUNIZ_VERSION" && e.source) e.source.postMessage({ type: "MUNIZ_SW_VERSION", cache: CACHE });
+  if (d.type === "MUNIZ_VERSION" && e.source) e.source.postMessage({ type: "MUNIZ_SW_VERSION", cache: CACHE, stale: stale.has(e.source.id) });
 });
+
+/* pages whose code came from the cache because the network failed or was too slow (kept 10 min) */
+const stale = new Map();
+function markStale(id) {
+  if (!id) return;
+  const now = Date.now(); stale.set(id, now);
+  stale.forEach((t, k) => { if (now - t > 600000) stale.delete(k); });
+  self.clients.get(id).then(c => { if (c) c.postMessage({ type: "MUNIZ_STALE", cache: CACHE }); }, () => { });
+}
 
 function withTimeout(p, ms) {
   return new Promise((res, rej) => { const t = setTimeout(() => rej(new Error("timeout")), ms); p.then(v => { clearTimeout(t); res(v); }, err => { clearTimeout(t); rej(err); }); });
@@ -89,6 +103,8 @@ self.addEventListener("fetch", (e) => {
   const req = e.request; if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin === location.origin) {
+    if (/\/sw\.js$/.test(url.pathname)) return;         // the version check (updater.js) always asks the server
+    const code = req.mode === "navigate" || /(\.(html?|js|css)|\/)$/.test(url.pathname), cid = e.resultingClientId || e.clientId;
     // app files: newest if there is signal, cached copy if not
     e.respondWith((async () => {
       const c = await caches.open(CACHE);
@@ -96,10 +112,10 @@ self.addEventListener("fetch", (e) => {
         const res = await withTimeout(fetch(new Request(req, { cache: "no-cache" })), NET_TIMEOUT_MS);
         if (res && res.status === 200) { c.put(req, res.clone()); return res; }
         if (res && res.status === 304) { const cached = await c.match(req); if (cached) return cached; }
-        const cached = await c.match(req); return cached || res;
+        const cached = await c.match(req); if (cached && code) markStale(cid); return cached || res;
       } catch (err) {
-        const cached = await c.match(req); if (cached) return cached;
-        if (req.mode === "navigate") { const home = await c.match("./index.html"); if (home) return home; }
+        const cached = await c.match(req); if (cached) { if (code) markStale(cid); return cached; }
+        if (req.mode === "navigate") { const home = await c.match("./index.html"); if (home) { markStale(cid); return home; } }
         return Response.error();
       }
     })());

@@ -1,5 +1,7 @@
 /* =====================================================================
-   MUÑIZ · ACTIVIDAD EN VIVO  ·  mz_track.js  ·  v1.0
+   MUÑIZ · ACTIVIDAD EN VIVO  ·  mz_track.js  ·  v1.1
+   v1.1 (22 oct 2026): MZT.screen() dice en qué pantalla está el app (solo lectura): updater.js 2.0 la usa para
+         recargar a una versión nueva solo en un momento seguro (nunca a la mitad de un pedido o de un PO).
    v1.0 (Oct 22, 2026): la oficina ve en el Command Center (sala ACTIVITY), mientras pasa, lo que hace cada
          teléfono: en qué pantalla está, qué va metiendo al carrito, qué busca, cada paso del PO de combustible
          y en qué pantalla cierra el app. Con eso se mide todo: cuántos usan el app, cuánto tardan del primer
@@ -24,7 +26,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: no hace nada
 
-  var VERSION = "1.0";
+  var VERSION = "1.1";
   var ME = document.currentScript, PAGE = (ME && ME.getAttribute("data-page")) || "pedidos";   // pedidos · fuel · bandeja
   var K_DEV = "muniz_device_id", K_PED = "muniz_pedido", K_Q = "muniz_mzt_q_" + PAGE, K_FIRST = "muniz_mzt_first", K_SEEN = "muniz_mzt_seen";
   var MAXQ = 400;
@@ -468,5 +470,6 @@
   add("open", meta(0), "");
   setTimeout(checkScreen, 700);
   setInterval(function () { try { if (document.hidden) return; checkScreen(); if (now() - liveAt > 60e3) soon(); } catch (e) { } }, 1500);
-  window.MZT = { v: VERSION, page: PAGE, sess: function () { return SESS; }, queued: function () { return Q.length; }, flush: function () { flush(true); } };
+  window.MZT = { v: VERSION, page: PAGE, sess: function () { return SESS; }, queued: function () { return Q.length; }, flush: function () { flush(true); },
+                 screen: function () { return where(); } };
 })();
