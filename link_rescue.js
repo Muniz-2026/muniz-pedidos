@@ -1,5 +1,7 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · LINKS QUE LLEGAN CORTADOS  ·  v1.0
+   MUÑIZ PEDIDOS · LINKS QUE LLEGAN CORTADOS  ·  v1.1
+   v1.1: busca el pedido por el nombre del mayordomo (parche172, p_by_name). Antes my_orders solo veía los pedidos
+         de este teléfono, y en el teléfono del supervisor nunca encontraba el pedido.
    ---------------------------------------------------------------------
    Un pedido largo hace un texto largo, y algunos teléfonos o compañías lo
    parten en pedazos: el link del pedido llega cortado. Antes el app no lo
@@ -101,7 +103,7 @@
     var done = false, t = setTimeout(function () { if (!done) { done = true; show(); } }, 9000);
     fetch(URL_ + "/rest/v1/rpc/my_orders", { method: "POST",
       headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_device: dev() || "link", p_name: f }) })
+      body: JSON.stringify({ p_device: dev() || "link", p_name: f, p_by_name: true }) })
       .then(function (r) { return r.ok ? r.json() : []; })
       .then(function (rows) {
         if (done) return;

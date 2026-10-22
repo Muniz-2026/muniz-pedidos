@@ -1,5 +1,9 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.0
+   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.1
+   v2.1: MIS PEDIDOS (el numerito) y el aviso del PO buscan también por el nombre (parche172): salen los pedidos que
+         la oficina hizo a tu nombre y los que mandaste antes de que el teléfono cambiara de número. El aviso
+         "ya lo tiene · pasa a recoger" solo sale para un PO de las últimas 12 horas (no uno de hace días que ya pasó).
+         La revisión de la cola sin señal (alreadyThere) sigue viendo solo los pedidos de este teléfono.
    v2.0: para medir, sin cambiar nada en la pantalla: cada "open" lleva cómo está abierto el app (ícono de la
          pantalla de inicio o Safari), si es iPhone o Android y si el teléfono podría recibir avisos del app
          (en iPhone solo desde el ícono). Con eso se sabe a cuántos mayordomos les llegaría un aviso.
@@ -31,7 +35,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "2.0";
+  var VERSION = "2.1";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -349,7 +353,7 @@
   // cuántos pedidos míos siguen esperando (para el numerito). Solo lectura, por teléfono.
   function refreshMine() {
     try {
-      fetch(URL_ + "/rest/v1/rpc/my_orders", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_device: deviceId(), p_name: whoAmI() || null }) })
+      fetch(URL_ + "/rest/v1/rpc/my_orders", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_device: deviceId(), p_name: whoAmI() || null, p_by_name: true }) })
         .then(function (r) { return r.ok ? r.json() : []; })
         .then(function (rows) {
           rows = rows || [];
@@ -364,8 +368,10 @@
               lsSet("muniz_db_lastpo", { po: String(top.po), req: top.req_no || "", prov: String(top.prov || top.provider || "").toUpperCase(), at: top.po_at || top.updated_at || top.created_at || new Date().toISOString(), name: whoAmI() || (top.foreman || "") });
               if (!seenPo[key]) { seenPo[key] = Date.now(); lsSet("muniz_db_po_seen", seenPo);
                 var pv = String(top.prov || top.provider || "ACE").toUpperCase(), me = whoAmI(), de = String(top.foreman || "").toUpperCase().trim();
+                // un teléfono que perdió su memoria ve otra vez sus pedidos por el nombre: un PO de hace días no se avisa como nuevo
+                var fresh = !top.po_at || Date.now() - new Date(top.po_at).getTime() < 12 * 3600e3;
                 // la pantalla PEDIDO REGISTRADO del app lo pone en su renglón: entonces no sale aviso encima
-                if (!note({ state: "po", req: String(top.req_no || ""), po: String(top.po), prov: pv })) {
+                if (fresh && !note({ state: "po", req: String(top.req_no || ""), po: String(top.po), prov: pv })) {
                   if (isOfficeName(me) && de && de !== me) toast("\u2713 PO " + top.po + " \u00b7 " + pv + " \u00b7 pedido de " + de, "green", 5000, "./bandeja.html#mis");   // la oficina pidió por él: no es "pasa a recoger"
                   else toast("\u2713 PO " + top.po + " \u00b7 " + pv + " ya lo tiene \u00b7 pasa a recoger", "green", 9000, "./bandeja.html#mis");
                 } }
