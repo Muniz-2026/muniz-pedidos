@@ -156,34 +156,36 @@ window.MUNIZ_CONFIG = {
       TEXCON: { nombre: "Tex-Con Oil",           corto: "TEX-CON", tel: "", color: "#1D4ED8" },
     },
 
-    /* OBRAS = LUGARES (del 6-Week Lookahead). Nunca el numero de contrato. */
+    /* OBRAS = LUGARES (del 6-Week Lookahead 10/16 y el SSPD 10/21, semanas del 19 oct al 23 nov). Nunca el
+       numero de contrato. Solo de respaldo sin señal: con señal el app usa la lista de la base de datos. */
     OBRAS: [
-      "St Johns Ave","Springdale Rd @ Lyons Rd","Middle Lake","Gonzales Ped Island","Mokan Trail",
-      "Violet Crown Trail","Violet Crown Circle C","North Lamar Blvd","Menchaca Rd","Banister Area",
-      "Rundberg Rd","Rundberg Rd @ Mearns Meadows","RBJ Health Center","CapMetro","Burnet Rd",
-      "Cameron Rd","Niels Thompson Dr @ Longhorn Blvd","Manor Rd","North Cross Dr","Mesa Dr",
-      "Duval Rd","Metro Center Dr","Pleasant Valley Ph1","E 12th St @ Chestnut Ave","CAUDI",
-      "West 12th St","Howard Ln","Radam Ln & 1st St","Middle Fiskville SUP","EM Franklin Ave",
+      "St Johns Ave","Burnet Rd","Springdale Rd @ Lyons Rd","Mokan Trail","N Lamar Blvd","Balcones Dr",
+      "Banister Area","Rutland Ped Islands","Rundberg Rd","Stonelake Area","RBJ Health Center","W Applegate Dr",
+      "W 12th St","Navasota St","Rundberg Rd @ Mearns Meadows","North Cross Dr","Cameron Rd",
+      "Niels Thompson Dr @ Longhorn Blvd","Mesa Dr","Reicher Hycreek Repair","Duval Rd","Switch Willow Area",
+      "Metro Center Dr","Pleasant Valley Ph1","E 12th St @ Chestnut Ave","CAUDI","E-Bikes","Middle Fiskville SUP",
+      "Howard Ln @ McCallen","Gonzales Ped Island","Mokan Springdale Crossing","Rutledge Spur SUP",
+      "Roundabout Rutland/Parkfield","Violet Crown Trail","EM Franklin",
       "Yarda Muñiz \u00b7 7907 S FM 973"
     ],
 
-    /* Donde esta cada cuadrilla ESTA SEMANA (del 6-Week Lookahead, semana del 7 sep).
-       Claudia lo actualiza cada lunes con el correo de ubicaciones. El app lo propone
-       primero; la persona lo confirma o cambia. Si cambia, queda marcado. */
+    /* Donde esta cada cuadrilla ESTA SEMANA: semana del 19 oct (6-Week Lookahead 10/16 y correo de
+       ubicaciones 10/21). Solo de respaldo sin señal: con señal el app usa el rol de la semana de la
+       base de datos, que el Command Center carga del 6-Week Lookahead. Ya no hay que cambiarlo cada lunes. */
     OBRA_SEMANA: {
-      "ENRIQUE ALVARADO": "St Johns Ave",           "DANIEL ORTEGA": "Springdale Rd @ Lyons Rd",
-      "RUBEN CANO": "Mokan Trail",                  "SERGIO NINO": "Metro Center Dr",
-      "JULIO MARTINEZ": "Mokan Trail",              /* cubriendo a Ruben Cano */
-      "ISIDRO SANCHEZ": "North Lamar Blvd",         "GERARDO SANCHEZ": "North Lamar Blvd",
+      "ENRIQUE ALVARADO": "St Johns Ave",           "DANIEL ORTEGA": "Burnet Rd",
+      "JULIO MARTINEZ": "Springdale Rd @ Lyons Rd", /* cuadrilla 3, cubriendo a Ruben Cano */
+      "SERGIO NINO": "Metro Center Dr",
+      "ISIDRO SANCHEZ": "N Lamar Blvd",             "GERARDO SANCHEZ": "Balcones Dr",
       "DIEGO VAZQUEZ": "Banister Area",             "FRANCISCO AGUIRRE": "Rundberg Rd",
-      "VICTOR SANCHEZ": "RBJ Health Center",        "JULIAN GONZALEZ": "CapMetro",
-      "GIOVANNI RODRIGUEZ": "Burnet Rd",            "OMAR ALFREDO HERNANDEZ": "Rundberg Rd @ Mearns Meadows",
-      "ISIDRO GARCIA": "Burnet Rd",                 "ALVARO AGUIRRE": "Cameron Rd",
-      "CARLOS DIAZ": "Niels Thompson Dr @ Longhorn Blvd", "PEDRO LIMON": "North Cross Dr",
-      "FRANCISCO BOCANEGRA": "Duval Rd",            "JUAN PEREZ": "Pleasant Valley Ph1",
-      "DAVID MOLINA": "E 12th St @ Chestnut Ave",   "JOSE ZAMARRIPA": "CAUDI",
-      "HERVEY QUINTERO": "West 12th St",            "LUPE JUAREZ": "Howard Ln",
-      "IVAN MUNIZ": "Middle Fiskville SUP"
+      "VICTOR SANCHEZ": "RBJ Health Center",        "JULIAN GONZALEZ": "W Applegate Dr",
+      "GIOVANNI RODRIGUEZ": "W 12th St",            "OMAR ALFREDO HERNANDEZ": "Rundberg Rd @ Mearns Meadows",
+      "ISIDRO GARCIA": "Burnet Rd",                 "RICARDO SANCHEZ": "Burnet Rd",
+      "ALVARO AGUIRRE": "Cameron Rd",               "CARLOS DIAZ": "Niels Thompson Dr @ Longhorn Blvd",
+      "PEDRO LIMON": "Mesa Dr",                     "FRANCISCO BOCANEGRA": "Duval Rd",
+      "JUAN PEREZ": "Pleasant Valley Ph1",          "DAVID MOLINA": "E 12th St @ Chestnut Ave",
+      "JOSE ZAMARRIPA": "CAUDI",                    "HERVEY QUINTERO": "E-Bikes",
+      "LUPE JUAREZ": "Mokan Trail",                 "IVAN MUNIZ": "Middle Fiskville SUP"
     },
 
     /* Gente que pide combustible y NO esta en la lista de mayordomos (del registro de POs). */
@@ -277,7 +279,7 @@ window.MUNIZ_CONFIG = {
     "LUPE JUAREZ":         "15124662909"
   },
 
-  /* Quien aprueba a quien - del 6-Week Lookahead 8/21/2026 */
+  /* Quien aprueba a quien - del 6-Week Lookahead 10/16/2026 */
   ASIGNACIONES: {
     "ALVARO AGUIRRE":        "TACHO HERNANDEZ",
     "FRANCISCO AGUIRRE":     "TACHO HERNANDEZ",
@@ -300,7 +302,8 @@ window.MUNIZ_CONFIG = {
     "RICARDO SANCHEZ":       "TACHO HERNANDEZ",
     "VICTOR SANCHEZ":        "JOSE LUIS ZAMARRIPA",
     "DIEGO VAZQUEZ":         "MARTIN GONZALEZ",
-    "JOSE ZAMARRIPA":        "MARTIN GONZALEZ"
+    "JOSE ZAMARRIPA":        "MARTIN GONZALEZ",
+    "IVAN MUNIZ":            "MARTIN GONZALEZ"
   },
 
   /* OPCIONAL: telefonos de mayordomos (para avisos de RECHAZO directos) */

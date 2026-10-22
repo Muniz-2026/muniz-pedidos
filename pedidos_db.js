@@ -1,5 +1,8 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.1
+   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.2
+   v2.2: PEDIR PARA ya no manda la obra de la lista fija de config.js (estaba en la semana del 7 sep): la pone el
+         servidor igual que en los pedidos del mayordomo — la del correo de ubicaciones de ese día, si no la del
+         rol de la semana.
    v2.1: MIS PEDIDOS (el numerito) y el aviso del PO buscan también por el nombre (parche172): salen los pedidos que
          la oficina hizo a tu nombre y los que mandaste antes de que el teléfono cambiara de número. El aviso
          "ya lo tiene · pasa a recoger" solo sale para un PO de las últimas 12 horas (no uno de hace días que ya pasó).
@@ -35,7 +38,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "2.1";
+  var VERSION = "2.2";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -71,11 +74,6 @@
     p = String(p || window.__ofPara || "").toUpperCase().trim();
     return p && p !== me ? p : "";
   }
-  function obraDe(n) {
-    try { var o = ((window.MUNIZ_CONFIG || {}).COMBUSTIBLE || {}).OBRA_SEMANA || {}, t = String(n || "").toUpperCase().trim();
-      for (var k in o) if (String(k).toUpperCase().trim() === t) return String(o[k] || ""); } catch (e) { }
-    return "";
-  }
 
   /* ---------- v1.8 · PEDIR PARA: el app registra directo y muestra el resultado en su pantalla ----------
      registerPara(href) toma el mismo link que antes abría Mensajes (mismo pedido, mismo código), lo pone a nombre
@@ -90,7 +88,7 @@
     var tok = sms.tok; tok.to = sms.to;
     tok.pb = whoAmI();                                    // quién lo pidió de verdad
     tok.f = para;                                         // de quién es el pedido
-    var obra = obraDe(para); tok.j = obra || null;        // su obra (si no, la decide el rol del servidor)
+    tok.j = null;                                         // su obra la pone el servidor: correo de ubicaciones del día, si no el rol
     var id = "SOLICITADO|" + para + "|" + (tok.ts || "") + "|" + (PROVS[tok.p] ? tok.p : "ACE");
     if (fromLink) toast("\u23f3 Registrando el pedido de " + para + "\u2026", "gray", 3000);
     enrich(tok).then(function (payload) { enqueue("SOLICITADO", payload, true, true); });

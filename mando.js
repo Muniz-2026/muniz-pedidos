@@ -1791,7 +1791,10 @@ function ACkind(r){var x=r.data||{};if(r.ev==="err"||r.ev==="fuel"&&x.k==="error
   if(/^fuel\//.test(r.screen||"")||r.ev==="fuel"||r.ev==="field"&&(x.f==="placa"||x.f==="odometro"))return"fuel";return"mat"}
 /* the answers, from the rows of the period */
 function ACcalc(rows,ppl){
-  var role={},nF=0;(ppl||[]).forEach(function(p){var n=String(p.name||"").toUpperCase().trim();role[n]=p.role||"";if(p.role==="MAYORDOMO"&&p.active!==!1)nF++});
+  /* one person in People under two names (same_as) counts once, as in the Projects room */
+  var role={},canon={},nm={},fSet={},nF=0;(ppl||[]).forEach(function(p){nm[String(p.name||"").toUpperCase().trim()]=1});
+  (ppl||[]).forEach(function(p){var n=String(p.name||"").toUpperCase().trim(),a=String(p.same_as||"").toUpperCase().trim();role[n]=p.role||"";canon[n]=a&&nm[a]?a:n;
+    if(p.role==="MAYORDOMO"&&p.active!==!1&&!fSet[canon[n]]){fSet[canon[n]]=1;nF++}});
   var isOff=function(w){return role[w]==="OFICINA"},S={},list=[],byDev={},days={},people={},phones={},opens=0,R={};
   rows.forEach(function(r){var w=String(r.who||"").toUpperCase().trim(),k=r.device_id+"|"+(r.sess||""),s=S[k],t=Date.parse(r.at),dy=ACday(t);
     if(!s){s=S[k]={k:k,dev:r.device_id,app:r.app,who:"",rows:[],t0:t,t1:t};list.push(s)}
@@ -1800,7 +1803,7 @@ function ACcalc(rows,ppl){
   var plist=Object.keys(people).map(function(w){var P=people[w];return{who:w,role:role[w]||"",days:Object.keys(P.days).length,sess:Object.keys(P.sess).length,last:P.last}})
     .sort(function(a,b){return b.sess-a.sess||b.last-a.last}),nd=Object.keys(days).length;
   R.n=rows.length;R.sessions=list.length;R.phones=Object.keys(phones).length;R.opens=opens;
-  R.people={n:plist.length,f:plist.filter(function(p){return p.role==="MAYORDOMO"}).length,of:nF,perDay:nd?Object.keys(days).reduce(function(a,d){return a+Object.keys(days[d]).length},0)/nd:0,list:plist};
+  R.people={n:plist.length,f:Object.keys(plist.reduce(function(o,p){if(p.role==="MAYORDOMO")o[canon[p.who]||p.who]=1;return o},{})).length,of:nF,perDay:nd?Object.keys(days).reduce(function(a,d){return a+Object.keys(days[d]).length},0)/nd:0,list:plist};
   // time on each screen per app open (time in the background left out), and the screens it reached
   list.forEach(function(s){var cur="",at=0,paused=!1,T={},walk=function(t){if(cur&&!paused&&at)T[cur]=(T[cur]||0)+Math.max(0,t-at)};
     s.rows.forEach(function(r){var t=Date.parse(r.at);if(r.ev==="scr"){walk(t);cur=r.screen||"";at=t;paused=!1}else if(r.ev==="hide"||r.ev==="exit"){walk(t);paused=!0}else if(r.ev==="show"){at=t;paused=!1}});
