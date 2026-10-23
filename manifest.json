@@ -1,13 +1,13 @@
 {
-  "name": "MUÑIZ Pedidos ACE",
+  "name": "Muñiz Pedidos",
   "short_name": "Pedidos",
-  "description": "Pedidos de material para ACE Contractor Supply - Muñiz Concrete & Contracting",
+  "description": "Pedidos de material y PO de combustible · Muñiz Concrete & Contracting",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#EDEBE6",
-  "theme_color": "#17181A",
+  "background_color": "#F2F2F7",
+  "theme_color": "#F2F2F7",
   "lang": "es",
   "icons": [
     { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

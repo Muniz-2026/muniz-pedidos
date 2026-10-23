@@ -34,6 +34,7 @@
     for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
     return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return "&#" + c.charCodeAt(0) + ";"; }); }   // el nombre viene del link: nunca como HTML
   function complete(t) { try { var j = JSON.parse(b64(t)); return !!(j && Array.isArray(j.o)); } catch (e) { return false; } }
   if (complete(m[2])) return;                                   // el link llegó completo: el app lo abre como siempre
 
@@ -82,7 +83,7 @@
   }
   function show() {
     var go = function (ev) { ev.preventDefault(); try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { } if (box && box.parentNode) box.parentNode.removeChild(box); box = null; };
-    var who = f ? f.replace(/\b\w+/g, function (w) { return w.charAt(0) + w.slice(1).toLowerCase(); }) : "el mayordomo";
+    var who = f ? esc(f.replace(/\b\w+/g, function (w) { return w.charAt(0) + w.slice(1).toLowerCase(); })) : "el mayordomo";
     if (kind === "r") {
       screen("El link llegó cortado",
         "Tu teléfono recibió el texto de " + who + " en pedazos, y el link no llegó completo.<br><br>" +

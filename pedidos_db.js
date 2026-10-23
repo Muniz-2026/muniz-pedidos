@@ -320,6 +320,7 @@
   /* ---------- puerta permanente a MIS PEDIDOS (el app no tiene esta pantalla) ---------- */
   var misBtn = null, misKey = "";
   function misPedidosButton() {
+    if (document.hidden) return;   // nadie lo ve; al volver a la pantalla refreshMine lo vuelve a pintar
     try {
       var pend = ls(K_OUT, []).length;
       var badge = 0;
@@ -331,8 +332,12 @@
         misBtn.style.cssText = "position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:9998;background:#1F2937;color:#fff;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:8px 10px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.35);text-decoration:none;letter-spacing:.04em;display:flex;align-items:center;gap:6px;opacity:.92";
         document.body.appendChild(misBtn);
       }
-      misBtn.innerHTML = "📋 MIS PEDIDOS" + (badge ? '<span style="background:#F5B800;color:#111;border-radius:999px;padding:2px 6px;font-size:10px">' + badge + "</span>" : "") + (pend ? '<span style="background:#B45309;border-radius:999px;padding:2px 6px;font-size:10px">⏳' + pend + "</span>" : "");
-      var mk = badge + "|" + pend; if (mk !== misKey) { misKey = mk; try { window.dispatchEvent(new Event("mz-mis")); } catch (e) { } }   // el MIS PEDIDOS de la cabecera del app se actualiza
+      var mk = badge + "|" + pend;
+      if (mk !== misKey) {   // solo cuando cambia: reescribir el HTML cada 3 s despertaba a los observadores del DOM de toda la página
+        misKey = mk;
+        misBtn.innerHTML = "📋 MIS PEDIDOS" + (badge ? '<span style="background:#F5B800;color:#111;border-radius:999px;padding:2px 6px;font-size:10px">' + badge + "</span>" : "") + (pend ? '<span style="background:#B45309;border-radius:999px;padding:2px 6px;font-size:10px">⏳' + pend + "</span>" : "");
+        try { window.dispatchEvent(new Event("mz-mis")); } catch (e) { }   // el MIS PEDIDOS de la cabecera del app se actualiza
+      }
       misVis();
     } catch (e) { }
   }
@@ -396,7 +401,6 @@
   setInterval(flush, 60e3);
   setInterval(function () { if (document.visibilityState === "visible" && navigator.onLine !== false) refreshMine(); }, 120e3);   // el PO llega solo, sin texto
   setTimeout(function () { flush(); logEvent("open"); refreshMine(); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
-  setInterval(refreshMine, 120e3);
 
   window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; }, wasSent: wasSent, registerPara: registerPara };
 })();

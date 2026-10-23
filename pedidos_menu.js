@@ -30,11 +30,11 @@
   function clearSeen() { try { sessionStorage.removeItem(K_SEEN); } catch (e) { } }
 
   /* ---------- el menú ---------- */
-  var overlay = null, hiding = false;
+  var overlay = null;
   function hide() {
-    if (!overlay || hiding) return; hiding = true;
+    if (!overlay) return;
     var el = overlay; overlay = null;
-    if (el.parentNode) el.parentNode.removeChild(el); hiding = false; if (!panel) { showPills(); dlg(false); }
+    if (el.parentNode) el.parentNode.removeChild(el); if (!panel) { showPills(); dlg(false); }
   }
   /* el último PO de combustible de esta persona en este teléfono (lo guarda fuel.js) */
   function lastFuelPO(name) {
@@ -347,16 +347,6 @@ function openFuel(name, por) {
   function hidePills() {
     var direct = document.querySelectorAll('a[href$="bandeja.html#mis"]');
     for (var d = 0; d < direct.length; d++) { if (hiddenPills.indexOf(direct[d]) < 0) { direct[d].setAttribute("data-mz-hidden", direct[d].style.visibility || ""); direct[d].style.visibility = "hidden"; hiddenPills.push(direct[d]); } }
-    if (direct.length) return;
-    var els = document.querySelectorAll("button, a");
-    for (var i = 0; i < els.length; i++) {
-      var el = els[i]; if (panel && panel.contains(el)) continue; if (overlay && overlay.contains(el)) continue;
-      if (el.children.length > 3) continue;                       // la pastilla trae hasta 2 numeritos
-      var txt = (el.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
-      if (!/MIS PEDIDOS/.test(txt) || txt.length > 24) continue;
-      var pos = getComputedStyle(el).position; if (pos !== "fixed" && pos !== "absolute") continue;
-      if (hiddenPills.indexOf(el) < 0) { el.setAttribute("data-mz-hidden", el.style.visibility || ""); el.style.visibility = "hidden"; hiddenPills.push(el); }
-    }
   }
   function showPills() {
     hiddenPills.forEach(function (el) { el.style.visibility = el.getAttribute("data-mz-hidden") || ""; el.removeAttribute("data-mz-hidden"); });

@@ -14,15 +14,6 @@
 <div id="root"></div>
 <script src="./updater.js"></script>
 <script src="./config.js"></script>
-<script>/* v207 · cuenta cada vez que se abre MIS PEDIDOS (el botón de la cabecera, la pastilla y el aviso llegan
-   todos a bandeja.html#mis). Solo deja un registro; no cambia nada en la pantalla. */
-(function(){try{var S=(window.MUNIZ_CONFIG||{}).SUPABASE||{},U=String(S.URL||"").trim().replace(/\/+$/,""),K=String(S.ANON_KEY||"").trim();if(!U||!K)return;
-var last=0,log=function(){if(location.hash!=="#mis"||Date.now()-last<5e3)return;last=Date.now();var d=null,w=null,f="";
-try{d=localStorage.getItem("muniz_device_id")||null;var p=JSON.parse(localStorage.getItem("muniz_pedido")||"null");w=p&&p.name?String(p.name).toUpperCase():null}catch(e){}
-try{f=document.referrer?(new URL(document.referrer).pathname.split("/").pop()||"index.html"):""}catch(e){}
-var sa=!!(navigator.standalone===true||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches));
-fetch(U+"/rest/v1/events",{method:"POST",keepalive:true,headers:{apikey:K,Authorization:"Bearer "+K,"Content-Type":"application/json"},body:JSON.stringify({device_id:d,app:"pedidos",event:"mis_open",who:w,meta:{from:f,sa:sa}})}).catch(function(){})};
-log();window.addEventListener("hashchange",log)}catch(e){}})();</script>
 <script src="./mz_track.js" data-page="bandeja"></script>
 <script src="./bandeja.js"></script>
 </body>

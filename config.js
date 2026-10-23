@@ -91,33 +91,8 @@ window.MUNIZ_CONFIG = {
      y estacion. Se genera solo, sin supervisor, y queda en el registro.
      ===================================================================== */
   COMBUSTIBLE: {
-    /* A donde llega automaticamente CADA PO de combustible (el registro). */
-    LOG_TEL: "15129651933",
 
-    /* ===== REGISTRO AUTOMATICO (lo mas importante) =====
-       Si aqui va una URL, CADA PO se registra solo, sin que la persona mande
-       nada. Es lo que hace imposible saltarse el control.
-       Como se hace (10 minutos, gratis, una sola vez):
-         1. Hoja de Google nueva -> Extensiones -> Apps Script
-         2. Pegar:
-              function doGet(e){
-                var h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("PO") ||
-                        SpreadsheetApp.getActiveSpreadsheet().insertSheet("PO");
-                if (h.getLastRow() === 0) h.appendRow(["po","fecha","quien","vehiculo","tipo",
-                  "combustible","placa","equipo","lectura","obra","obra_semana","estacion","alertas"]);
-                var p = e.parameter;
-                h.appendRow([p.po, new Date(Number(p.ts)), p.who, p.veh, p.tipo, p.comb, p.placa,
-                  p.equipo, p.lectura, p.obra, p.obraSemana, p.est, p.flags]);
-                return ContentService.createTextOutput("ok");
-              }
-         3. Implementar -> Nueva implementacion -> Aplicacion web
-            Ejecutar como: yo    |    Con acceso: cualquier persona
-         4. Copiar la URL /exec y pegarla aqui abajo.
-       Si se deja vacio, el app usa el candado del PO (ver COMO_PUBLICAR). */
-    WEBHOOK: "",
-
-    /* Estaciones. Si "tel" tiene numero, el PO tambien le llega a la estacion
-       en el mismo mensaje. Leo's colabora; Tex-Con se deja en blanco si no lo quiere. */
+    /* Estaciones: nombre, abreviatura y color. */
     /* ===== OBRA POR DEFECTO =====
        El app NO le pregunta la obra a nadie: manda la del rol de la semana.
        Si esa persona no trae rol, manda esta. Tiene que estar escrita IGUAL
@@ -152,8 +127,8 @@ window.MUNIZ_CONFIG = {
     ],
 
     ESTACIONES: {
-      LEOS:   { nombre: "Leo's Service Station", corto: "LEO'S",   tel: "", color: "#F5B800" },
-      TEXCON: { nombre: "Tex-Con Oil",           corto: "TEX-CON", tel: "", color: "#1D4ED8" },
+      LEOS:   { nombre: "Leo's Service Station", corto: "LEO'S",   color: "#F5B800" },
+      TEXCON: { nombre: "Tex-Con Oil",           corto: "TEX-CON", color: "#1D4ED8" },
     },
 
     /* OBRAS = LUGARES (del 6-Week Lookahead 10/16 y el SSPD 10/21, semanas del 19 oct al 23 nov). Nunca el
@@ -258,8 +233,8 @@ window.MUNIZ_CONFIG = {
       { id:"T-GAS", placa:"", desc:"Tambo / tanque de GASOLINA", tipo:"TAMBO", comb:"GASOLINA", de:"" },
     ],
 
-    /* Alertas. La oficina las ve; el app avisa en el momento. */
-    ALERTAS: { HORAS_MIN_ENTRE_CARGAS: 6, CARGAS_MAX_7DIAS: 4, MILLAS_MIN_ENTRE_CARGAS: 40 },
+    /* Aviso en el momento: el mismo vehiculo cargo hace menos de estas horas. Las demas alertas las calcula la base de datos. */
+    ALERTAS: { HORAS_MIN_ENTRE_CARGAS: 6 },
   },
 
   /* (compatibilidad con la version anterior - ya no se usa si OFICINA existe) */

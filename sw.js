@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v212
+/* MUÑIZ Pedidos - service worker  ·  v213
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -10,17 +10,21 @@
        over immediately (skipWaiting + clients.claim). index.html listens for
        that hand-over and reloads the page - every open tab, every home-screen
        app - so a push reaches all phones the next time they look at it.
-     · Product photos (remote) stay network-then-cache.
+     · Product photos (remote) stay network-then-cache. Supabase REST, function
+       and auth calls bypass the worker: nothing from the database is stored on the
+       device, and the office machine stops filling Cache Storage with every poll (v213).
+     · The phones pre-cache only the phone pages: the Command Center files are cached
+       on first use by the office browser, not pushed to every foreman phone (v213).
      · sw.js itself is never answered from the phone's copy: updater.js reads it
-       to know the published version (v212).
+       to know the published version (v213).
      · When code (html/js/css) has to come from the phone's copy, the page is
        told (MUNIZ_STALE, and in its MUNIZ_VERSION answer): it may be running an
-       older version than the one published (v212).
+       older version than the one published (v213).
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v212";
+const CACHE = "muniz-pedidos-v213";
 const SHELL = [
-  "./","./index.html","./instalar.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./mando.html","./mando.js","./mando.css","./bandeja.html","./bandeja.js","./bandeja.css","./mando.webmanifest",
+  "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
 ];
 const NET_TIMEOUT_MS = 3500;
@@ -70,7 +74,8 @@ self.addEventListener("push", (e) => {
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  const target = new URL((e.notification.data && e.notification.data.url) || "./mando.html", self.registration.scope).href;
+  let target = new URL("./mando.html", self.registration.scope).href;   // only our own pages open from a notification
+  try { const u = new URL((e.notification.data && e.notification.data.url) || "./mando.html", self.registration.scope); if (u.origin === self.location.origin) target = u.href; } catch (err) { }
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const mando = wins.find(c => /mando\.html/.test(c.url));
@@ -121,6 +126,8 @@ self.addEventListener("fetch", (e) => {
     })());
     return;
   }
+  // Supabase REST, function and auth calls: straight to the network, never stored on the device
+  if (/^\/(rest|functions|auth)\/v1\//.test(url.pathname)) return;
   // product photos (remote): try network, fall back to cache, else the emoji placeholder handles it
   e.respondWith((async () => {
     try { const res = await fetch(req);

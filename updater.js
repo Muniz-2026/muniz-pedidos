@@ -1,4 +1,6 @@
-/* MUÑIZ Pedidos · actualizador  ·  v2.0
+/* MUÑIZ Pedidos · actualizador  ·  v2.1
+   v2.1 (23 oct 2026): la bandeja del supervisor también se actualiza sola (bandeja.js levanta __mzBusy mientras una
+         tarjeta tiene cambios sin guardar, y entonces no se recarga); se quitan dos registros que nadie leía.
    v2.0 (22 oct 2026): un app que el teléfono deja abierto en memoria (sobre todo el ícono de la pantalla de
          inicio en iPhone) se podía quedar días con la versión vieja: solo recargaba cuando el worker nuevo
          "tomaba el control", y eso a veces no pasa o se queda esperando a que se cierre un PO de combustible
@@ -21,12 +23,13 @@
   var hiddenAt = 0, backAt = 0, touchedAt = 0, lastRep = 0, readyRes = null;
   var ready = new Promise(function (r) { readyRes = r; });
   /* pantallas donde recargar no estorba: lo que se ve vuelve igual (el carrito y la pantalla viven en el teléfono).
-     Fuera de aquí: la lista para mandar, ¿YA LO MANDASTE?, las de aprobar y recoger, la bandeja del supervisor
-     (las cantidades que cambia y el motivo de rechazo viven solo en pantalla), y los pasos del PO de combustible
-     después de escoger la estación (TU PO ES … sigue en pantalla hasta SÍ, YA QUEDÓ). Una pantalla nueva de
-     mz_track.js no recarga hasta que se agregue aquí */
+     Fuera de aquí: la lista para mandar, ¿YA LO MANDASTE?, las de aprobar y recoger, y los pasos del PO de combustible
+     después de escoger la estación (TU PO ES … sigue en pantalla hasta SÍ, YA QUEDÓ). La bandeja del supervisor sí
+     entra, pero bandeja.js levanta __mzBusy mientras una tarjeta tiene cantidades cambiadas o un motivo de rechazo
+     escrito, y entonces no se recarga. fuel/para (el que escoge la oficina no se guarda) y fuel/oficina (login) quedan
+     fuera a propósito. Una pantalla nueva de mz_track.js no recarga hasta que se agregue aquí */
   var SAFE = { inicio: 1, para: 1, prov: 1, menu: 1, pedir: 1, "pedir/foto": 1, listo: 1, hecho: 1, mis: 1,
-               "fuel/inicio": 1, "fuel/nombre": 1, "fuel/est": 1 };
+               "fuel/inicio": 1, "fuel/nombre": 1, "fuel/est": 1, bandeja: 1 };
   function screen() { try { return window.MZT && window.MZT.screen ? String(window.MZT.screen() || "") : ""; } catch (e) { return ""; } }
   window.__mzUpd = function () { return { build: BUILD, pub: PUB, stale: stale, pending: pending, reloading: reloading, busy: !!window.__mzBusy, had: had, screen: screen() }; };
   function typing() { try { var a = document.activeElement; return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); } catch (e) { return false; } }
@@ -39,7 +42,7 @@
     if (window.__mzBusy && !/^fuel\/(est|nombre)$/.test(s)) return false;   // un PO a medias o con el número en pantalla
     return !!SAFE[s];
   }
-  function reload() { if (reloading) return; reloading = true; try { sessionStorage.setItem("muniz_reloaded", String(Date.now())); } catch (e) { } location.reload(); }
+  function reload() { if (reloading) return; reloading = true; location.reload(); }
   function tryReload() {
     if (!pending || reloading) return;
     if (safe()) { reload(); return; }
@@ -113,7 +116,7 @@
     });
     navigator.serviceWorker.addEventListener("message", function (ev) {
       var d = ev.data || {};
-      if (d.type === "MUNIZ_SW_ACTIVATED") { window.__mzSwCache = d.cache; try { navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({ type: "MUNIZ_ACK" }); } catch (e) { } }
+      if (d.type === "MUNIZ_SW_ACTIVATED") { try { navigator.serviceWorker.controller && navigator.serviceWorker.controller.postMessage({ type: "MUNIZ_ACK" }); } catch (e) { } }
       if (d.type === "MUNIZ_STALE") stale = true;        // el worker sirvió código de la copia del teléfono
     });
     try { if (navigator.serviceWorker.startMessages) navigator.serviceWorker.startMessages(); } catch (e) { }

@@ -18,7 +18,11 @@
 
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./pedidos-ui.css">
-  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- la fuente no bloquea el primer dibujo: se carga aparte y se aplica al llegar -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap"></noscript>
   <style>
     html,body{margin:0;background:#F2F2F7;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;}
     /* keep app text at a fixed scale even if the phone has large-text accessibility on */
@@ -45,8 +49,8 @@
     <div class="sp"></div>
   </div>
   <script>
-    (function(){var n=0,t=setInterval(function(){var r=document.getElementById('root');
-      if((r&&r.childElementCount>0)||++n>60){var b=document.getElementById('boot');if(b){b.classList.add('out');setTimeout(function(){b.remove()},420)}clearInterval(t);}},50);})();
+    (function(){var n=0;window.addEventListener('error',function(){n=1e4});var t=setInterval(function(){var r=document.getElementById('root');
+      if((r&&r.childElementCount>0)||++n>300){var b=document.getElementById('boot');if(b){b.classList.add('out');setTimeout(function(){b.remove()},420)}clearInterval(t);}},50);})();
   </script>
   <script src="./updater.js"></script>
   <script src="./config.js"></script>
