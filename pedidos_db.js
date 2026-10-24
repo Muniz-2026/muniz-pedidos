@@ -1,5 +1,9 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.2
+   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.3
+   v2.3: la clave de oficina vive en la base de datos (parche175). MODO OFICINA pregunta a office_unlock con el nombre
+         tocado y la clave; la clave aceptada se queda en sessionStorage (nunca en localStorage) y viaja con cada PEDIR
+         PARA y cada TICKET en el momento de mandarlos; si el servidor no la acepta, el aviso lo dice. config.js ya no
+         trae claves.
    v2.2: PEDIR PARA ya no manda la obra de la lista fija de config.js (estaba en la semana del 7 sep): la pone el
          servidor igual que en los pedidos del mayordomo — la del correo de ubicaciones de ese día, si no la del
          rol de la semana.
@@ -38,7 +42,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "2.2";
+  var VERSION = "2.3";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -73,6 +77,30 @@
     var p = ""; try { p = sessionStorage.getItem("muniz_of_para") || ""; } catch (e) { }
     p = String(p || window.__ofPara || "").toUpperCase().trim();
     return p && p !== me ? p : "";
+  }
+
+  /* ---------- v2.3 · la clave de oficina vive en la base de datos (parche175) ---------- */
+  function ofPin() { try { return sessionStorage.getItem("muniz_of_pin") || ""; } catch (e) { return ""; } }
+  // MODO OFICINA (app.js): manda el nombre tocado y la clave; contesta el nombre aceptado o "" (el motivo queda en __mzOfPinMsg)
+  window.__mzOfPinMsg = "";
+  window.__mzOfPin = function (name, pin) {
+    window.__mzOfPinMsg = "";
+    return fetch(URL_ + "/rest/v1/rpc/office_unlock", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_name: String(name || ""), p_pin: String(pin || "") }) })
+      .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { } if (!r.ok) throw new Error(errText(t)); return j; }); })
+      .then(function (j) {
+        if (j && j.ok && j.name) { try { sessionStorage.setItem("muniz_of_pin", String(pin || "")); } catch (e) { } return String(j.name); }
+        window.__mzOfPinMsg = (j && j.error) ? String(j.error) : "Nombre o PIN incorrecto";
+        return "";
+      })
+      .catch(function (e) { window.__mzOfPinMsg = (e && e.message && !/fetch|network|load/i.test(e.message)) ? e.message : "Sin se\u00f1al. Intenta otra vez."; return ""; });
+  };
+  // la clave se agrega al mandar (sessionStorage), nunca se guarda con la cola en localStorage
+  function withPin(item) {
+    var p = item.payload || {};
+    if (!(p.pb && isOfficeName(p.pb)) && item.stage !== "TICKET") return p;
+    var pin = ofPin(); if (!pin) return p;
+    var out = {}; for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) out[k] = p[k];
+    out.pin = pin; return out;
   }
 
   /* ---------- v1.8 · PEDIR PARA: el app registra directo y muestra el resultado en su pantalla ----------
@@ -199,7 +227,7 @@
     fetch(URL_ + "/rest/v1/rpc/register_material_order", {
       method: "POST", keepalive: true,
       headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ p_stage: item.stage, payload: item.payload, p_device: item.dev })
+      body: JSON.stringify({ p_stage: item.stage, payload: withPin(item), p_device: item.dev })
     }).then(function (r) {
       return r.text().then(function (txt) { return { ok: r.ok, status: r.status, txt: txt }; });
     }).then(function (res) {
@@ -208,8 +236,11 @@
         var row = null; try { var j = JSON.parse(res.txt); row = Array.isArray(j) ? j[0] : j; } catch (e) { }
         cur = cur.filter(function (i) { return i.id !== item.id; }); lsSet(K_OUT, cur); markSent(item.id);
         setTimeout(refreshMine, 1500); if (item.ev) { setTimeout(refreshMine, 4000); setTimeout(refreshMine, 9000); }   // PEDIR PARA: el PO sale en segundos y la pantalla del app lo muestra
-        var hOk = item.ev && note({ id: item.id, state: "ok", req: row && row.req_no ? String(row.req_no) : "", dm: !!item.payload.dm });
-        if (item.toast && !hOk) {
+        // v2.3: la oficina pidió a nombre de alguien pero el servidor no aceptó su clave: quedó como un pedido normal
+        var noOffice = !!(item.payload.pb && isOfficeName(item.payload.pb) && row && row.status && row.status !== "APROBADO" && row.status !== "PO_ASIGNADO");
+        var hOk = item.ev && note({ id: item.id, state: "ok", req: row && row.req_no ? String(row.req_no) : "", dm: !!item.payload.dm, status: row && row.status ? String(row.status) : "" });
+        if (noOffice) toast("\u26a0 Pedido de " + item.payload.f + (row && row.req_no ? " \u00b7 " + row.req_no : "") + " registrado SIN la aprobaci\u00f3n de oficina: sal y vuelve a entrar con tu clave", "amber", 9000);
+        else if (item.toast && !hOk) {
           var no = row && row.req_no ? " · " + row.req_no : "";
           if (item.payload.dm) toast("🎓 Práctica registrada (no cuenta)" + no, "gray", 3500);
           else if (item.payload.pb) toast("\u2713 Pedido de " + item.payload.f + no + " \u00b7 aprobado por la oficina \u00b7 el PO sale en segundos", "green", 7000);
@@ -313,6 +344,7 @@
       return;
     }
     if (stage === "APROBADO" && !tok.s) tok.s = whoAmI() || null;   // quien aprueba desde este teléfono
+    if (stage === "TICKET") tok.pb = whoAmI() || null;             // v2.3: el ticket lo liga la oficina; el servidor pide su clave (parche175)
     enrich(tok).then(function (payload) { enqueue(stage, payload, true); });
     logEvent(stage === "SOLICITADO" ? "sent" : stage.toLowerCase(), { meta: { prov: tok.p, lines: (tok.o || []).length } });
   }, true);

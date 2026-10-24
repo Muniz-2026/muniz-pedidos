@@ -24,21 +24,16 @@ window.MUNIZ_CONFIG = {
     ANON_KEY: "sb_publishable_4z755311D1gF3oLmlQhksw_yn10-mpZ",
   },
 
-  /* ===== USUARIO MAESTRO (solo el ve MODO OFICINA) =====
-     OFFICE_PIN: clave de 4 digitos. Para cambiarla, cambia el numero de abajo.
-     ATENCION: este archivo es publico en GitHub. Cualquiera que sepa buscar
-     puede leer esta clave. Sirve para que un mayordomo no entre por error,
-     NO es seguridad de verdad. NO usar la misma clave del telefono. */
-  /* ===== USUARIOS DE OFICINA (cada uno con su propia clave) =====
+  /* ===== USUARIOS DE OFICINA =====
      Solo estas personas ven MODO OFICINA. Su nombre aparece en la lista de
      nombres como cualquier otro, sin nada que llame la atencion; al tocarlo
-     pide SU clave. Para agregar o quitar gente, edita esta lista.
-     ATENCION: este archivo es publico en GitHub - la clave se puede leer.
-     Sirve para que un mayordomo no entre por error, NO es seguridad real.
-     NO usar la misma clave que abre el telefono. */
+     pide SU clave. Desde v214 la clave NO esta aqui: vive en la base de datos
+     (people.pin, la pone Tito) y la revisa el servidor (office_unlock, parche175).
+     Este archivo es publico en GitHub: aqui van solo los nombres. Para agregar
+     o quitar gente, edita esta lista; la clave se la pone Tito en la base de datos. */
   OFICINA: {
-    "TITO CUETO":     "4605",
-    "CLAUDIA TAMAYO": "2025",
+    "TITO CUETO":     "",
+    "CLAUDIA TAMAYO": "",
   },
 
   /* ===== UNA PERSONA, DOS NOMBRES =====
@@ -237,9 +232,9 @@ window.MUNIZ_CONFIG = {
     ALERTAS: { HORAS_MIN_ENTRE_CARGAS: 6 },
   },
 
-  /* (compatibilidad con la version anterior - ya no se usa si OFICINA existe) */
+  /* (compatibilidad con la version anterior - ya no se usa; la clave vive en la base de datos desde v214) */
   MASTER_USER: "TITO CUETO",
-  OFFICE_PIN:  "4605",
+  OFFICE_PIN:  "",
 
   /* Mayordomos que ven el catalogo BILINGUE (español + inglés) automaticamente.
      Cualquiera puede prenderlo con el boton "EN" en la franja de la tienda. */

@@ -3064,6 +3064,7 @@ function MzNum(props){
    field apps and the database. Command Center shows it in English: whole phrases first, then
    fragments, so messages with names/plates/amounts inside still come out right. */
 var MZdict=[
+  [/^Nombre o PIN incorrecto$/,"Name or PIN incorrect"],[/^Demasiados intentos\. Espera 15 minutos$/,"Too many attempts. Wait 15 minutes"],[/^Solo la oficina puede registrar un ticket$/,"Only the office can register a ticket"],[/^(.+) no es de oficina$/,"$1 is not office staff"],[/^(.+) no decide pedidos$/,"$1 does not decide orders"],
   [/^Fuera de horario$/,"Outside work hours"],[/^Domingo$/,"Sunday"],[/^Agregado al pedido anterior$/,"Added to the previous order"],
   [/^(\d+)\+ cargas en (\d+) d[ií]as$/,"$1+ fills in $2 days"],[/^Menos de (\d+) millas desde la [uú]ltima carga$/,"Under $1 miles since the last fill"],
   [/^Mismo veh[ií]culo carg[oó] (\d+) veces en (\d+) h$/,"Same vehicle fueled $1 times in $2 h"],[/^Od[oó]metro\/horas retrocedieron$/,"Odometer/hours went backwards"],  [/\+(\d+) art[i\u00ED]culo\(s\): Agregado por la oficina \(([^)]+)\) \u00B7 autoriz[o\u00F3] /g,"+$1 item(s): added by the office ($2) \u00B7 authorized by "],
