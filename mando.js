@@ -765,12 +765,13 @@ function Dm({d:e,now:t,q:n,mapGo:r,t:l,onChanged:o}){let[i,u]=(0,M.useState)("")
     {k:"vehicle_id",label:"Unit",type:"list",value:m.vehicle_id||"",options:vs.map(v=>[v.id,`${v.plate||"no plate"} \xB7 ${MZen(v.descr||"")}${v.assigned_to?" \xB7 "+z(v.assigned_to):""}`]),required:!0},
     {k:"plate",label:"Plate",type:"text",value:m.plate||"",upper:!0},
     {k:"comb",label:"Fuel",type:"select",value:m.comb||"DIESEL",options:[["DIESEL","Diesel"],["GASOLINA","Gasoline"]]},
+    {k:"station",label:"Station",type:"select",value:m.station||"TEXCON",options:[["TEXCON","Tex-Con"],["LEOS","Leo's"]]},
     {k:"reading",label:"Odometer (mi)",type:"num",value:m.reading==null?"":String(m.reading),placeholder:"empty = no reading"},
     {k:"reason",label:"Why",type:"text",value:"",placeholder:"e.g. ordered by phone for the driver",required:!0}],ok:"Save",focus:"reason"});
-  if(!f)return;let ch={};["who","vehicle_id","plate","comb","reading"].forEach(x=>{let a=String(f[x]==null?"":f[x]).trim(),b=String(m[x]==null?"":m[x]).trim();if(a.toUpperCase()!==b.toUpperCase())ch[x]=a});
+  if(!f)return;let ch={};["who","vehicle_id","plate","comb","reading","station"].forEach(x=>{let a=String(f[x]==null?"":f[x]).trim(),b=String(m[x]==null?"":m[x]).trim();if(a.toUpperCase()!==b.toUpperCase())ch[x]=a});
   if(!Object.keys(ch).length){MZtoast("Nothing changed.","ok");return}
   u(m.id);try{let r=await Gi("office_edit_fuel_po",{p_id:Number(k),p_changes:ch,p_reason:f.reason},l.access_token)||{},row=r.row||{},wn=r.warnings||[];
-    Fs(x=>x&&x.id===m.id?{...x,who:row.who??x.who,role:row.role??x.role,vehicle_id:row.vehicle_id??x.vehicle_id,vehicle_desc:row.vehicle_desc??x.vehicle_desc,plate:row.plate??x.plate,comb:row.comb??x.comb,reading:"reading" in row?row.reading:x.reading,jobsite:row.jobsite??x.jobsite,jobsite_source:row.jobsite_source??x.jobsite_source,jobsite_detail:row.jobsite_detail??x.jobsite_detail,notes:row.notes??x.notes}:x);
+    Fs(x=>x&&x.id===m.id?{...x,who:row.who??x.who,role:row.role??x.role,vehicle_id:row.vehicle_id??x.vehicle_id,vehicle_desc:row.vehicle_desc??x.vehicle_desc,plate:row.plate??x.plate,comb:row.comb??x.comb,station:row.station??x.station,flags:row.flags??x.flags,reading:"reading" in row?row.reading:x.reading,jobsite:row.jobsite??x.jobsite,jobsite_source:row.jobsite_source??x.jobsite_source,jobsite_detail:row.jobsite_detail??x.jobsite_detail,notes:row.notes??x.notes}:x);
     MZtoast(`${m.po} saved \xB7 ${(r.changed||[]).join(" \xB7 ")||"no change"}`+(r.jobsite?` \xB7 ${r.jobsite}`:"")+(wn.length?` \xB7 \u26A0 ${wn.join(" \xB7 ")}`:""),wn.length?"err":"ok",wn.length?9000:6000);o()}
   catch(x){let Q=String(x.message||x);try{Q=JSON.parse(Q).message||Q}catch{}MZtoast(Q.slice(0,220),"err")}finally{u("")}},
 Epn=async m=>{if(m.statement)return;let k=String(m.id).replace(/^t/,"");
