@@ -111,6 +111,8 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["spots",300e3,2,()=>He($e("jobsite_spots?select=jobsite,lat,lon,radius_m,learned_from,learned_day,minutes",c))],
   /* v230 · where each crew worked each day (crew email + GPS, rebuilt by refresh_gps_codes at :15/:45): the jobsite as an area */
   ["jobPlaces",900e3,2,()=>He(go("gps_job_votes?select=street,lat,lon,day,person&lat=not.is.null&day=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10)+"&order=day.desc",c,3))],
+  /* v233 · our own known places with coordinates (yards, the office, stations, suppliers, dumps): a truck inside one is at that place */
+  ["geofences",3600e3,2,()=>He($e("geofences?select=name,kind,lat,lon,radius_m&lat=not.is.null&kind=neq.OBRA",c))],
   ["pmProj",120e3,2,()=>He($e("pm_projects?select=*",c))],
   ["pmSched",600e3,3,()=>He($e("pm_schedule?select=*&applied_at=is.null&order=starts.asc",c))],
   ["pcosts",600e3,3,()=>He(go("project_costs?select=*&order=doc_date.desc",c,4))],
@@ -138,7 +140,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fleetio:d.fleetio||[],fleetioOdo:d.fleetioOdo||[],fleetioLog:d.fleetioLog||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],idleWho:d.idleWho||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],fiAlerts:d.fiAlerts||[],appLive:d.appLive||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
+   rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],idleWho:d.idleWho||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],geofences:d.geofences||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],fiAlerts:d.fiAlerts||[],appLive:d.appLive||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
  let pp=!1;const emit=(type,detail)=>{try{window.dispatchEvent(new CustomEvent(type,{detail:detail}))}catch(x){}};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;const forPull=!!S.pullNow;S.pullNow=!1;
@@ -183,7 +185,7 @@ function LVlogPush(ev){var L=LVlogLoad(),cut=Date.now()-LVFEEDH*36e5;L.push(ev);
 function LVwatchCrews(crews,e,t){var hyst=200;crews.forEach(function(x){var u=x.u;if(!u||u.actsoft_id==null||!x.st||x.st.k==="dark"||u.last_lat==null)return;var aid=u.actsoft_id,sp=LVspot(u,e),cur=sp&&!LVyard(sp.jobsite)?sp.jobsite:"",p=LVprev[aid];
   if(p===undefined){LVprev[aid]={spot:cur};return}
   if(cur===p.spot)return;
-  if(!cur&&p.spot&&!u.last_geofence&&LVplaces(e.spots,e.jobPlaces,e.crewDay).some(function(q){return q.jobsite===p.spot&&PJhav(u.last_lat,u.last_lon,q.lat,q.lon)<=LVREACH+hyst}))return
+  if(!cur&&p.spot&&!LVgeo(u,e)&&LVplaces(e.spots,e.jobPlaces,e.crewDay).some(function(q){return q.jobsite===p.spot&&PJhav(u.last_lat,u.last_lon,q.lat,q.lon)<=LVREACH+hyst}))return
   LVprev[aid]={spot:cur};
   LVlogPush({ts:t,aid:aid,who:z(x.n),text:cur?(p.spot?z(x.n)+" moved from "+p.spot+" to "+cur:z(x.n)+" arrived at "+cur):z(x.n)+" left "+p.spot,lat:u.last_lat,lon:u.last_lon,in:!!cur})})}
 function Pm(e,t){t=t||Date.now();var out=[],cut=t-LVFEEDH*36e5,push=function(ts,kind,c,text,go){if(!(ts>cut)||ts>t+36e5)return;out.push({ts:ts,kind:kind,c:c,text:text,go:go||null})};
@@ -242,7 +244,7 @@ var LVESC=90;                                /* minutes before a waiting order i
 var LVIDLE=45;                               /* minutes of idling that count as waste on a truck */
 function LVph(p){return String(p||"").replace(/[^\d+]/g,"")}
 function LVdist(m){return m<160?Math.round(m*3.28084)+" ft":(m/1609.344).toFixed(m<16093?1:0)+" mi"}
-function LVyard(s){return /\byard\b|yarda|\b973\b/i.test(String(s||""))}
+function LVyard(s){return /\byard\b|yarda|\b973\b|office|oficina/i.test(String(s||""))}
 function LVequip(u){return /^E-/.test(String(u&&u.vehicle_id||""))}
 function LVwho(u){return z(u.person||u.assigned_to||String(u.name||"").replace(/\s*VIN.*$/i,""))}
 function LVunitId(u){return String(u.vehicle_id||u.plate||"").trim()}
@@ -290,8 +292,12 @@ function LVplaces(spots,votes,crew){if(LVPL.s===spots&&LVPL.v===votes&&LVPL.c===
   var out=S.slice();cp.forEach(function(q){var nm="",bd=1e12,root=PJroot(q.street);S.forEach(function(s){var d=PJhav(q.lat,q.lon,s.lat,s.lon);if(d<bd&&(d<=LVREACH||(d<=1609&&!s.was&&root&&PJroot(s.jobsite)===root))){bd=d;nm=s.jobsite}});
     out.push({jobsite:nm||q.own,lat:q.lat,lon:q.lon,spot:!1,from:q.who.join(", "),day:q.day,n:q.days.length})});
   LVPL={s:spots,v:votes,c:crew,out:out};return out}
-/* the job place a truck is at (the nearest within LVREACH), or null: inside a geofence, or driving through faster than LVSLOW */
-function LVjob(u,e){if(!u||u.last_lat==null||u.last_geofence||(+u.last_speed||0)>LVSLOW)return null;var P=LVplaces(e.spots,e.jobPlaces,e.crewDay),la=+u.last_lat,lo=+u.last_lon,best=null,bd=1e12;
+/* v233 · the known place a truck is at: Actsoft's own geofence tag, else the nearest of our geofence circles with coordinates it is
+   inside (the office, 3523 Gonzales St, has coordinates since parche186 — Actsoft tagged it 3 times in 60 days); "" when none */
+function LVgeo(u,e){if(!u)return"";if(u.last_geofence)return u.last_geofence;if(u.last_lat==null)return"";var la=+u.last_lat,lo=+u.last_lon,best="",bd=1e12;
+  ((e&&e.geofences)||[]).forEach(function(g){if(g.lat==null||g.lon==null||g.kind==="OBRA")return;var d=PJhav(la,lo,+g.lat,+g.lon);if(d<=(+g.radius_m||150)&&d<bd){bd=d;best=g.name}});return best}
+/* the job place a truck is at (the nearest within LVREACH), or null: at a known place (LVgeo), or driving through faster than LVSLOW */
+function LVjob(u,e){if(!u||u.last_lat==null||LVgeo(u,e)||(+u.last_speed||0)>LVSLOW)return null;var P=LVplaces(e.spots,e.jobPlaces,e.crewDay),la=+u.last_lat,lo=+u.last_lon,best=null,bd=1e12;
   for(var i=0;i<P.length;i++){var p=P[i];if(Math.abs(p.lat-la)>.005||Math.abs(p.lon-lo)>.006)continue;var d=PJhav(la,lo,p.lat,p.lon);if(d<=LVREACH&&d<bd){bd=d;best=p}}
   return best?{jobsite:best.jobsite,lat:best.lat,lon:best.lon,radius_m:LVREACH,d:bd,spot:best.spot}:null}
 function LVspot(u,e){return LVjob(u,e)}
@@ -364,7 +370,7 @@ function LVmodel(e,t){
     if(!u){k="none";c=_.faint;txt="No tracker linked"}
     else if(st.k==="dark"){k="dark";c=hours?_.red:_.faint;txt="No signal · "+Ze(u.secs_since_seen)+" ago";ex=hours}
     else if(sp&&!LVyard(sp.jobsite)){k="site";c=_.green;txt="On site · "+sp.jobsite+(st.k==="idling"||st.k==="running"?" · engine on "+SDmin(st.min):st.k==="parked"?" · parked "+SDmin(st.min):"")}
-    else if(LVyard(where)||(sp&&LVyard(sp.jobsite))){k="yard";c=hours?_.amber:_.cyan;txt="At the yard · "+SDmin(st.min);ex=hours&&st.min>=60}
+    else if(LVyard(where)||(sp&&LVyard(sp.jobsite))){k="yard";c=hours?_.amber:_.cyan;txt="At "+(/office|oficina/i.test(where)?"the office":"the yard")+" · "+SDmin(st.min);ex=hours&&st.min>=60}
     else if(st.k==="moving"){k="moving";c=_.cyan;ls=lastSite(r.n);dm=ls&&ls.sp?PJhav(u.last_lat,u.last_lon,ls.sp.lat,ls.sp.lon):null;txt="Driving · "+Math.round(u.last_speed||0)+" mph"+(dm!=null&&dm<1e11?" · "+LVdist(dm)+" from "+ls.j:"")}
     else if(st.k==="idling"){k="idle";c=hours?(st.hot?_.red:_.amber):_.cyan;txt="Idling "+SDmin(st.min)+(where?" · "+where:"");ex=hours&&st.hot}
     else{k="parked";c=hours?_.amber:_.cyan;txt="Parked "+SDmin(st.min)+(where?" · "+where:"")}
@@ -1080,7 +1086,7 @@ function PJmodel(e,pm,t){
     if((u.last_speed||0)>3)return{k:"drive",c:_.green,t:"Driving · "+Math.round(u.last_speed)+" mph",u:u};
     var best=LVjob(u,e);
     if(best)return{k:"site",c:_.green,t:"On site · "+best.jobsite,site:best.jobsite,u:u};
-    return{k:u.last_ignition?"idle":"park",c:u.last_ignition?_.amber:_.cyan,t:(u.last_ignition?"Idling":"Parked")+(u.last_geofence?" · "+u.last_geofence:"")+(u.secs_in_status?" · "+Ze(u.secs_in_status):""),u:u}};
+    return{k:u.last_ignition?"idle":"park",c:u.last_ignition?_.amber:_.cyan,t:(u.last_ignition?"Idling":"Parked")+(LVgeo(u,e)?" · "+LVgeo(u,e):"")+(u.secs_in_status?" · "+Ze(u.secs_in_status):""),u:u}};
   /* days per crew per jobsite */
   var byCrew={};sd.forEach(function(r){var n=inT(r.person);var c=byCrew[n]=byCrew[n]||{};var j=c[r.jobsite]=c[r.jobsite]||{days:0,min:0,first:r.day,last:r.day,set:{}};
     if(!j.set[r.day]){j.set[r.day]=1;j.days++}j.min+=Number(r.minutes)||0;if(r.day<j.first)j.first=r.day;if(r.day>j.last)j.last=r.day});
@@ -1639,7 +1645,7 @@ function SDmin(m){m=Math.max(0,Math.round(Number(m)||0));if(m<60)return m+" min"
 function SDtime(ts){if(!ts)return"—";try{return new Date(ts).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}catch(x){return"—"}}
 function SDwhen(ts,t){if(!ts)return"";var d=new Date(ts),n=new Date(t);return d.toDateString()===n.toDateString()?SDtime(ts):d.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+SDtime(ts)}
 function SDthr(e){var r=(e.rules||[]).find(function(x){return x.key==="dump_idle_alert_min"}),v=parseInt(r&&r.value,10);return v>=5&&v<=600?v:30}
-function SDplace(u,e){if(u.last_geofence)return u.last_geofence;if(u.last_lat==null)return"";var best=null,bd=300;
+function SDplace(u,e){var g=LVgeo(u,e);if(g)return g;if(u.last_lat==null)return"";var best=null,bd=300;
   (e.spots||[]).forEach(function(j){if(j.lat==null)return;var d=PJhav(u.last_lat,u.last_lon,j.lat,j.lon);if(d<bd){bd=d;best=j.jobsite}});
   (e.places||[]).forEach(function(p){if(p.lat==null||!p.name)return;var d=PJhav(u.last_lat,u.last_lon,p.lat,p.lon);if(d<bd){bd=d;best=p.name}});
   return best?"near "+best:""}
