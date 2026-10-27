@@ -52,7 +52,7 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
 var MZNEED={ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationStops:["situation"],fuelGps:["fuel","situation"],fuelTest:["fuel"],
-  haulStops:["haul","projects","situation"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects","situation"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel","situation"],fiAlerts:["fuel"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],sdAlerts:["haul","situation"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],ctSugg:["catalog"]};
+  haulStops:["haul","projects","situation"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects","situation"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel","situation"],idleWho:["fuel"],fiAlerts:["fuel"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],sdAlerts:["haul","situation"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],ctSugg:["catalog"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -116,7 +116,9 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["stmts",600e3,3,()=>He($e("vendor_statements?select=*&order=statement_date.desc",c))],
   ["stmtChk",600e3,3,()=>He(go("vendor_statement_check?select=*",c,3))],
   ["idleDay",600e3,3,()=>He(go("idle_day?select=*&day=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10)+"&order=day.desc",c,8))],
-  ["idleSess",600e3,3,()=>He(go("idle_sessions?select=vehicle_id,start_ts,end_ts,minutes,geofence,lat,lon&kind=eq.IDLE&minutes=gte.45&start_ts=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10)+"&order=start_ts.desc",c,5))],
+  ["idleSess",600e3,3,()=>He(go("idle_sessions?select=*&kind=eq.IDLE&minutes=gte.45&start_ts=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10)+"&order=start_ts.desc",c,5))],
+  /* v223 · who the evidence puts with each truck, per day (view idle_who, parche183) */
+  ["idleWho",600e3,3,()=>He(go("idle_who?select=vehicle_id,day,registered,fleetio_driver,po_people,po_refs,crew_people,who,how,registered_had_it&day=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10),c,5))],
   ["permits",600e3,3,()=>He($e("permits_status?select=*&order=crew_no.asc,kind.asc,created_at.desc",c))],
   ["removedPeople",600e3,3,()=>He($e("people_removed?select=id,name,outcome,removed_by,removed_at,refs&restored_at=is.null&order=removed_at.desc&limit=30",c))],
   ["crewDay",600e3,3,()=>He(go("crew_day_office?select=day,crew_no,name_raw,person,project,location&day=gte."+new Date(Date.now()-120*864e5).toISOString().slice(0,10)+"&order=day.desc",c,4))],
@@ -134,7 +136,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fleetio:d.fleetio||[],fleetioOdo:d.fleetioOdo||[],fleetioLog:d.fleetioLog||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationStops:d.stationStops||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],fiAlerts:d.fiAlerts||[],appLive:d.appLive||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
+   rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],idleWho:d.idleWho||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),stationStops:d.stationStops||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],fiAlerts:d.fiAlerts||[],appLive:d.appLive||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
  let pp=!1;const emit=(type,detail)=>{try{window.dispatchEvent(new CustomEvent(type,{detail:detail}))}catch(x){}};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;const forPull=!!S.pullNow;S.pullNow=!1;
@@ -2670,142 +2672,231 @@ function PCsection(p){var rows=(p.rows||[]).slice().sort(function(a,b){return St
       PJh("div",{className:"dt-pdf"},k.file_path?PJh(PCfile,{k:k,tok:tok}):PJh("span",{className:"dim xs"},"no PDF"),
         k.status==="OPEN"&&k.amount!=null?PJh("button",{className:"btn sm",disabled:!!busy,title:"Accounting confirmed it is paid",onClick:function(){save({id:k.id,status:"PAID"},DTvend(k.vendor)+" "+k.doc_no+" marked paid")}},"MARK PAID"):null))})))}
 
-/* ===== IDLE · engine running, not moving ====================================================
-   From idle_day (per unit and day, built from the GPS positions: status 2 = engine on and
-   stopped) and idle_sessions (every idle stretch ≥ 45 min). Trucks and pickups only count as
-   idling; a machine that sits in one place with the engine on is working, so machines are shown
-   apart as engine hours. Fuel cost is an estimate: gallons per idle hour from Rules × the diesel
-   price on the last statements (gasoline: the price in Rules). ============================= */
+/* ===== IDLE · engine running, not moving (v223) ===============================================
+   From idle_day (per unit and day) and idle_sessions (every stretch), both built by refresh_idle (parche183)
+   from Actsoft's minute readings: a stretch = readings with the engine on and standing still (status 2)
+   without a break — it ends at any other reading, a silence over 3 min or a restart of Actsoft's own clock —
+   and its minutes run from its first to its last reading. Places: the kind in our geofence list, else a
+   jobsite learned from the crews, else not identified. The name next to a truck is the person it is
+   registered to in Actsoft; who had it comes only from idle_who (a fuel PO that day with its plate or a drum
+   PO with it at the station, else the crew-email street). Trucks and pickups count as idling; a machine
+   running in place is working, so machines are shown apart. Fuel is a range: gallons per idle hour measured
+   by Argonne National Laboratory (none is published for diesel pickups, so the nearest diesel trucks) × our
+   statement price for each truck's fuel. Days and hours are Central time whatever the viewer's clock. ==== */
 function MZd(d){return d.toISOString().slice(0,10)}
+var MZIDLE_GPH={pd:[.44,.84],pg:[.39,.59],tr:[.44,.59]},MZidleF={},MZIDLE_KIND={YARDA:"Yard or office",ESTACION:"Fuel station",PROVEEDOR:"Supplier",TIRADERO:"Dump",OTRO:"Named place",JOBSITE:"Jobsite"};
+function MZidleCT(ts,k){var f=MZidleF[k]||(MZidleF[k]=new Intl.DateTimeFormat(k==="d"?"en-CA":"en-US",k==="d"?{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}
+    :k==="h"?{timeZone:"America/Chicago",hour:"numeric",hourCycle:"h23"}:k==="w"?{timeZone:"America/Chicago",weekday:"short"}
+    :k==="s"?{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit",second:"2-digit"}:{timeZone:"America/Chicago",hour:"numeric",minute:"2-digit"}));
+  return f.format(new Date(ts))}
+function MZidleDate(day){return new Date(day+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
 function MZidleRange(p,today){var t=new Date(today);t.setHours(12,0,0,0);
-  if(typeof p==="string"){var y=+p.slice(0,4),m=+p.slice(5,7),f=new Date(y,m-1,1,12),e=new Date(y,m,0,12);return{from:MZd(f),to:MZd(e),days:e.getDate(),label:f.toLocaleDateString("en-US",{month:"long",year:"numeric"}),es:f.toLocaleDateString("es-MX",{month:"long",year:"numeric"})}}
-  var days=p===0?60:p===1?1:+p||7,f2=new Date(t);f2.setDate(f2.getDate()-(days-1));return{from:MZd(f2),to:MZd(t),days:days,label:days===1?"today":"last "+days+" days",es:days===1?"hoy":"últimos "+days+" días"}}
+  var md=function(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric"})},es=function(d){return d.toLocaleDateString("es-MX",{day:"numeric",month:"short"})};
+  if(typeof p==="string"){var y=+p.slice(0,4),m=+p.slice(5,7),f=new Date(y,m-1,1,12),e=new Date(y,m,0,12),pf=new Date(y,m-2,1,12),pe=new Date(y,m-1,0,12);
+    return{from:MZd(f),to:MZd(e),days:e.getDate(),label:f.toLocaleDateString("en-US",{month:"long",year:"numeric"}),es:f.toLocaleDateString("es-MX",{month:"long",year:"numeric"}),
+      pFrom:MZd(pf),pTo:MZd(pe),pLabel:pf.toLocaleDateString("en-US",{month:"long"})}}
+  var days=p===0?60:p===1?1:+p||7,f2=new Date(t);f2.setDate(f2.getDate()-(days-1));
+  var pf2=new Date(f2),pt2;if(days===1){pf2.setDate(pf2.getDate()-7);pt2=new Date(pf2)}else{pt2=new Date(f2);pt2.setDate(pt2.getDate()-1);pf2.setDate(pf2.getDate()-days)}
+  return{from:MZd(f2),to:MZd(t),days:days,label:days===1?"today, "+md(t):md(f2)+" – "+md(t),es:days===1?"hoy":"del "+es(f2)+" al "+es(t),
+    pFrom:MZd(pf2),pTo:MZd(pt2),pLabel:days===1?"the same day a week before ("+md(pf2)+")":md(pf2)+" – "+md(pt2)}}
 function MZidleTc(v){return String(v||"").toLowerCase().replace(/(^|[\s.'-])(\p{L})/gu,function(m,a,b){return a+b.toUpperCase()})}
+function MZidleClock(min){if(min==null||isNaN(+min))return"—";var s=Math.round(+min*60);return Math.floor(s/3600)+":"+String(Math.floor(s%3600/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
+/* one stretch as the case file shows it */
+function MZidleSx(x,reg){return{id:x.vehicle_id,aid:x.actsoft_id,reg:reg,day:MZidleCT(x.start_ts,"d"),hr:parseInt(MZidleCT(x.start_ts,"h"),10),
+  dow:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].indexOf(MZidleCT(x.start_ts,"w")),min:+x.minutes,start:x.start_ts,end:x.end_ts,st:x.st_end,pings:x.pings,
+  kind:x.place_kind||null,yard:x.place_kind?x.place_kind==="YARDA":/yard|yarda|office|oficina/i.test(x.geofence||""),where:x.place_name||x.geofence||"",lat:x.lat,lon:x.lon}}
+/* who the evidence puts with a truck (idle_who): a fuel PO that day with its plate or a drum PO with it at the station,
+   else the crew-email street — never the registration alone */
+function MZidleWho(e){var m={};(Array.isArray(e.idleWho)?e.idleWho:[]).forEach(function(w){if(w&&w.vehicle_id)m[w.vehicle_id+"|"+w.day]=w});return m}
+function MZidleEv(W,vid,days){var ppl={},o={n:days.length,po:0,cr:0,none:0,other:0};
+  days.forEach(function(d){var w=W[vid+"|"+d];if(!w||!w.how){o.none++;return}
+    var l=w.how==="fuel PO"?(o.po++,w.po_people):(o.cr++,w.crew_people);(l||[]).forEach(function(x){ppl[x]=(ppl[x]||0)+1});
+    if(w.registered_had_it===!1)o.other++});
+  o.ppl=ppl;o.names=Object.keys(ppl).sort(function(a,b){return ppl[b]-ppl[a]});return o}
+function MZidleEvText(o){if(!o||!o.n)return"";
+  if(!o.names.length)return"no fuel PO or crew email ties anyone to it "+(o.n===1?"that day":"on these days");
+  return(o.po&&!o.cr?"fuel PO: ":o.cr&&!o.po?"crew email: ":"fuel PO / crew email: ")
+    +o.names.slice(0,2).map(function(x){return x+(o.n>1?" ("+o.ppl[x]+" of "+o.n+" days)":"")}).join(", ")
+    +(o.none&&o.n>1?" · no record "+o.none+" day"+(o.none===1?"":"s"):"")}
 function MZidleCalc(e,R){var rules={};(e.rules||[]).forEach(function(r){rules[r.key]=r.value});
-  var gph={pd:+rules.idle_gph_pickup_diesel||.45,pg:+rules.idle_gph_pickup_gas||.35,tr:+rules.idle_gph_truck||.8},gasP=+rules.gas_price_fallback||3.25;
-  var tk=(e.tickets||[]).filter(function(t){return /^DIESEL$/i.test(t.fuel_type||"")&&+t.gallons>0&&+t.amount>0&&String(t.ticket_date)>=MZd(new Date(Date.now()-90*864e5))});
-  var dieselP=tk.length?tk.reduce(function(a,t){return a+ +t.amount},0)/tk.reduce(function(a,t){return a+ +t.gallons},0):5;
+  var thr=Math.max(15,parseInt(rules.foreman_idle_alert_min,10)||60),d90=MZd(new Date(Date.now()-90*864e5));
+  var tk=function(re){var a=(e.tickets||[]).filter(function(t){return re.test(t.fuel_type||"")&&+t.gallons>0&&+t.amount>0&&String(t.ticket_date)>=d90}),
+        g=a.reduce(function(s,t){return s+ +t.gallons},0),u=a.reduce(function(s,t){return s+ +t.amount},0),ds=a.map(function(t){return String(t.ticket_date).slice(0,10)}).sort();
+      return{p:g?u/g:null,n:a.length,from:ds[0]||"",to:ds[ds.length-1]||""}},
+    dsl=tk(/^DIESEL$/i),gas=tk(/^REGULAR$/i),dieselP=dsl.p||5,gasP=gas.p||+rules.gas_price_fallback||3.25;
   var veh={};(e.veh||[]).forEach(function(v){veh[v.id]=v});var per={};(e.fleet||[]).forEach(function(g){if(g.vehicle_id&&!per[g.vehicle_id])per[g.vehicle_id]=g.person||g.name||""});
-  var who=function(id){var v=veh[id]||{};return MZidleTc(v.assigned_to||per[id]||v.descr||id)},isTruck=function(id){return /^(CAMIONETA|CAMION)$/i.test((veh[id]||{}).tipo||"")},
-      rate=function(id){var v=veh[id]||{};return /^CAMION$/i.test(v.tipo||"")?gph.tr:/GAS/i.test(v.comb||"")?gph.pg:gph.pd},price=function(id){return /GAS/i.test((veh[id]||{}).comb||"")?gasP:dieselP};
+  var reg=function(id){var v=veh[id]||{};return MZidleTc(per[id]||v.assigned_to||v.descr||id)},isTruck=function(id){return /^(CAMIONETA|CAMION)$/i.test((veh[id]||{}).tipo||"")},
+      gph=function(id){var v=veh[id]||{};return /^CAMION$/i.test(v.tipo||"")?MZIDLE_GPH.tr:/GAS/i.test(v.comb||"")?MZIDLE_GPH.pg:MZIDLE_GPH.pd},
+      price=function(id){return /GAS/i.test((veh[id]||{}).comb||"")?gasP:dieselP},W=MZidleWho(e);
   var rows=(e.idleDay||[]).filter(function(r){return r.vehicle_id&&veh[r.vehicle_id]}),inR=rows.filter(function(r){return r.day>=R.from&&r.day<=R.to}),
-      pf=new Date(R.from+"T12:00:00");pf.setDate(pf.getDate()-R.days);var pt=new Date(R.from+"T12:00:00");pt.setDate(pt.getDate()-1);var PF=MZd(pf),PT=MZd(pt),inP=rows.filter(function(r){return r.day>=PF&&r.day<=PT});
-  var agg=function(list){var m={};list.forEach(function(r){var u=m[r.vehicle_id]||(m[r.vehicle_id]={id:r.vehicle_id,idle:0,drive:0,days:0,longs:0,longMin:0,yard:0,job:0,sta:0,oth:0,hours:new Array(24).fill(0),places:{}});
-      u.idle+=+r.idle_min||0;u.drive+=+r.drive_min||0;if((+r.idle_min||0)+(+r.drive_min||0)>0)u.days++;u.longs+=+r.long_sessions||0;u.longMin+=+r.long_min||0;u.yard+=+r.yard_min||0;u.job+=+r.jobsite_min||0;u.sta+=+r.station_min||0;u.oth+=+r.other_min||0;
-      (r.by_hour||[]).forEach(function(v,h){u.hours[h]+=+v||0});if(r.top_place)u.places[r.top_place]=(u.places[r.top_place]||0)+(+r.idle_min||0)});return m};
-  var cur=agg(inR),prv=agg(inP),fuel=(e.fuel||[]).filter(function(f){return !f.is_practice&&f.vehicle_id&&String(f.ts||f.created_at||"").slice(0,10)>=R.from&&String(f.ts||f.created_at||"").slice(0,10)<=R.to});
-  var units=Object.values(cur).map(function(u){var p=prv[u.id],eng=u.idle+u.drive,fills=fuel.filter(function(f){return f.vehicle_id===u.id}),gal=fills.reduce(function(a,f){return a+(+f.gallons||0)},0);
-      var top=Object.keys(u.places).sort(function(a,b){return u.places[b]-u.places[a]})[0]||"";
-      return{id:u.id,who:who(u.id),truck:isTruck(u.id),idleH:u.idle/60,driveH:u.drive/60,pct:eng?u.idle/eng*100:0,perDay:u.days?u.idle/60/u.days:0,days:u.days,longs:u.longs,longH:u.longMin/60,
-        yardH:u.yard/60,jobH:u.job/60,staH:u.sta/60,othH:u.oth/60,top:top,hours:u.hours,gal:u.idle/60*rate(u.id),usd:u.idle/60*rate(u.id)*price(u.id),
-        prevPerDay:p&&p.days?p.idle/60/p.days:null,fills:fills.length,galFilled:gal,fillsPerWeek:fills.length/(R.days/7)}});
+      inP=rows.filter(function(r){return r.day>=R.pFrom&&r.day<=R.pTo});
+  var agg=function(list){var m={};list.forEach(function(r){var u=m[r.vehicle_id]||(m[r.vehicle_id]={id:r.vehicle_id,idle:0,drive:0,days:0,idleDays:[],yard:0,job:0,sta:0,sup:0,oth:0,hours:new Array(24).fill(0),places:{}});
+      var i=+r.idle_min||0,dv=+r.drive_min||0,sp=+r.supplier_min||0;
+      u.idle+=i;u.drive+=dv;if(i+dv>0)u.days++;if(i>0)u.idleDays.push(r.day);u.yard+=+r.yard_min||0;u.job+=+r.jobsite_min||0;u.sta+=+r.station_min||0;u.sup+=sp;u.oth+=(+r.other_min||0)-sp;
+      (r.by_hour||[]).forEach(function(v,h){u.hours[h]+=+v||0});if(r.top_place)u.places[r.top_place]=(u.places[r.top_place]||0)+i});return m};
+  var cur=agg(inR),prv=agg(inP),fuel=(e.fuel||[]).filter(function(f){var d=String(f.ts||f.created_at||"").slice(0,10);return !f.is_practice&&f.vehicle_id&&d>=R.from&&d<=R.to});
+  var sess=(e.idleSess||[]).filter(function(x){if(!x.vehicle_id||!veh[x.vehicle_id]||(x.kind&&x.kind!=="IDLE"))return !1;var d=MZidleCT(x.start_ts,"d");return d>=R.from&&d<=R.to}),longOf={};
+  sess.forEach(function(x){if(+x.minutes>=thr){var o=longOf[x.vehicle_id]||(longOf[x.vehicle_id]={n:0,min:0});o.n++;o.min+=+x.minutes}});
+  var units=Object.values(cur).map(function(u){var p=prv[u.id],eng=u.idle+u.drive,fills=fuel.filter(function(f){return f.vehicle_id===u.id}),gal=fills.reduce(function(a,f){return a+(+f.gallons||0)},0),
+        g=gph(u.id),pr=price(u.id),lg=longOf[u.id]||{n:0,min:0},top=Object.keys(u.places).sort(function(a,b){return u.places[b]-u.places[a]})[0]||"";
+      return{id:u.id,reg:reg(u.id),truck:isTruck(u.id),idleH:u.idle/60,driveH:u.drive/60,pct:eng?u.idle/eng*100:0,perDay:u.days?u.idle/60/u.days:0,days:u.days,longs:lg.n,longH:lg.min/60,
+        yardH:u.yard/60,jobH:u.job/60,staH:u.sta/60,supH:u.sup/60,othH:u.oth/60,top:top,hours:u.hours,
+        galLo:u.idle/60*g[0],galHi:u.idle/60*g[1],usdLo:u.idle/60*g[0]*pr,usdHi:u.idle/60*g[1]*pr,
+        prevPerDay:p&&p.days?p.idle/60/p.days:null,fills:fills.length,galFilled:gal,fillsPerWeek:fills.length/(R.days/7),ev:MZidleEv(W,u.id,u.idleDays.sort())}});
   var trucks=units.filter(function(u){return u.truck}).sort(function(a,b){return b.idleH-a.idleH}),machines=units.filter(function(u){return !u.truck}).sort(function(a,b){return b.idleH-a.idleH});
   var tot=function(k){return trucks.reduce(function(a,u){return a+u[k]},0)},hours=new Array(24).fill(0);trucks.forEach(function(u){u.hours.forEach(function(v,h){hours[h]+=v})});
   var wk=new Array(7).fill(0);inR.forEach(function(r){if(isTruck(r.vehicle_id))wk[new Date(r.day+"T12:00:00").getDay()]+=+r.idle_min||0});
-  var sess=(e.idleSess||[]).filter(function(x){return x.vehicle_id&&isTruck(x.vehicle_id)&&String(x.start_ts).slice(0,10)>=R.from&&String(x.start_ts).slice(0,10)<=R.to}).map(function(x){return Object.assign({who:who(x.vehicle_id)},x)}).sort(function(a,b){return b.minutes-a.minutes});
+  var sx=sess.filter(function(x){return isTruck(x.vehicle_id)&&+x.minutes>=thr}).map(function(x){return MZidleSx(x,reg(x.vehicle_id))}).sort(function(a,b){return b.min-a.min});
   var eng=tot("idleH")+tot("driveH"),morning=hours.slice(6,9).reduce(function(a,b){return a+b},0)/60;
-  return{R:R,trucks:trucks,machines:machines,idleH:tot("idleH"),driveH:tot("driveH"),pct:eng?tot("idleH")/eng*100:0,usd:tot("usd"),gal:tot("gal"),longs:tot("longs"),hours:hours,wk:wk,sess:sess,morning:morning,
-    morningPct:tot("idleH")?morning/tot("idleH")*100:0,dieselP:dieselP,gasP:gasP,gph:gph,yardH:tot("yardH"),jobH:tot("jobH"),staH:tot("staH"),othH:tot("othH"),hasData:rows.length>0}}
-function MZidleMsg(c){var top=c.trucks.slice(0,5),rng=c.R.label,d=function(n){return"$"+Math.round(n).toLocaleString("en-US")},h=function(n){return(Math.round(n*10)/10).toLocaleString("en-US")};
-  var lines=["Ralentí · "+(c.R.es||rng)+" · camionetas y camiones",
-    "Total: "+h(c.idleH)+" h con el motor encendido sin moverse ("+Math.round(c.pct)+"% del tiempo de motor) · aprox. "+Math.round(c.gal)+" gal · "+d(c.usd),
+  return{R:R,thr:thr,trucks:trucks,machines:machines,idleH:tot("idleH"),driveH:tot("driveH"),pct:eng?tot("idleH")/eng*100:0,galLo:tot("galLo"),galHi:tot("galHi"),usdLo:tot("usdLo"),usdHi:tot("usdHi"),
+    longs:tot("longs"),longH:tot("longH"),hours:hours,wk:wk,sess:sx,morning:morning,morningPct:tot("idleH")?morning/tot("idleH")*100:0,dsl:dsl,gas:gas,dieselP:dieselP,gasP:gasP,
+    yardH:tot("yardH"),jobH:tot("jobH"),staH:tot("staH"),supH:tot("supH"),othH:tot("othH"),hasData:rows.length>0,W:W}}
+function MZidleMsg(c){var top=c.trucks.slice(0,5),d=function(n){return"$"+Math.round(n).toLocaleString("en-US")},h=function(n){return(Math.round(n*10)/10).toLocaleString("en-US")};
+  var lines=["Ralentí · "+(c.R.es||c.R.label)+" · camionetas y camiones",
+    "Total: "+h(c.idleH)+" h con el motor encendido sin moverse ("+Math.round(c.pct)+"% del tiempo de motor) · aprox. "+Math.round(c.galLo)+"–"+Math.round(c.galHi)+" gal · "+d(c.usdLo)+"–"+d(c.usdHi),
     Math.round(c.morningPct)+"% del ralentí es entre 6 y 9 AM (unidades encendidas en la yarda o esperando en la obra).",
-    "Los 5 con más ralentí:"].concat(top.map(function(u,i){return(i+1)+". "+u.who+" ("+u.id+") · "+h(u.idleH)+" h · "+h(u.perDay)+" h por día · "+Math.round(u.pct)+"% del motor · "+d(u.usd)+(u.prevPerDay!=null?(u.perDay>u.prevPerDay*1.1?" · subió":u.perDay<u.prevPerDay*.9?" · bajó":" · igual"):"")}));
-  lines.push("Regla: si la unidad va a estar parada más de 5 minutos, se apaga. Diésel subió 50%.");return lines.join("\n")}
-/* ===== FOREMEN · IDLE 1 HOUR+ (v206) =========================================================
-   The foremen's trucks (Actsoft group "Foreman") that sat with the engine on and not moving for an hour
-   or more (rules · foreman_idle_alert_min, the same limit as the push from check_foreman_idle, parche169).
-   From idle_sessions (GPS, since Sep 8), so the pattern is there from day one: who, at what hour (one
-   row per foreman, one column per hour the stretch began), on which days, at the yard or on the job,
-   and against the period before. Under it, the pushes that went out (foreman_idle_alerts). ========== */
-function MZfidleDay(t){var d=new Date(t);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+    "Las 5 unidades con más ralentí:"].concat(top.map(function(u,i){return(i+1)+". "+u.id+" (a nombre de "+u.reg+") · "+h(u.idleH)+" h · "+h(u.perDay)+" h por día · "+Math.round(u.pct)+"% del motor"+(u.prevPerDay!=null?(u.perDay>u.prevPerDay*1.1?" · subió":u.perDay<u.prevPerDay*.9?" · bajó":" · igual"):"")}));
+  lines.push("Regla: si la unidad va a estar parada más de 5 minutos, se apaga."+(c.dsl&&c.dsl.p?" El diésel nos cuesta $"+c.dsl.p.toFixed(2)+" por galón (estados de cuenta).":""));return lines.join("\n")}
+/* ===== FOREMEN'S TRUCKS · IDLE 1 HOUR+ (v206, v223) ===========================================
+   The trucks in Actsoft's group "Foreman" that sat with the engine on and not moving for an hour or more
+   without a break (rules · foreman_idle_alert_min, the same limit as the push from check_foreman_idle).
+   One row per truck, one column per hour the stretch began; a red cell opens the case file with the minute
+   readings. The name is the registration; the line under it says who the evidence puts with the truck. == */
 function MZfidleCalc(e,R){var rules={};(e.rules||[]).forEach(function(r){rules[r.key]=r.value});
   var thr=Math.max(15,parseInt(rules.foreman_idle_alert_min,10)||60),fm={};
   (e.fleet||[]).forEach(function(g){if(g.group_name==="Foreman"&&g.vehicle_id)fm[g.vehicle_id]=MZidleTc(g.person||g.name||g.vehicle_id)});
-  var pf=new Date(R.from+"T12:00:00");pf.setDate(pf.getDate()-R.days);var PF=MZd(pf),loaded=MZd(new Date(Date.now()-60*864e5)),first=(e.idleDay||[]).reduce(function(a,r){return r.day&&(!a||r.day<a)?r.day:a},""),H0=5,H1=18,
-      col=function(h){return h<H0?H0:h>H1?H1:h};
-  var all=(e.idleSess||[]).filter(function(x){return fm[x.vehicle_id]&&+x.minutes>=thr}).map(function(x){var d=new Date(x.start_ts);
-      return{id:x.vehicle_id,who:fm[x.vehicle_id],day:MZfidleDay(x.start_ts),hr:d.getHours(),dow:d.getDay(),min:+x.minutes,yard:/yard|yarda|office|oficina/i.test(x.geofence||""),where:x.geofence||""}});
-  var cur=all.filter(function(x){return x.day>=R.from&&x.day<=R.to}),prv=all.filter(function(x){return x.day>=PF&&x.day<R.from}),by={},pv={};
-  cur.forEach(function(x){var u=by[x.id]||(by[x.id]={id:x.id,who:x.who,n:0,min:0,yard:0,days:{},hours:new Array(H1-H0+1).fill(0),places:{}});
-    u.n++;u.min+=x.min;if(x.yard)u.yard++;u.days[x.day]=1;u.hours[col(x.hr)-H0]++;if(x.where&&!x.yard)u.places[x.where]=(u.places[x.where]||0)+1});
+  var first=(e.idleDay||[]).reduce(function(a,r){return r.day&&(!a||r.day<a)?r.day:a},""),H0=5,H1=18,col=function(h){return h<H0?H0:h>H1?H1:h};
+  var all=(e.idleSess||[]).filter(function(x){return fm[x.vehicle_id]&&(!x.kind||x.kind==="IDLE")&&+x.minutes>=thr}).map(function(x){return MZidleSx(x,fm[x.vehicle_id])});
+  var cur=all.filter(function(x){return x.day>=R.from&&x.day<=R.to}),prv=all.filter(function(x){return x.day>=R.pFrom&&x.day<=R.pTo}),by={},pv={};
+  cur.forEach(function(x){var u=by[x.id]||(by[x.id]={id:x.id,reg:x.reg,n:0,min:0,yard:0,days:{},hours:new Array(H1-H0+1).fill(0),cells:[],places:{}}),j=col(x.hr)-H0;
+    u.n++;u.min+=x.min;if(x.yard)u.yard++;u.days[x.day]=1;u.hours[j]++;(u.cells[j]||(u.cells[j]=[])).push(x);if(x.where&&!x.yard)u.places[x.where]=(u.places[x.where]||0)+1});
   prv.forEach(function(x){pv[x.id]=(pv[x.id]||0)+1});
-  var rows=Object.values(by).map(function(u){var top=Object.keys(u.places).sort(function(a,b){return u.places[b]-u.places[a]})[0]||"";
-      return Object.assign(u,{nd:Object.keys(u.days).length,peak:u.hours.indexOf(Math.max.apply(null,u.hours))+H0,top:top,prev:pv[u.id]||0})})
+  var W=MZidleWho(e),rows=Object.values(by).map(function(u){var top=Object.keys(u.places).sort(function(a,b){return u.places[b]-u.places[a]})[0]||"";
+      return Object.assign(u,{nd:Object.keys(u.days).length,peak:u.hours.indexOf(Math.max.apply(null,u.hours))+H0,top:top,prev:pv[u.id]||0,ev:MZidleEv(W,u.id,Object.keys(u.days).sort())})})
     .sort(function(a,b){return b.n-a.n||b.min-a.min}),max=0,wk=new Array(7).fill(0),days={};
-  rows.forEach(function(u){u.hours.forEach(function(v){if(v>max)max=v})});cur.forEach(function(x){wk[x.dow]++;days[x.day]=1});
+  rows.forEach(function(u){u.hours.forEach(function(v){if(v>max)max=v})});cur.forEach(function(x){if(x.dow>=0)wk[x.dow]++;days[x.day]=1});
+  var ran={};(e.idleDay||[]).forEach(function(r){if(fm[r.vehicle_id]&&r.day>=R.from&&r.day<=R.to&&(+r.idle_min||0)+(+r.drive_min||0)>0)ran[r.vehicle_id]=1});
   return{thr:thr,rows:rows,n:cur.length,h:cur.reduce(function(a,x){return a+x.min},0)/60,yard:cur.filter(function(x){return x.yard}).length,
-    early:cur.filter(function(x){return x.hr<7}).length,trucks:Object.keys(fm).length,max:max,H0:H0,H1:H1,wk:wk,nd:Object.keys(days).length,
-    prevN:prv.length,hasPrev:PF>=loaded&&!!first&&PF>=first}}
+    early:cur.filter(function(x){return x.hr<7}).length,trucks:Object.keys(fm).length,ran:Object.keys(ran).length,off:Object.keys(fm).filter(function(v){return !ran[v]}).sort(),
+    max:max,H0:H0,H1:H1,wk:wk,nd:Object.keys(days).length,prevN:prv.length,hasPrev:!!first&&R.pFrom>=first}}
 function MZfidle(p){var c=MZfidleCalc(p.e,p.R),R=p.R,
     hl=function(h){return h===0?"12a":h<12?h+"a":h===12?"12p":(h-12)+"p"},h1=function(n){return(Math.round(n*10)/10).toLocaleString("en-US",{minimumFractionDigits:1,maximumFractionDigits:1})},
-    lim=c.thr%60===0?(c.thr/60)+(c.thr===60?" HOUR":" HOURS"):c.thr+" MIN",
-    tr=function(now,before){if(!c.hasPrev)return PJh("span",{className:"dim xs"},"—");if(!before&&!now)return PJh("span",{className:"dim xs"},"—");
+    lim=c.thr%60===0?(c.thr/60)+(c.thr===60?" HOUR":" HOURS"):c.thr+" MIN",pl=function(n,w){return n+" "+w+(n===1?"":"s")},tm=function(ts){return MZidleCT(ts,"t")},
+    off=c.off.length&&c.off.length<=6?"Not running: "+c.off.join(", "):"",
+    tr=function(now,before){if(!c.hasPrev||(!before&&!now))return PJh("span",{className:"dim xs"},"—");
       var r=before?now/before:9;
-      return PJh("span",{className:"xs",style:{color:r>1.1?_.red:r<.9?_.green:_.faint,fontWeight:600},title:"The "+R.days+" days before: "+before+" · these "+R.days+" days: "+now},before+" → "+now)};
-  var al=(p.e.fiAlerts||[]).filter(function(a){var d=MZfidleDay(a.alerted_at);return d>=R.from&&d<=R.to}),cols=[];for(var h=c.H0;h<=c.H1;h++)cols.push(h);
+      return PJh("span",{className:"xs",style:{color:r>1.1?_.red:r<.9?_.green:_.faint,fontWeight:600},title:R.pLabel+": "+before+" · now: "+now},before+" → "+now)};
+  var al=(p.e.fiAlerts||[]).filter(function(a){var d=MZidleCT(a.alerted_at,"d");return d>=R.from&&d<=R.to}),cols=[];for(var h=c.H0;h<=c.H1;h++)cols.push(h);
   var top=c.rows[0];
-  return PJh(G,{title:"FOREMEN · IDLE "+lim+" OR MORE",right:PJh("span",{className:"dim"},c.trucks+" trucks in Actsoft's Foreman group · "+R.label),flush:!0},
+  return PJh(G,{title:"FOREMEN'S TRUCKS · IDLE "+lim+" OR MORE",right:PJh("span",{className:"dim"},c.ran+" of "+c.trucks+" trucks in Actsoft's Foreman group ran · "+R.label),flush:!0},
     c.n?PJh("div",{className:"fi"},
       PJh("div",{className:"idle-kpis fi-kpis"},
-        PJh(K,{label:"TIMES IDLE "+lim+"+",value:String(c.n),sub:h1(c.n/(c.nd||1))+" a day · "+(c.hasPrev?c.prevN+" the "+R.days+" days before":"engine on, not moving"),tone:_.red}),
+        PJh(K,{label:"TIMES IDLE "+lim+"+",value:String(c.n),sub:h1(c.n/(c.nd||1))+" a day · "+(c.hasPrev?c.prevN+" in "+R.pLabel:"engine on, not moving, no break"),tone:_.red}),
         PJh(K,{label:"HOURS WITH THE ENGINE ON",value:h1(c.h),unit:"h",sub:"in those stretches · "+h1(c.h/(c.n||1))+" h each",tone:_.amber}),
         PJh(K,{label:"AT THE YARD OR OFFICE",value:Math.round(c.yard/c.n*100)+"%",sub:c.yard+" of "+c.n+" · "+c.early+" began before 7 AM",tone:c.yard/c.n>.3?_.amber:_.green}),
-        top?PJh(K,{label:"MOST",value:top.who.split(" ").slice(0,2).join(" "),sub:top.n+" times on "+top.nd+" days · most at "+hl(top.peak),tone:_.red}):null),
+        top?PJh(K,{label:"TRUCK WITH THE MOST",value:top.id,sub:"registered to "+top.reg+" · "+pl(top.n,"time")+" on "+pl(top.nd,"day")+" · most at "+hl(top.peak),tone:_.red}):null),
       PJh("div",{className:"fi-wrap"},PJh("table",{className:"tbl fi-tbl"},
-        PJh("thead",null,PJh("tr",null,PJh("th",null,"#"),PJh("th",null,"FOREMAN · TRUCK"),
+        PJh("thead",null,PJh("tr",null,PJh("th",null,"#"),PJh("th",null,"TRUCK · REGISTERED TO"),
           cols.map(function(h,i){return PJh("th",{key:h,className:"fi-hh",title:"Stretches that began "+(i===0?"by ":i===cols.length-1?"from ":"at ")+hl(h)},(i===0?"≤":"")+hl(h)+(i===cols.length-1?"+":""))}),
           ["TIMES","HOURS","DAYS","AT THE YARD","BEFORE → NOW"].map(function(x){return PJh("th",{key:x},x)}))),
-        PJh("tbody",null,c.rows.map(function(u,i){return PJh("tr",{key:u.id},
-          PJh("td",{className:"mono dim"},i+1),PJh("td",null,PJh("b",null,u.who),PJh("span",{className:"dim xs"}," · "+u.id)),
-          u.hours.map(function(v,j){return PJh("td",{key:j,className:"fi-c",style:v?{"--h":(.25+.75*v/(c.max||1)).toFixed(2)}:null,title:v?u.who+" · "+hl(cols[j])+" · "+v+(v===1?" time":" times"):null},v||"")}),
+        PJh("tbody",null,c.rows.map(function(u,i){var et=MZidleEvText(u.ev);return PJh("tr",{key:u.id},
+          PJh("td",{className:"mono dim"},i+1),
+          PJh("td",null,PJh("b",null,u.id),PJh("span",{className:"dim"}," · "+u.reg),et?PJh("div",{className:"fi-who xs",style:{color:u.ev.other?_.amber:_.faint}},et):null),
+          u.hours.map(function(v,j){var cl=u.cells[j]||[];return PJh("td",{key:j,className:"fi-c"+(v?" on":""),style:v?{"--h":(.25+.75*v/(c.max||1)).toFixed(2)}:null,
+            title:v?cl.map(function(x){return MZidleDate(x.day)+" · "+tm(x.start)+"–"+tm(x.end)+" · "+Math.round(x.min)+" min"}).join("\n")+"\nClick for the minute readings":null,
+            onClick:v?function(){p.open(cl)}:void 0},v||"")}),
           PJh("td",null,PJh("b",null,u.n)),PJh("td",null,h1(u.min/60)+" h"),PJh("td",null,u.nd),
           PJh("td",null,u.yard?u.yard:PJh("span",{className:"dim"},"0")),PJh("td",null,tr(u.n,u.prev)))})))),
       PJh("div",{className:"fi-foot dim xs"},
         PJh("span",null,"By day: "+["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(l,i){return l+" "+c.wk[(i+1)%7]}).join(" · ")),
-        PJh("span",null,al.length?"Pushed to Enrique and Tito in this range: "+al.length+" · last "+new Date(al[0].alerted_at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+" · "+MZidleTc(al[0].driver||al[0].unit||"")+" "+Math.round(+al[0].minutes||0)+" min":"Pushes started Oct 21 (parche169) · one per stretch, to Enrique and Tito"))):
-    PJh(ve,{ok:!0},"No foreman's truck idled "+lim.toLowerCase()+" or more in this range."))}
-function MZidleTab(p){var e=p.e,R=MZidleRange(p.range,p.today),c=(0,M.useMemo)(function(){return MZidleCalc(e,R)},[e.idleDay,e.idleSess,e.veh,e.fleet,e.fuel,e.tickets,e.rules,R.from,R.to]),
-  [view,setView]=(0,M.useState)("trucks"),[copied,setCopied]=(0,M.useState)(!1);
+        PJh("span",null,al.length?"Pushed to Enrique and Tito in this range: "+al.length+" · last "+MZidleDate(MZidleCT(al[0].alerted_at,"d"))+" "+tm(al[0].alerted_at)+" · "+(al[0].unit||al[0].vehicle_id||"")+" "+Math.round(+al[0].minutes||0)+" min":"Pushes started Oct 21 (parche169) · one per stretch, to Enrique and Tito"),
+        PJh("span",null,"A red cell = a stretch of "+lim.toLowerCase()+" or more with the engine on and the truck still on every minute reading, by the hour it began · click it for the readings"+(off?" · "+off:"")))):
+    PJh(ve,{ok:!0},"No foreman's truck idled "+lim.toLowerCase()+" or more without a break in this range."+(off?" "+off+".":"")))}
+/* the case file of one or more stretches: the facts, who the evidence puts with the truck, and Actsoft's minute
+   readings from 10 minutes before to 10 minutes after (loaded when opened) */
+function MZidleCase(p){var list=p.list||[],[i,setI]=(0,M.useState)(0),[pos,setPos]=(0,M.useState)({}),x=list[Math.min(i,Math.max(0,list.length-1))],key=x?x.aid+"|"+x.start:"";
+  (0,M.useEffect)(function(){if(!x||!x.aid||!p.tok||pos[key])return;var dead=!1,a=new Date(Date.parse(x.start)-10*6e4).toISOString(),b=new Date(Date.parse(x.end)+10*6e4).toISOString(),
+      put=function(v){if(!dead)setPos(function(o){var n=Object.assign({},o);n[key]=v;return n})};
+    $e("gps_positions?select=ts,status,ignition,speed,status_time&actsoft_id=eq."+x.aid+"&ts=gte."+encodeURIComponent(a)+"&ts=lte."+encodeURIComponent(b)+"&order=ts.asc&limit=1500",p.tok)
+      .then(function(r){put(Array.isArray(r)?r:{err:1})}).catch(function(){put({err:1})});
+    return function(){dead=!0}},[key]);
+  if(!x)return null;
+  var tm=function(ts){return MZidleCT(ts,"t")},w=(p.W||{})[x.id+"|"+x.day],st=x.st!=null?+x.st:null,ok=st!=null&&Math.abs(st-x.min)<=1,
+      al=(p.alerts||[]).filter(function(a){return a.vehicle_id===x.id&&Math.abs(Date.parse(a.started_at)-Date.parse(x.start))<=3*6e4})[0],
+      kd=x.kind?MZIDLE_KIND[x.kind]+(x.kind==="JOBSITE"?" (learned from the crews)":""):"Not identified",
+      R=pos[key],rd=Array.isArray(R)?R:[],t0=Date.parse(x.start),t1=Date.parse(x.end),
+      cls=function(r){return r.ignition&&r.status===2?"id":r.ignition&&r.status===3?"mv":""},
+      lab=function(r){return r.ignition&&r.status===2?"engine on, standing still":r.ignition&&r.status===3?"moving":r.ignition===!1||r.status===1?"engine off":"—"},
+      edge=rd.filter(function(r){var t=Date.parse(r.ts);return Math.abs(t-t0)<=3*6e4||Math.abs(t-t1)<=3*6e4});
+  var who=w&&w.how?(w.how==="fuel PO"?"Fuel PO that day: "+w.po_refs:"Crew email: "+(w.crew_people||[]).join(", ")+" — the truck spent the work day on that crew's street")
+      +(w.registered_had_it===!1?" · not the person it is registered to":""):"No fuel PO or crew email ties anyone to this truck that day.";
+  return PJh("div",{className:"drawer-bg",onClick:p.onClose},PJh("aside",{className:"drawer",onClick:function(v){v.stopPropagation()}},
+    PJh("header",{className:"dh"},PJh("div",null,PJh("div",{className:"ml"},"IDLE STRETCH · "+x.id+" · "+MZidleDate(x.day).toUpperCase()),PJh("div",{className:"dn"},tm(x.start)+" – "+tm(x.end)+" · "+Math.round(x.min)+" min")),
+      PJh("div",{className:"tags"},PJh(V,{c:x.kind==="YARDA"?_.amber:x.kind==="JOBSITE"?_.accent||"#0A84FF":_.faint},kd.toUpperCase()),ok?PJh(V,{c:_.green},"ACTSOFT AGREES"):null)),
+    PJh("div",{className:"db"},
+      list.length>1?PJh("div",{className:"segs sm idc-pick"},list.map(function(y,k){return PJh("button",{key:k,className:k===i?"on":"",onClick:function(){setI(k)}},MZidleDate(y.day)+" "+tm(y.start)+" · "+Math.round(y.min)+" min")})):null,
+      PJh("div",{className:"kv"},[["Truck",x.id],["Registered to",x.reg],["Where",kd+(x.kind&&x.where?" · "+x.where:"")],["Minute readings",x.pings!=null?String(x.pings):"—"],
+        ["Actsoft's own clock at the end",st!=null?MZidleClock(st)+(ok?" ✓ same":" · stretch "+Math.round(x.min)+" min"):"—"],["Live alert",al?"sent "+tm(al.alerted_at)+" · "+Math.round(+al.minutes||0)+" min":"—"]]
+        .map(function(kv){return PJh("div",{key:kv[0]},PJh("span",null,kv[0]),PJh("b",{title:kv[1]},kv[1]))})),
+      PJh("div",{className:"idc-who"},PJh("b",null,"WHO HAD THE TRUCK"),who),
+      PJh("div",null,PJh("div",{className:"idc-strip",title:"One bar per minute reading"},rd.map(function(r,k){var t=Date.parse(r.ts);return PJh("i",{key:k,className:cls(r)+(t>=t0&&t<=t1?" in":""),title:MZidleCT(r.ts,"s")+" · "+lab(r)+" · "+Math.round(+r.speed||0)+" mph"})})),
+        PJh("div",{className:"idc-axis"},PJh("span",null,rd.length?tm(rd[0].ts):"…"),PJh("span",null,R&&R.err?"could not load the readings":!R?"loading the readings…":rd.length+" readings · 10 min before to 10 min after"),PJh("span",null,rd.length?tm(rd[rd.length-1].ts):"…"))),
+      edge.length?PJh("table",{className:"tbl idc-rd"},PJh("thead",null,PJh("tr",null,["TIME","STATE","SPEED","ACTSOFT CLOCK"].map(function(h){return PJh("th",{key:h},h)}))),
+        PJh("tbody",null,edge.map(function(r,k){var t=Date.parse(r.ts);return PJh("tr",{key:k,className:t>=t0&&t<=t1?"in":""},
+          PJh("td",{className:"mono"},MZidleCT(r.ts,"s")+(t===t0?" · first":t===t1?" · last":"")),PJh("td",null,lab(r)),PJh("td",null,Math.round(+r.speed||0)+" mph"),PJh("td",{className:"mono"},r.status_time||"—"))}))):null,
+      PJh("div",{className:"dim xs"},"From Actsoft's minute readings. Red = engine on, standing still · blue = moving · grey = engine off · solid = this stretch. A stretch ends at any other reading, a silence over 3 minutes, or when Actsoft's clock restarts.")),
+    PJh("div",{className:"df"},PJh("button",{className:"btn",onClick:p.onClose},"CLOSE"))))}
+function MZidleTab(p){var e=p.e,R=MZidleRange(p.range,p.today),c=(0,M.useMemo)(function(){return MZidleCalc(e,R)},[e.idleDay,e.idleSess,e.idleWho,e.veh,e.fleet,e.fuel,e.tickets,e.rules,R.from,R.to]),
+  [view,setView]=(0,M.useState)("trucks"),[copied,setCopied]=(0,M.useState)(!1),[cs,setCs]=(0,M.useState)(null);
   var h1=function(n){return(Math.round(n*10)/10).toLocaleString("en-US",{minimumFractionDigits:1,maximumFractionDigits:1})},usd=function(n){return"$"+Math.round(n).toLocaleString("en-US")},
       trend=function(u){if(u.prevPerDay==null||!u.prevPerDay)return PJh("span",{className:"dim xs"},"—");var r=u.perDay/u.prevPerDay;return PJh("span",{className:"xs",style:{color:r>1.1?_.red:r<.9?_.green:_.faint,fontWeight:600}},(r>1.1?"▲ ":r<.9?"▼ ":"= ")+Math.round(Math.abs(r-1)*100)+"%")},
       hl=function(h){return h===0?"12a":h<12?h+"a":h===12?"12p":(h-12)+"p"};
-  if(!c.hasData)return PJh(G,{title:"IDLE"},PJh(ve,null,"No idle data yet. Run parche78 so the GPS positions are rolled up into idle time per unit and day."));
+  if(!c.hasData)return PJh(G,{title:"IDLE"},PJh(ve,null,"No idle data yet: refresh_idle has not rolled up the GPS readings."));
   var msg=MZidleMsg(c),copy=function(){try{navigator.clipboard.writeText(msg);setCopied(!0);setTimeout(function(){setCopied(!1)},2500)}catch(x){MZtoast("Select the text and copy it","warn")}};
-  var worst=c.trucks[0];
-  return PJh("div",{className:"idle"},
+  var worst=c.trucks[0],lim=c.thr%60===0?(c.thr/60)+(c.thr===60?" HOUR":" HOURS"):c.thr+" MIN",
+      dt=function(o){return o&&o.from?MZidleDate(o.from).replace(/^\w+, /,"")+" – "+MZidleDate(o.to).replace(/^\w+, /,""):"no tickets"};
+  /* the case file sits beside .idle, not inside it: .idle's rise animation leaves a transform, which would pin a
+     position:fixed drawer to the tab instead of the screen */
+  return PJh(s.Fragment,null,PJh("div",{className:"idle"},
     PJh("div",{className:"idle-kpis"},
       PJh(K,{label:"IDLE · TRUCKS & PICKUPS",value:h1(c.idleH),unit:"h",sub:Math.round(c.pct)+"% of engine time · "+c.R.label,tone:c.pct>45?_.red:c.pct>30?_.amber:_.green}),
-      PJh(K,{label:"EST. FUEL BURNED IDLING",value:usd(c.usd),sub:"≈ "+Math.round(c.gal)+" gal · diesel $"+c.dieselP.toFixed(2)+"/gal on the statements",tone:_.amber}),
+      PJh(K,{label:"FUEL BURNED IDLING · ESTIMATE",value:usd(c.usdLo)+"–"+usd(c.usdHi),sub:"≈ "+Math.round(c.galLo)+"–"+Math.round(c.galHi)+" gal · a range, see the note below · diesel $"+c.dieselP.toFixed(2)+"/gal",tone:_.amber}),
       PJh(K,{label:"6–9 AM",value:Math.round(c.morningPct)+"%",sub:"of all idling · "+h1(c.morning)+" h · warm-ups and waiting",tone:c.morningPct>35?_.amber:_.green}),
-      PJh(K,{label:"SESSIONS ≥ 45 MIN",value:String(c.longs),sub:"engine running, truck not moving",tone:c.longs>50?_.red:_.amber}),
-      worst?PJh(K,{label:"MOST IDLE",value:worst.who.split(" ").slice(0,2).join(" "),sub:worst.id+" · "+h1(worst.perDay)+" h a day · "+usd(worst.usd),tone:_.red}):null),
-    PJh(MZfidle,{e:e,R:R}),
+      PJh(K,{label:"STRETCHES OF "+lim+"+",value:String(c.longs),sub:h1(c.longH)+" h · trucks and pickups, no break",tone:c.longs>50?_.red:_.amber}),
+      worst?PJh(K,{label:"MOST IDLE",value:worst.id,sub:"registered to "+worst.reg+" · "+(c.R.days===1?h1(worst.idleH)+" h":h1(worst.perDay)+" h a day")+(worst.ev.other?" · "+MZidleEvText(worst.ev):""),tone:_.red}):null),
+    PJh("div",{className:"idle-def dim xs"},"Idle = Actsoft says engine on and standing still, counted only while unbroken: from the first to the last minute reading. It ends when the truck moves, the engine turns off, the tracker goes quiet for over 3 minutes or Actsoft's clock restarts. Trucks and pickups only. A name is who the truck is registered to in Actsoft; who actually had it shows only where a fuel PO or the crew email proves it."),
+    PJh(MZfidle,{e:e,R:R,open:setCs}),
     PJh("div",{className:"g3"},
-      PJh(G,{title:"IDLE BY HOUR OF DAY",className:"span2",right:PJh("span",{className:"dim"},"hours, trucks and pickups")},PJh(Ud,{data:c.hours.map(function(v,h){return{label:hl(h),v:Math.round(v/60)}}),color:_.red,h:110})),
-      PJh(G,{title:"WHERE THEY IDLE"},PJh(No,{parts:[{label:"Yard",v:Math.round(c.yardH),c:_.amber},{label:"Jobsite",v:Math.round(c.jobH),c:_.accent||"#0A84FF"},{label:"Station",v:Math.round(c.staH),c:_.green},{label:"Elsewhere",v:Math.round(c.othH),c:_.faint}]}),
+      PJh(G,{title:"IDLE BY HOUR OF DAY",className:"span2",right:PJh("span",{className:"dim"},"hours, trucks and pickups · "+c.R.label)},PJh(Ud,{data:c.hours.map(function(v,h){return{label:hl(h),v:Math.round(v/60)}}),color:_.red,h:110})),
+      PJh(G,{title:"WHERE THEY IDLE"},PJh(No,{parts:[{label:"Yard / office",v:Math.round(c.yardH),c:_.amber},{label:"Jobsite",v:Math.round(c.jobH),c:_.accent||"#0A84FF"},{label:"Fuel station",v:Math.round(c.staH),c:_.green},
+          {label:"Suppliers & dumps",v:Math.round(c.supH),c:_.violet||_.cyan},{label:"Not identified",v:Math.round(c.othH),c:_.faint}]}),
+        PJh("div",{className:"dim xs idle-where"},"Yard, office, station, supplier and dump: our geofence list · jobsite: a place the app learned from the crews' GPS and crew emails · not identified: none of these"),
         PJh("div",{className:"sp"}),PJh(Ud,{data:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(function(l,i){return{label:l,v:Math.round(c.wk[i]/60)}}),color:_.amber,h:70}))),
     PJh(G,{title:"WHO IDLES THE MOST",right:PJh("div",{className:"segs sm"},[["trucks","TRUCKS & PICKUPS"],["machines","MACHINES · ENGINE HOURS"]].map(function(x){return PJh("button",{key:x[0],className:view===x[0]?"on":"",onClick:function(){setView(x[0])}},x[1])})),flush:!0},
-      view==="trucks"?PJh("table",{className:"tbl idle-tbl"},PJh("thead",null,PJh("tr",null,["#","UNIT · DRIVER","IDLE","% ENGINE","PER DAY","vs PREV","≥45 MIN","WHERE","EST. FUEL","FILLS"].map(function(x){return PJh("th",{key:x},x)}))),
+      view==="trucks"?PJh("table",{className:"tbl idle-tbl"},PJh("thead",null,PJh("tr",null,["#","TRUCK · REGISTERED TO","IDLE","% ENGINE","PER DAY","vs PREV","≥ "+lim,"WHERE","EST. FUEL","FILLS"].map(function(x){return PJh("th",{key:x},x)}))),
         PJh("tbody",null,c.trucks.map(function(u,i){return PJh("tr",{key:u.id,className:i<3?"hot":""},
-          PJh("td",{className:"mono dim"},i+1),PJh("td",null,PJh("b",null,u.who),PJh("span",{className:"dim xs"}," · "+u.id)),
+          PJh("td",{className:"mono dim"},i+1),PJh("td",null,PJh("b",null,u.id),PJh("span",{className:"dim xs"}," · "+u.reg),u.ev.other?PJh("div",{className:"xs",style:{color:_.amber}},MZidleEvText(u.ev)):null),
           PJh("td",null,PJh("b",null,h1(u.idleH)+" h"),PJh("span",{className:"dim xs"}," of "+h1(u.idleH+u.driveH))),
           PJh("td",null,PJh("span",{style:{color:u.pct>55?_.red:u.pct>40?_.amber:_.ink,fontWeight:600}},Math.round(u.pct)+"%")),
           PJh("td",null,h1(u.perDay)+" h",PJh("span",{className:"dim xs"}," · "+u.days+" d")),PJh("td",null,trend(u)),
           PJh("td",null,u.longs?PJh("b",null,u.longs):PJh("span",{className:"dim"},"0"),u.longs?PJh("span",{className:"dim xs"}," · "+h1(u.longH)+" h"):null),
-          PJh("td",{className:"xs"},["yard "+h1(u.yardH),"jobsite "+h1(u.jobH)].join(" · "),u.top?PJh("div",{className:"dim xs"},"mostly at "+u.top):null),
-          PJh("td",null,PJh("b",null,usd(u.usd)),PJh("span",{className:"dim xs"}," · "+Math.round(u.gal)+" gal")),
+          PJh("td",{className:"xs"},["yard "+h1(u.yardH),"jobsite "+h1(u.jobH)].join(" · "),u.top?PJh("div",{className:"dim xs"},u.top==="not identified"?"mostly at a place not identified":"mostly at "+u.top):null),
+          PJh("td",null,PJh("b",null,usd(u.usdLo)+"–"+usd(u.usdHi)),PJh("span",{className:"dim xs"}," · "+Math.round(u.galLo)+"–"+Math.round(u.galHi)+" gal")),
           PJh("td",null,u.fills?PJh("b",null,u.fills):PJh("span",{className:"dim"},"0"),u.fills?PJh("span",{className:"dim xs"}," · "+(Math.round(u.fillsPerWeek*10)/10)+"/wk"+(u.galFilled?" · "+Math.round(u.galFilled)+" gal":"")):null))}))):
       PJh("table",{className:"tbl idle-tbl"},PJh("thead",null,PJh("tr",null,["#","MACHINE","ENGINE ON","DAYS","PER DAY","WHERE"].map(function(x){return PJh("th",{key:x},x)}))),
-        PJh("tbody",null,c.machines.map(function(u,i){return PJh("tr",{key:u.id},PJh("td",{className:"mono dim"},i+1),PJh("td",null,PJh("b",null,u.id),PJh("span",{className:"dim xs"}," · "+u.who)),PJh("td",null,h1(u.idleH+u.driveH)+" h"),PJh("td",null,u.days),PJh("td",null,h1((u.idleH+u.driveH)/(u.days||1))+" h"),PJh("td",{className:"xs"},u.top||"—"))})))),
-    view==="trucks"?PJh("div",{className:"dim xs idle-note"},"Idle = engine on, not moving, from the GPS positions. Fuel is an estimate: "+c.gph.pd+" gal/h diesel pickup · "+c.gph.pg+" gal/h gas pickup · "+c.gph.tr+" gal/h truck (Rules) × diesel "+usd(c.dieselP)+"/gal from the statements. A machine working in place reads as idle, so machines are listed apart."):null,
+        PJh("tbody",null,c.machines.map(function(u,i){return PJh("tr",{key:u.id},PJh("td",{className:"mono dim"},i+1),PJh("td",null,PJh("b",null,u.id),PJh("span",{className:"dim xs"}," · "+u.reg)),PJh("td",null,h1(u.idleH+u.driveH)+" h"),PJh("td",null,u.days),PJh("td",null,h1((u.idleH+u.driveH)/(u.days||1))+" h"),PJh("td",{className:"xs"},u.top||"—"))})))),
+    view==="trucks"?PJh("div",{className:"dim xs idle-note"},"Fuel is an estimate, shown as a range: gallons per idle hour measured by Argonne National Laboratory for the U.S. DOE — diesel trucks 0.44 gal/h (6–10 L engines, no load) to 0.84 (Class 5 delivery truck); gasoline V8 0.39–0.59. No figure is published for diesel pickups, so the nearest measured diesel trucks are used. Price = our station statements: diesel $"+c.dieselP.toFixed(2)+"/gal ("+dt(c.dsl)+"), regular $"+c.gasP.toFixed(2)+" ("+dt(c.gas)+"). A machine running in place is usually working, so machines are listed apart."):null,
     PJh("div",{className:"g3"},
-      PJh(G,{title:"LONGEST IDLE SESSIONS · "+c.R.label.toUpperCase(),className:"span2",right:PJh("span",{className:"dim"},"engine running ≥ 45 min without moving"),flush:!0},
-        c.sess.length?PJh("table",{className:"tbl"},PJh("thead",null,PJh("tr",null,["WHEN","WHO","UNIT","MINUTES","WHERE"].map(function(x){return PJh("th",{key:x},x)}))),
-          PJh("tbody",null,c.sess.slice(0,30).map(function(x,i){var st=new Date(x.start_ts);return PJh("tr",{key:i},PJh("td",{className:"xs"},st.toLocaleDateString("en-US",{month:"short",day:"numeric"})+" "+st.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})+"–"+new Date(x.end_ts).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})),
-            PJh("td",null,PJh("b",null,x.who)),PJh("td",{className:"mono xs"},x.vehicle_id),PJh("td",null,PJh("b",{style:{color:x.minutes>=120?_.red:_.amber}},Math.round(x.minutes))),PJh("td",{className:"xs"},x.geofence||(x.lat?Number(x.lat).toFixed(4)+", "+Number(x.lon).toFixed(4):"—")))}))):PJh(ve,{ok:!0},"No session of 45 minutes or more in this range.")),
+      PJh(G,{title:"LONGEST STRETCHES · "+c.R.label.toUpperCase(),className:"span2",right:PJh("span",{className:"dim"},"engine on, not moving, "+lim.toLowerCase()+" or more without a break · click one for the readings"),flush:!0},
+        c.sess.length?PJh("table",{className:"tbl idle-tbl"},PJh("thead",null,PJh("tr",null,["WHEN","TRUCK · REGISTERED TO","MINUTES","WHERE"].map(function(x){return PJh("th",{key:x},x)}))),
+          PJh("tbody",null,c.sess.slice(0,30).map(function(x,i){var w=c.W[x.id+"|"+x.day];return PJh("tr",{key:i,className:"go",onClick:function(){setCs([x])}},
+            PJh("td",{className:"xs"},MZidleDate(x.day)+" "+MZidleCT(x.start,"t")+"–"+MZidleCT(x.end,"t")),
+            PJh("td",null,PJh("b",null,x.id),PJh("span",{className:"dim xs"}," · "+x.reg),w&&w.how&&w.registered_had_it===!1?PJh("div",{className:"xs",style:{color:_.amber}},w.how+": "+(w.who||(w.po_people||w.crew_people||[]).join(", "))):null),
+            PJh("td",null,PJh("b",{style:{color:x.min>=120?_.red:_.amber}},Math.round(x.min))),
+            PJh("td",{className:"xs"},x.kind?MZIDLE_KIND[x.kind]+(x.where?" · "+x.where:""):"Not identified"+(x.lat?" · "+Number(x.lat).toFixed(4)+", "+Number(x.lon).toFixed(4):"")))}))):PJh(ve,{ok:!0},"No stretch of "+lim.toLowerCase()+" or more in this range.")),
       PJh(G,{title:"MESSAGE FOR THE SUPERVISORS",right:PJh("button",{className:"btn sm primary",onClick:copy},copied?"COPIED":"COPY")},
-        PJh("textarea",{className:"inp idle-msg",readOnly:!0,value:msg,rows:14}),PJh("div",{className:"dim xs"},"Spanish, ready to paste in the group text. Figures are for the range selected above."))))}
+        PJh("textarea",{className:"inp idle-msg",readOnly:!0,value:msg,rows:14}),PJh("div",{className:"dim xs"},"Spanish, ready to paste in the group text. Figures are for the range selected above.")))),
+    cs?PJh(MZidleCase,{list:cs,W:c.W,alerts:e.fiAlerts,tok:p.tok,onClose:function(){setCs(null)}}):null)}
 
 /* ===== VENDOR STATEMENTS · what each vendor says is owed, against the Ledger ======================
    From vendor_statements (one row per statement, amount due and aging exactly as printed) and
