@@ -1919,6 +1919,55 @@ function ACver(ev,from){
   list.sort(function(a,b){return(b.old?1:0)-(a.old?1:0)||a.b-b.b||b.t-a.t});
   var bh=list.filter(function(x){return x.old});
   return{top:top,list:list,n:list.length,cur:list.length-bh.length,behind:bh}}
+/* v236 · FEED · TODAY reaches back through the whole day (it stopped at the newest 160 rows: ~40 min on a busy morning).
+   A day is thousands of rows, so only the rows near the view are drawn (900 px above and below, drawn again when the view
+   comes within 300 px of that edge, not on every scroll step); a row's height is measured the first time it is drawn (lines
+   wrap on a phone). Reading further down, new rows land above without moving what you read, and "↑ N new events" goes back
+   up. Another filter or phone keeps the time of day you were reading. Top level on purpose: never a component inside ACroom. */
+function ACat(tops,y){var lo=0,hi=tops.length-2;if(hi<0)return 0;while(lo<hi){var m=(lo+hi+1)>>1;if(tops[m]<=y)lo=m;else hi=m-1}return lo}
+function ACanc(s,y){var rw=s.rows;if(!rw||!rw.length||y<=2)return null;var k=ACat(s.tops,y);return{id:rw[k][0].id,i:k,pos:s.tops[k],t:Date.parse(rw[k][0].at)}}
+function ACfind(rows,id,from){var n=rows.length,q;for(q=Math.max(0,from);q<n;q++)if(rows[q][0].id===id)return q;for(q=Math.min(n,from)-1;q>=0;q--)if(rows[q][0].id===id)return q;return-1}
+function ACfeed(p){
+  var box=(0,M.useRef)(null),R=(0,M.useRef)(null),V=(0,M.useState)(0),bump=V[1];
+  if(!R.current)R.current={h:{},est:0,w:-1,vh:560,top:0,raf:0,anc:null,key:p.reset,news:0,pass:0,fx:0,tops:[0],rows:null,rz:1,lo:0,hi:0,a:0,b:0,n:0,up:!1};
+  var s=R.current,rows=p.rows,n=rows.length,est=s.est||33,tops=new Array(n+1),i;
+  tops[0]=0;for(i=0;i<n;i++)tops[i+1]=tops[i]+(s.h[rows[i][0].id]||est);
+  var a=ACat(tops,Math.max(0,s.top-900)),b=Math.min(n,ACat(tops,s.top+s.vh+900)+1),up=s.top>s.vh;
+  var re=function(){bump(function(v){return v+1})},again=function(){if(++s.pass<8)re()};   // at most 8 passes in a row (no endless loop)
+  (0,M.useEffect)(function(){var rs=function(){s.rz=1;re()};window.addEventListener("resize",rs);
+    return function(){window.removeEventListener("resize",rs);if(s.raf)cancelAnimationFrame(s.raf)}},[]);
+  (0,M.useLayoutEffect)(function(){var el=box.current;if(!el)return;
+    var nw=performance.now();if(nw-s.fx>100)s.pass=0;s.fx=nw;
+    var all=s.rows!==rows,ch=!1,nb=s.news,j,els,id,hh,sum=0,nm=0;
+    if(s.rz){s.rz=0;all=!0;var w=el.clientWidth,vh=Math.max(el.clientHeight,560);      // first draw or a new window size
+      if(w!==s.w){if(s.w>=0){s.h={};s.est=0;ch=!0}s.w=w}                                  // another width: lines wrap differently
+      if(vh!==s.vh){s.vh=vh;ch=!0}}
+    if(!ch){els=el.querySelectorAll(".ac-row");                                           // heights: rows drawn for the first time (all when the rows changed)
+      for(j=0;j<els.length;j++){id=els[j].getAttribute("data-id");if(!all&&s.h[id])continue;hh=els[j].getBoundingClientRect().height;sum+=hh;nm++;s.h[id]=hh}
+      if(!s.est&&nm){s.est=sum/nm;ch=!0}}                                                 // the first heights set the guess for the rest
+    if(ch){again();return}
+    var t2=tops;if(nm){t2=new Array(n+1);t2[0]=0;for(j=0;j<n;j++)t2[j+1]=t2[j]+(s.h[rows[j][0].id]||est)}   // where each row is now
+    s.tops=t2;s.rows=rows;s.lo=t2[a];s.hi=t2[b];s.a=a;s.b=b;s.n=n;s.up=up;
+    var y=s.top,to=null;
+    if(s.key!==p.reset){s.key=p.reset;s.news=0;                                           // another filter or phone: the same time of day you were reading
+      if(s.anc){var k=ACfind(rows,s.anc.id,0);if(k<0)for(k=0;k<n&&Date.parse(rows[k][0].at)>s.anc.t;k++);to=t2[Math.min(k,n)]}else to=0}
+    else if(s.anc){var k2=ACfind(rows,s.anc.id,s.anc.i);                                 // rows came in above, or rows above got their real height: what you read stays put
+      if(k2>=0){to=y+t2[k2]-s.anc.pos;if(k2>s.anc.i)s.news+=k2-s.anc.i}}
+    if(to!=null){to=Math.max(0,to);if(Math.abs(to-y)>=.5){el.scrollTop=to;y=s.top=el.scrollTop;
+      if(s.a>0&&y<s.lo||s.b<s.n&&y+s.vh>s.hi){s.anc=ACanc(s,y);again();return}}}            // moved past what is drawn: draw there now
+    if(y<=2)s.news=0;s.anc=ACanc(s,y);
+    if(s.news!==nb||(y>s.vh)!==up)again()});
+  var onScroll=function(){var el=box.current;if(!el)return;var y=el.scrollTop;s.top=y;if(y<=2)s.news=0;s.anc=ACanc(s,y);
+    if(s.raf||!(s.a>0&&y<s.lo+300||s.b<s.n&&y+s.vh>s.hi-300||(y>s.vh)!==s.up))return;     // drawn again only near the edge of what is drawn
+    s.raf=requestAnimationFrame(function(){s.raf=0;re()})};
+  var kids=[];if(tops[a]>0)kids.push(PJh("div",{key:"_a",style:{height:tops[a]}}));
+  rows.slice(a,b).forEach(function(x){var r=x[0];kids.push(PJh("div",{className:"ac-row",key:r.id,"data-id":r.id},PJh("span",{className:"ac-t"},ACtime(r.at)),
+    PJh("button",{className:"ac-who",onClick:function(){p.pick(p.dev===r.device_id?"":r.device_id)}},ACwho(r.who||p.names[r.device_id])),PJh("span",{className:"ac-tx",style:{"--c":x[1][1]}},x[1][0])))});
+  if(tops[n]-tops[b]>0)kids.push(PJh("div",{key:"_b",style:{height:tops[n]-tops[b]}}));
+  if(n)kids.push(PJh("div",{key:"_end",className:"ac-end"},"Nothing earlier today · "+ACn(n,"event","events")+" since "+ACtime(rows[n-1][0].at)));
+  var pill=up?PJh("div",{className:"ac-up"},PJh("button",{onClick:function(){var el=box.current;s.news=0;s.anc=null;if(el)el.scrollTop=0}},
+    s.news?"↑ "+ACn(s.news,"new event","new events"):"↑ Back to now")):null;
+  return PJh("div",{className:"ac-feed",ref:box,onScroll:onScroll},pill,kids)}
 function ACroom({d:e,t:tok}){
   var A=(0,M.useState)(function(){try{return localStorage.getItem("muniz_ac_range")||"today"}catch(x){return"today"}}),range=A[0],setRange0=A[1],
       B0=(0,M.useState)(0),setVer=B0[1],C0=(0,M.useState)(""),dev=C0[0],setDev=C0[1],D1=(0,M.useState)("all"),fm=D1[0],setFm=D1[1],
@@ -1947,7 +1996,7 @@ function ACroom({d:e,t:tok}){
   for(j=tRows.length-1;j>=0;j--){var q=tRows[j],dv=q.device_id,age=nowT-Date.parse(q.at),tk=dv+"|"+(q.sess||""),tl=tails[tk]||(tails[tk]=[]);
     if(tl.length<4&&q.ev!=="scr"&&q.ev!=="seen"){var lq=ACline(q);if(lq)tl.push([q,lq])}
     if(q.ev==="cart"&&age<15e3){var cx=q.data||{},rk=recs[dv]||(recs[dv]={});if(!rk[cx.k]){rk[cx.k]={t:Date.parse(q.at),up:cx.q>cx.p};if(!cx.q)(gones[dv]=gones[dv]||[]).push(cx.k)}}}
-  for(i=tRows.length-1;i>=0&&feed.length<160;i--){var r=tRows[i];if(dev&&r.device_id!==dev)continue;if(fm!=="all"&&ACkind(r)!==fm)continue;var ln=ACline(r);if(ln)feed.push([r,ln])}
+  for(i=tRows.length-1;i>=0;i--){var r=tRows[i];if(dev&&r.device_id!==dev)continue;if(fm!=="all"&&ACkind(r)!==fm)continue;var ln=ACline(r);if(ln)feed.push([r,ln])}
   var devName={};ACcache.rows.forEach(function(r){if(r.who)devName[r.device_id]=r.who});(ACcache.live||[]).forEach(function(l){if(l.who&&!devName[l.device_id])devName[l.device_id]=l.who});
   var isOn=function(l){return!(l.state||{}).hid&&nowT-Date.parse(l.updated_at)<12e4};
   var live=(ACcache.live||[]).filter(function(l){return nowT-Date.parse(l.updated_at)<18e5}).sort(function(a,b){return(isOn(b)?1:0)-(isOn(a)?1:0)||Date.parse(b.updated_at)-Date.parse(a.updated_at)});
@@ -2000,8 +2049,7 @@ function ACroom({d:e,t:tok}){
           onPick:function(){setDev(dev===l.device_id?"":l.device_id)}})})):PJh(ve,null,"Nobody has Pedidos or Fuel open right now.")),
       PJh(G,{title:"FEED · TODAY",right:seg(fm,setFm,[["all","All"],["mat","Materials"],["fuel","Fuel"],["err","Errors"]]),flush:!0},
         dev?PJh("div",{className:"ac-note"},"Only "+ACwho((tRows.filter(function(r){return r.device_id===dev&&r.who}).slice(-1)[0]||{}).who)+"'s phone · ",PJh("button",{className:"ac-who",onClick:function(){setDev("")}},"show every phone")):null,
-        feed.length?PJh("div",{className:"ac-feed"},feed.map(function(x){var r=x[0];return PJh("div",{className:"ac-row",key:r.id},PJh("span",{className:"ac-t"},ACtime(r.at)),
-          PJh("button",{className:"ac-who",onClick:function(){setDev(dev===r.device_id?"":r.device_id)}},ACwho(r.who||devName[r.device_id])),PJh("span",{className:"ac-tx",style:{"--c":x[1][1]}},x[1][0]))})):
+        feed.length?PJh(ACfeed,{rows:feed,names:devName,dev:dev,pick:setDev,reset:fm+"|"+dev}):
           PJh(ve,null,dev||fm!=="all"?"Nothing for this filter today.":"Nothing from the phones yet today."))),
     PJh(G,{title:"THE ANSWERS · "+(range==="today"?"TODAY":range==="7d"?"LAST 7 DAYS":"LAST 30 DAYS"),right:PJh("span",{className:"dim"},none?"":ACn(c.sessions,"app open","app opens")+" on "+ACn(c.phones,"phone","phones")+(c.err?" · "+c.err+" app error"+(c.err===1?"":"s"):"")),flush:!0},
       PJh("div",{className:"idle-kpis ac-kpis"},tiles),drawer),
