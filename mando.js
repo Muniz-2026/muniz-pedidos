@@ -2913,7 +2913,6 @@ function MZidleTab(p){var e=p.e,R=MZidleRange(p.range,p.today),c=(0,M.useMemo)(f
      position:fixed drawer to the tab instead of the screen */
   return PJh(s.Fragment,null,PJh("div",{className:"idle"},
     PJh("div",{className:"idle-kpis"},
-      PJh(K,{label:"IDLE · TRUCKS & PICKUPS",value:h1(c.idleH),unit:"h",sub:Math.round(c.pct)+"% of engine time · "+c.R.label,tone:c.pct>45?_.red:c.pct>30?_.amber:_.green}),
       PJh(K,{label:"FUEL BURNED IDLING · ESTIMATE",value:usd(c.usdLo)+"–"+usd(c.usdHi),sub:"≈ "+Math.round(c.galLo)+"–"+Math.round(c.galHi)+" gal · a range, see the note below · diesel $"+c.dieselP.toFixed(2)+"/gal",tone:_.amber}),
       PJh(K,{label:"6–9 AM",value:Math.round(c.morningPct)+"%",sub:"of all idling · "+h1(c.morning)+" h · warm-ups and waiting",tone:c.morningPct>35?_.amber:_.green}),
       PJh(K,{label:"STRETCHES OF "+lim+"+",value:String(c.longs),sub:h1(c.longH)+" h · trucks and pickups, no break",tone:c.longs>50?_.red:_.amber}),
