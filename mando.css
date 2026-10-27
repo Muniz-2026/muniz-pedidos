@@ -476,6 +476,8 @@ html[data-theme] .room>*{min-width:0}
   html[data-theme] .rail .rb{flex:0 0 auto;width:auto;padding:8px 12px;gap:8px;font-size:13.5px}
   html[data-theme] .rail .grow,html[data-theme] .rail .rf{display:none}
   html[data-theme] .cmd{position:static}
+  /* v218 · the room tabs keep their own height: with a short room (a search with one result) the grid stretched the tab row */
+  html[data-theme] .ops{grid-template-rows:auto 1fr}
 }
 @media (max-width:640px){
   html[data-theme] .cmd{flex-wrap:wrap;padding:10px 14px;gap:8px 4px}
@@ -497,6 +499,8 @@ html[data-theme] .room>*{min-width:0}
   html[data-theme] .tbl tr>:first-child{padding-left:14px}html[data-theme] .tbl tr>:last-child{padding-right:14px}
   html[data-theme] .dh,html[data-theme] .db,html[data-theme] .df{padding-left:18px;padding-right:18px}
   html[data-theme] .dn{font-size:26px}
+  /* v218 · a search result wraps onto a second line instead of running past the card */
+  html[data-theme] .recent.srch{flex-wrap:wrap;row-gap:4px}
 }
 
 /* ---------- iPhone: sheets, card rows, thumb-sized controls ---------- */

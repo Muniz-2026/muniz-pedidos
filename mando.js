@@ -1673,8 +1673,11 @@ var ACBTN={"NOMBRE":"a name on the list","ARTÍCULO":"an item card (adds one)","
   "📏 Varilla y estacas":"Rebar & stakes","⭕ Discos y abrasivos":"Discs & abrasives","🛠️ Acabado de concreto":"Concrete finishing","🧪 Quimicos y parches":"Chemicals & patching",
   "🔨 Herramienta de mano":"Hand tools","⚡ Herramienta electrica":"Power tools","🦺 Seguridad (EPP)":"Safety (PPE)","🧱 Albanileria":"Masonry"};
 var ACROLE={MAYORDOMO:"Foreman",SUPERVISOR:"Supervisor",GERENTE:"PM",PERSONAL:"Crew",CHOFER:"Driver",OFICINA:"Office",SUBCONTRATISTA:"Subcontractor"};
-function ACday(t){try{return new Date(t).toLocaleDateString("en-CA",{timeZone:"America/Chicago"})}catch(x){return new Date(t).toISOString().slice(0,10)}}
-function ACmidnight(){var n=new Date();try{var p=n.toLocaleTimeString("en-GB",{timeZone:"America/Chicago",hour12:!1}).split(":");return n.getTime()-(((+p[0]%24)*60+(+p[1]))*60+(+p[2]))*1e3-n.getMilliseconds()}catch(x){return new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime()}}
+/* v218 · one date formatter each, made once: toLocale…String with a time zone builds a new one on every call, and the
+   ACTIVITY room formats thousands of rows (1.6 s of a phone's time on opening the room) */
+var ACfmts={};function ACfmt(k,loc,o){return ACfmts[k]||(ACfmts[k]=new Intl.DateTimeFormat(loc,o))}
+function ACday(t){try{return ACfmt("day","en-CA",{timeZone:"America/Chicago"}).format(new Date(t))}catch(x){return new Date(t).toISOString().slice(0,10)}}
+function ACmidnight(){var n=new Date();try{var p=ACfmt("hms","en-GB",{timeZone:"America/Chicago",hour12:!1,hour:"numeric",minute:"numeric",second:"numeric"}).format(n).split(":");return n.getTime()-(((+p[0]%24)*60+(+p[1]))*60+(+p[2]))*1e3-n.getMilliseconds()}catch(x){return new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime()}}
 function ACfrom(r){var m=ACmidnight();return r==="30d"?m-29*864e5:r==="7d"?m-6*864e5:m}
 function ACwho(w){w=String(w||"").trim();return w?z(w):"Unknown phone"}
 function ACn(n,one,many){return n+" "+(n===1?one:many)}
@@ -1685,8 +1688,8 @@ function ACitem(k){k=String(k||"");var dm=k.charAt(0)==="~";if(dm)k=k.slice(1);v
   return{v:v,c:c,cu:cu,dm:dm,name:cu?c.slice(1)+" (not in the catalog)":(MZcat&&MZcat[c.toUpperCase()])||c}}
 function ACdur(ms){if(ms==null||!isFinite(ms))return"—";var s=Math.max(0,Math.round(ms/1e3));if(s<60)return s+" s";var m=Math.floor(s/60),r=s%60;if(m<60)return m+" min"+(r&&m<10?" "+r+" s":"");return Math.floor(m/60)+" h"+(m%60?" "+(m%60)+" min":"")}
 function ACago(ms){var s=Math.round(ms/1e3);return s<5?"now":s<60?s+" s ago":s<3600?Math.round(s/60)+" min ago":Math.round(s/3600)+" h ago"}
-function ACtime(t){return new Date(t).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",second:"2-digit",timeZone:"America/Chicago"})}
-function ACwhen(t){return new Date(t).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}
+function ACtime(t){return ACfmt("time","en-US",{hour:"numeric",minute:"2-digit",second:"2-digit",timeZone:"America/Chicago"}).format(new Date(t))}
+function ACwhen(t){return ACfmt("when","en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"}).format(new Date(t))}
 function ACmed(a){if(!a.length)return null;var b=a.slice().sort(function(x,y){return x-y}),m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2}
 function ACpct(a,p){if(!a.length)return null;var b=a.slice().sort(function(x,y){return x-y});return b[Math.min(b.length-1,Math.floor(p*b.length))]}
 function ACst(e){return e==="TEXCON"?"Tex-Con":e==="LEOS"?"Leo's":e||""}
@@ -2813,7 +2816,10 @@ function MzMfa({ses:S,onDone:D,onCancel:C}){
    reduced-motion setting) says no.
    ============================================================================= */
 var MZmo=(function(){try{return !matchMedia("(prefers-reduced-motion: reduce)").matches}catch(e){return true}})();
-var MZvtOK=MZmo&&typeof document.startViewTransition==="function";
+/* v218 · phones and tablets (touch) switch rooms and filters at once: a view transition holds the old picture on screen
+   (taps ignored) until the new room has drawn, and on an iPhone that read as a freeze */
+var MZtouch=(function(){try{return matchMedia("(pointer: coarse)").matches}catch(e){return false}})();
+var MZvtOK=MZmo&&!MZtouch&&typeof document.startViewTransition==="function";
 var MZvtCur=null,MZnumCache=new Map();
 /* navigation cross-fades only while the machine keeps up: two slow ones and we switch to instant + CSS entrances */
 var MZnavVT=true,MZslow=0;
@@ -2846,26 +2852,31 @@ function MZname(el,n){if(el){el.style.viewTransitionName=n;el.setAttribute("data
 function MZpass(el){var e=new MouseEvent("click",{bubbles:true,cancelable:true,view:window});e.__mzPass=true;el.dispatchEvent(e)}
 
 /* ---------- gliding selection ---------- */
-function MZplace(ind,on,fresh){
-  if(!on){ind.style.opacity="0";return}
+function MZplace(ind,on,fresh,sig,force){
+  if(!on){ind.style.opacity="0";ind.__on=null;return}
+  /* v218 · same button and same labels: it cannot have moved, so no offset reads (each one forced a full layout, on every
+     change anywhere on the page) */
+  if(!fresh&&!force&&ind.__on===on&&ind.__sig===sig)return;
+  ind.__on=on;ind.__sig=sig;
   if(fresh)ind.style.transition="none";
   ind.style.transform="translate("+on.offsetLeft+"px,"+on.offsetTop+"px)";
   ind.style.width=on.offsetWidth+"px";ind.style.height=on.offsetHeight+"px";ind.style.opacity="1";
   if(fresh){void ind.offsetWidth;ind.style.transition=""}
 }
-function MZlayout(){try{
+function MZlayout(force){try{
   var rail=document.querySelector(".rail");
   if(rail){
     var p=rail.querySelector(":scope>.mz-pill"),fresh=!p;
     if(!p){p=document.createElement("div");p.className="mz-pill";p.setAttribute("aria-hidden","true");rail.appendChild(p);document.documentElement.classList.add("mz-pill-on")}
-    MZplace(p,rail.querySelector(".rb.on"),fresh);
+    var rs="";rail.querySelectorAll(":scope>.rb").forEach(function(b){rs+=b.textContent+"|"});   /* the room buttons only: the rail foot holds the clock */
+    MZplace(p,rail.querySelector(".rb.on"),fresh,rs,force);
     rail.querySelectorAll(":scope>.rb").forEach(function(b,i){if(!b.title&&i<9)b.title=(b.textContent||"").replace(/\d+$/,"").trim()+"  \u00B7  "+(i+1)});
     rail.querySelectorAll(".badge").forEach(function(b){if(b.__v===undefined)b.__v=b.textContent});
   }
   document.querySelectorAll(".segs").forEach(function(sg){
     var ind=sg.querySelector(":scope>.mz-seg"),fresh=!ind;
     if(!ind){ind=document.createElement("span");ind.className="mz-seg";ind.setAttribute("aria-hidden","true");sg.appendChild(ind);sg.classList.add("mz-has-ind")}
-    MZplace(ind,sg.querySelector(":scope>button.on"),fresh);
+    MZplace(ind,sg.querySelector(":scope>button.on"),fresh,sg.textContent,force);
   });
 }catch(e){}}
 
@@ -3050,14 +3061,15 @@ function MzNum(props){
   window.addEventListener("scroll",sc,{passive:true});sc();
 
   /* keep the gliding pieces in place as React renders */
-  var q=0,tick=function(){if(q)return;q=requestAnimationFrame(function(){q=0;MZlayout();MZscan()})};
+  var q=0,fz=!1,tick=function(){if(q)return;q=requestAnimationFrame(function(){q=0;var f=fz;fz=!1;MZlayout(f);MZscan()})},
+      tickAll=function(){fz=!0;tick()};   /* a resize or the fonts arriving can move every highlight: place them all */
   new MutationObserver(tick).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:["class"]});
   /* badge counts change as text only: a tiny separate watch, no layout work */
   new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var n=ms[i].target,b=n&&(n.nodeType===3?n.parentElement:n);
     if(b&&b.classList&&b.classList.contains("badge")){var v=b.textContent;if(b.__v!==undefined&&b.__v!==v){b.classList.remove("mz-bump");void b.offsetWidth;b.classList.add("mz-bump")}b.__v=v}}})
     .observe(document.body,{subtree:true,characterData:true});
-  window.addEventListener("resize",tick);
-  try{document.fonts&&document.fonts.ready.then(tick)}catch(e){}
+  window.addEventListener("resize",tickAll);
+  try{document.fonts&&document.fonts.ready.then(tickAll)}catch(e){}
 }catch(e){}})();
 
 /* ===== ENGLISH FLAGS + LIVE TOUCHES ======================================== */
