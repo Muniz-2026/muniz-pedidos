@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v236
+/* MUÑIZ Pedidos - service worker  ·  v237
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -34,9 +34,11 @@
      · v234: the Command Center's Fleet room has no TRUCK IDLE tile (it counted 8 days and skid steers' work as truck idle).
      · v235: the Command Center's Fuel → IDLE tab has no IDLE · TRUCKS & PICKUPS total tile.
      · v236: the Command Center's ACTIVITY feed scrolls back through the whole day (it showed the newest 160 rows).
+     · v237: the Command Center's Permits room: a ROW permit turns amber 14 days before it expires (parche188), and
+       a permit replaced before its date reads "replaced · valid through <date>", not "expired".
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v236";
+const CACHE = "muniz-pedidos-v237";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"

@@ -3076,7 +3076,10 @@ function PMcard(p){var pm=p.p,k=p.kind,tok=p.tok,[busy,setBusy]=(0,M.useState)("
         PJh("button",{className:"btn sm primary",disabled:!!busy,onClick:function(){
           if(ed.mode==="new")save({kind:k,crew_no:pm.crew_no,person:pm.person,site:pm.site,project:pm.project,number:ed.number,expires_on:ed.expires_on||null,na_reason:ed.na_reason||null,notes:ed.notes},(k==="811"?"New 811 ticket":"New ROW permit")+" saved · "+pm.site);
           else save({id:pm.id,number:ed.number,expires_on:ed.expires_on||"",na_reason:ed.na_reason||"",notes:ed.notes},"Saved · "+pm.site)}},busy==="save"?"SAVING…":"SAVE"))):null,
-    p.history&&p.history.length?PJh("div",{className:"pm-hist"},PJh("span",null,"History"),p.history.map(function(h){return PJh("div",{key:h.id,className:"row"},PJh("span",{className:"mono"},h.number||"—"),PJh("span",{className:"dim grow"},h.expires_on?"expired "+PJday(h.expires_on):h.na_reason||""),h.file_path?PJh(PMfileBtn,{p:h,tok:tok}):null)})):null)}
+    p.history&&p.history.length?PJh("div",{className:"pm-hist"},PJh("span",null,"History"),p.history.map(function(h){return PJh("div",{key:h.id,className:"row"},PJh("span",{className:"mono"},h.number||"—"),PJh("span",{className:"dim grow"},PMhist(h,pm)),h.file_path?PJh(PMfileBtn,{p:h,tok:tok}):null)})):null)}
+/* a history line: the old site when it was another job, then "expired <date>", or "replaced · valid through <date>"
+   for a permit replaced before its date (an extension, or the crew moved to another job) */
+function PMhist(h,cur){var a=[];if(cur&&h.site&&h.site!==cur.site)a.push(h.site);a.push(h.expires_on?(Number(h.days_left)<0?"expired ":"replaced · valid through ")+PJday(h.expires_on):h.na_reason||"no date");return a.join(" · ")}
 function PMfileBtn(p){var[b,setB]=(0,M.useState)(!1);return PJh("button",{className:"btn sm",disabled:b,onClick:async function(){var w=window.open("","_blank");setB(!0);try{var u=await PMsign(p.p.file_path,p.tok,300);if(w)w.location=u}catch(x){w&&w.close();MZtoast(PMerr(x),"err")}finally{setB(!1)}}},"PDF")}
 
 /* both permits for one crew, side by side */
@@ -3101,7 +3104,7 @@ function PMroom(p){var e=p.d,t=p.now,tok=p.t,[f,setF]=(0,M.useState)("all"),[ope
     PJh("div",{className:"pm-kpis"},
       PJh("div",null,PJh("b",null,nRowOk+"/"+rows.length),PJh("span",null,"sites with an active ROW permit or none needed")),
       PJh("div",{style:{"--pc":nRowBad?_.red:_.green}},PJh("b",null,nRowBad),PJh("span",null,"ROW expired or not on file")),
-      PJh("div",{style:{"--pc":nRowSoon?_.amber:_.green}},PJh("b",null,nRowSoon),PJh("span",null,"ROW expiring within 7 days")),
+      PJh("div",{style:{"--pc":nRowSoon?_.amber:_.green}},PJh("b",null,nRowSoon),PJh("span",null,"ROW expiring within "+(((act.find(function(x){return x.kind==="ROW"&&x.soon_days})||{}).soon_days)||7)+" days")),
       PJh("div",{style:{"--pc":n811?_.amber:_.green}},PJh("b",null,n811),PJh("span",null,"811 tickets to renew (≤ 2 days)")),
       PJh("div",null,PJh("b",null,nPdfOn+"/"+nPdf),PJh("span",null,"permits with the PDF attached"))),
     PJh(G,{title:"EVERY SITE · ROW PERMIT + 811 TICKET",right:PJh("div",{className:"pm-tools"},
