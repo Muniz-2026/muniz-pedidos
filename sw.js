@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v225
+/* MUÑIZ Pedidos - service worker  ·  v226
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -28,9 +28,11 @@
      · v218: the Command Center on a phone: rooms switch at once, ACTIVITY opens fast, search fits.
      · v219: tapping a room tab leaves the search (the box clears, the room shows).
      · v220: the fuel app no longer re-sends old failed attempts (they became ghost POs).
+     · v226: a page this device has no copy of waits for the network instead of opening as another page (Oct 27:
+       the Command Center opened as Pedidos). Only the phone pages fall back to the Pedidos home.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v225";
+const CACHE = "muniz-pedidos-v226";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
@@ -39,6 +41,9 @@ const NET_TIMEOUT_MS = 3500;
 /* without these the app cannot run: if they fail to download, the install fails
    and the phone KEEPS the version it has (old cache is never deleted first) */
 const CRITICAL = ["./index.html","./updater.js","./app.js","./styles.css","./config.js","./link_rescue.js","./pedidos_db.js","./pedidos_menu.js","./fuel.js"];
+/* the pages the phones keep a copy of: with no signal and no copy of their own, only these fall back to the Pedidos
+   home. Any other page (the Command Center, admin) is only ever answered with itself (v226) */
+const PHONE_PAGES = SHELL.filter(u => u === "./" || /\.html$/.test(u)).map(u => new URL(u, location.href).pathname);
 
 self.addEventListener("install", (e) => { e.waitUntil((async () => {
   const c = await caches.open(CACHE);
@@ -117,19 +122,29 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin === location.origin) {
     if (/\/sw\.js$/.test(url.pathname)) return;         // the version check (updater.js) always asks the server
-    const code = req.mode === "navigate" || /(\.(html?|js|css)|\/)$/.test(url.pathname), cid = e.resultingClientId || e.clientId;
+    const nav = req.mode === "navigate", code = nav || /(\.(html?|js|css)|\/)$/.test(url.pathname), cid = e.resultingClientId || e.clientId;
     // app files: newest if there is signal, cached copy if not
     e.respondWith((async () => {
       const c = await caches.open(CACHE);
+      const ask = () => fetch(new Request(req, { cache: "no-cache" })), net = ask();
       try {
-        const res = await withTimeout(fetch(new Request(req, { cache: "no-cache" })), NET_TIMEOUT_MS);
+        const res = await withTimeout(net, NET_TIMEOUT_MS);
         if (res && res.status === 200) { c.put(req, res.clone()); return res; }
         if (res && res.status === 304) { const cached = await c.match(req); if (cached) return cached; }
         const cached = await c.match(req); if (cached && code) markStale(cid); return cached || res;
       } catch (err) {
-        const cached = await c.match(req); if (cached) { if (code) markStale(cid); return cached; }
-        if (req.mode === "navigate") { const home = await c.match("./index.html"); if (home) { markStale(cid); return home; } }
-        return Response.error();
+        const cached = await c.match(req) || (nav ? await c.match(req, { ignoreSearch: true }) : undefined);
+        if (cached) { if (code) markStale(cid); return cached; }
+        if (nav && PHONE_PAGES.indexOf(url.pathname) >= 0) { const home = await c.match("./index.html"); if (home) { markStale(cid); return home; } }
+        /* no copy on this device (the Command Center is saved on first use, and every release starts an empty copy):
+           a slow answer is still the right page, so wait for it; a page load asks again for ~8 s (a computer just
+           back from sleep has no network for a moment). Never another page instead (v226) */
+        let tries = nav ? 6 : 1;
+        for (let p = net; ; p = ask()) {
+          try { const res = await p; if (res && res.status === 200) c.put(req, res.clone()); return res; }
+          catch (err2) { if (--tries <= 0) return Response.error(); }
+          await new Promise(r => setTimeout(r, 1500));
+        }
       }
     })());
     return;
