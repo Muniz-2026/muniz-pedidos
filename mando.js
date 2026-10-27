@@ -2751,12 +2751,6 @@ function MZidleCalc(e,R){var rules={};(e.rules||[]).forEach(function(r){rules[r.
   return{R:R,thr:thr,trucks:trucks,machines:machines,idleH:tot("idleH"),driveH:tot("driveH"),pct:eng?tot("idleH")/eng*100:0,galLo:tot("galLo"),galHi:tot("galHi"),usdLo:tot("usdLo"),usdHi:tot("usdHi"),
     longs:tot("longs"),longH:tot("longH"),hours:hours,wk:wk,sess:sx,morning:morning,morningPct:tot("idleH")?morning/tot("idleH")*100:0,dsl:dsl,gas:gas,dieselP:dieselP,gasP:gasP,
     yardH:tot("yardH"),jobH:tot("jobH"),staH:tot("staH"),supH:tot("supH"),othH:tot("othH"),hasData:rows.length>0,W:W}}
-function MZidleMsg(c){var top=c.trucks.slice(0,5),d=function(n){return"$"+Math.round(n).toLocaleString("en-US")},h=function(n){return(Math.round(n*10)/10).toLocaleString("en-US")};
-  var lines=["Ralentí · "+(c.R.es||c.R.label)+" · camionetas y camiones",
-    "Total: "+h(c.idleH)+" h con el motor encendido sin moverse ("+Math.round(c.pct)+"% del tiempo de motor) · aprox. "+Math.round(c.galLo)+"–"+Math.round(c.galHi)+" gal · "+d(c.usdLo)+"–"+d(c.usdHi),
-    Math.round(c.morningPct)+"% del ralentí es entre 6 y 9 AM (unidades encendidas en la yarda o esperando en la obra).",
-    "Las 5 unidades con más ralentí:"].concat(top.map(function(u,i){return(i+1)+". "+u.id+" (a nombre de "+u.reg+") · "+h(u.idleH)+" h · "+h(u.perDay)+" h por día · "+Math.round(u.pct)+"% del motor"+(u.prevPerDay!=null?(u.perDay>u.prevPerDay*1.1?" · subió":u.perDay<u.prevPerDay*.9?" · bajó":" · igual"):"")}));
-  lines.push("Regla: si la unidad va a estar parada más de 5 minutos, se apaga."+(c.dsl&&c.dsl.p?" El diésel nos cuesta $"+c.dsl.p.toFixed(2)+" por galón (estados de cuenta).":""));return lines.join("\n")}
 /* ===== FOREMEN'S TRUCKS · IDLE 1 HOUR+ (v206, v223) ===========================================
    The trucks in Actsoft's group "Foreman" that sat with the engine on and not moving for an hour or more
    without a break (rules · foreman_idle_alert_min, the same limit as the push from check_foreman_idle).
@@ -2847,12 +2841,11 @@ function MZidleCase(p){var list=p.list||[],[i,setI]=(0,M.useState)(0),[pos,setPo
       PJh("div",{className:"dim xs"},"From Actsoft's minute readings. Red = engine on, standing still · blue = moving · grey = engine off · solid = this stretch. A stretch ends at any other reading, a silence over 3 minutes, or when Actsoft's clock restarts.")),
     PJh("div",{className:"df"},PJh("button",{className:"btn",onClick:p.onClose},"CLOSE"))))}
 function MZidleTab(p){var e=p.e,R=MZidleRange(p.range,p.today),c=(0,M.useMemo)(function(){return MZidleCalc(e,R)},[e.idleDay,e.idleSess,e.idleWho,e.veh,e.fleet,e.fuel,e.tickets,e.rules,R.from,R.to]),
-  [view,setView]=(0,M.useState)("trucks"),[copied,setCopied]=(0,M.useState)(!1),[cs,setCs]=(0,M.useState)(null);
+  [view,setView]=(0,M.useState)("trucks"),[cs,setCs]=(0,M.useState)(null);
   var h1=function(n){return(Math.round(n*10)/10).toLocaleString("en-US",{minimumFractionDigits:1,maximumFractionDigits:1})},usd=function(n){return"$"+Math.round(n).toLocaleString("en-US")},
       trend=function(u){if(u.prevPerDay==null||!u.prevPerDay)return PJh("span",{className:"dim xs"},"—");var r=u.perDay/u.prevPerDay;return PJh("span",{className:"xs",style:{color:r>1.1?_.red:r<.9?_.green:_.faint,fontWeight:600}},(r>1.1?"▲ ":r<.9?"▼ ":"= ")+Math.round(Math.abs(r-1)*100)+"%")},
       hl=function(h){return h===0?"12a":h<12?h+"a":h===12?"12p":(h-12)+"p"};
   if(!c.hasData)return PJh(G,{title:"IDLE"},PJh(ve,null,"No idle data yet: refresh_idle has not rolled up the GPS readings."));
-  var msg=MZidleMsg(c),copy=function(){try{navigator.clipboard.writeText(msg);setCopied(!0);setTimeout(function(){setCopied(!1)},2500)}catch(x){MZtoast("Select the text and copy it","warn")}};
   var worst=c.trucks[0],lim=c.thr%60===0?(c.thr/60)+(c.thr===60?" HOUR":" HOURS"):c.thr+" MIN",
       dt=function(o){return o&&o.from?MZidleDate(o.from).replace(/^\w+, /,"")+" – "+MZidleDate(o.to).replace(/^\w+, /,""):"no tickets"};
   /* the case file sits beside .idle, not inside it: .idle's rise animation leaves a transform, which would pin a
@@ -2886,16 +2879,13 @@ function MZidleTab(p){var e=p.e,R=MZidleRange(p.range,p.today),c=(0,M.useMemo)(f
       PJh("table",{className:"tbl idle-tbl"},PJh("thead",null,PJh("tr",null,["#","MACHINE","ENGINE ON","DAYS","PER DAY","WHERE"].map(function(x){return PJh("th",{key:x},x)}))),
         PJh("tbody",null,c.machines.map(function(u,i){return PJh("tr",{key:u.id},PJh("td",{className:"mono dim"},i+1),PJh("td",null,PJh("b",null,u.id),PJh("span",{className:"dim xs"}," · "+u.reg)),PJh("td",null,h1(u.idleH+u.driveH)+" h"),PJh("td",null,u.days),PJh("td",null,h1((u.idleH+u.driveH)/(u.days||1))+" h"),PJh("td",{className:"xs"},u.top||"—"))})))),
     view==="trucks"?PJh("div",{className:"dim xs idle-note"},"Fuel is an estimate, shown as a range: gallons per idle hour measured by Argonne National Laboratory for the U.S. DOE — diesel trucks 0.44 gal/h (6–10 L engines, no load) to 0.84 (Class 5 delivery truck); gasoline V8 0.39–0.59. No figure is published for diesel pickups, so the nearest measured diesel trucks are used. Price = our station statements: diesel $"+c.dieselP.toFixed(2)+"/gal ("+dt(c.dsl)+"), regular $"+c.gasP.toFixed(2)+" ("+dt(c.gas)+"). A machine running in place is usually working, so machines are listed apart."):null,
-    PJh("div",{className:"g3"},
-      PJh(G,{title:"LONGEST STRETCHES · "+c.R.label.toUpperCase(),className:"span2",right:PJh("span",{className:"dim"},"engine on, not moving, "+lim.toLowerCase()+" or more without a break · click one for the readings"),flush:!0},
+    PJh(G,{title:"LONGEST STRETCHES · "+c.R.label.toUpperCase(),right:PJh("span",{className:"dim"},"engine on, not moving, "+lim.toLowerCase()+" or more without a break · click one for the readings"),flush:!0},
         c.sess.length?PJh("table",{className:"tbl idle-tbl"},PJh("thead",null,PJh("tr",null,["WHEN","TRUCK · REGISTERED TO","MINUTES","WHERE"].map(function(x){return PJh("th",{key:x},x)}))),
           PJh("tbody",null,c.sess.slice(0,30).map(function(x,i){var w=c.W[x.id+"|"+x.day];return PJh("tr",{key:i,className:"go",onClick:function(){setCs([x])}},
             PJh("td",{className:"xs"},MZidleDate(x.day)+" "+MZidleCT(x.start,"t")+"–"+MZidleCT(x.end,"t")),
             PJh("td",null,PJh("b",null,x.id),PJh("span",{className:"dim xs"}," · "+x.reg),w&&w.how&&w.registered_had_it===!1?PJh("div",{className:"xs",style:{color:_.amber}},w.how+": "+(w.who||(w.po_people||w.crew_people||[]).join(", "))):null),
             PJh("td",null,PJh("b",{style:{color:x.min>=120?_.red:_.amber}},Math.round(x.min))),
-            PJh("td",{className:"xs"},x.kind?MZIDLE_KIND[x.kind]+(x.where?" · "+x.where:""):"Not identified"+(x.lat?" · "+Number(x.lat).toFixed(4)+", "+Number(x.lon).toFixed(4):"")))}))):PJh(ve,{ok:!0},"No stretch of "+lim.toLowerCase()+" or more in this range.")),
-      PJh(G,{title:"MESSAGE FOR THE SUPERVISORS",right:PJh("button",{className:"btn sm primary",onClick:copy},copied?"COPIED":"COPY")},
-        PJh("textarea",{className:"inp idle-msg",readOnly:!0,value:msg,rows:14}),PJh("div",{className:"dim xs"},"Spanish, ready to paste in the group text. Figures are for the range selected above.")))),
+            PJh("td",{className:"xs"},x.kind?MZIDLE_KIND[x.kind]+(x.where?" · "+x.where:""):"Not identified"+(x.lat?" · "+Number(x.lat).toFixed(4)+", "+Number(x.lon).toFixed(4):"")))}))):PJh(ve,{ok:!0},"No stretch of "+lim.toLowerCase()+" or more in this range."))),
     cs?PJh(MZidleCase,{list:cs,W:c.W,alerts:e.fiAlerts,tok:p.tok,onClose:function(){setCs(null)}}):null)}
 
 /* ===== VENDOR STATEMENTS · what each vendor says is owed, against the Ledger ======================

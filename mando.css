@@ -1332,7 +1332,6 @@ html[data-theme] .idle-kpis{display:grid;grid-template-columns:repeat(auto-fit,m
 html[data-theme] .idle-tbl td,html[data-theme] .idle-tbl th{white-space:nowrap}
 html[data-theme] .idle-tbl tr.hot td{background:color-mix(in srgb,var(--red-f) 7%,transparent)}
 html[data-theme] .idle-tbl td.xs{white-space:normal;max-width:220px}
-html[data-theme] .idle-msg{width:100%;font:12.5px/1.45 var(--mono);resize:vertical;min-height:220px;margin-bottom:8px}
 html[data-theme] .idle-note{padding:0 4px}
 /* v206 · foremen idle 1 h+: one row per foreman, one column per hour; the darker, the more often */
 html[data-theme] .fi-kpis{padding:14px 14px 4px}
