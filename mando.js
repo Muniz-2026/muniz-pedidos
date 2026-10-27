@@ -269,11 +269,17 @@ function LVagree(a,b){var A=LVwords(a),B=LVwords(b);for(var k in A)if(B[k])retur
 function LVplaces(spots,votes,crew){if(LVPL.s===spots&&LVPL.v===votes&&LVPL.c===crew)return LVPL.out;
   var em={},hasEm=!1;(crew||[]).forEach(function(r){var k=String(r.day||"").slice(0,10)+"|"+(MK(r.person||"")||r.person);if(r.person&&r.location&&!em[k]){em[k]=r.location;hasEm=!0}});
   var sp=(spots||[]).filter(function(x){return x&&x.lat!=null&&x.lon!=null}),cp=[];
-  (votes||[]).forEach(function(v){if(v.lat==null||v.lon==null)return;var la=+v.lat,lo=+v.lon,d=String(v.day||"").slice(0,10),who=z(v.person||""),p=null;
+  /* v232 · a crew-day whose email names a job the trucks were seen at 2 km+ away is no job place: the truck was elsewhere that
+     day (Lupe Juarez's house on Gate Ridge Dr on "Howard Ln" days; Oct 27: 28 of 628 crew-days, and only places nothing else
+     backs disappear — Gate Ridge Dr, Western Trails Blvd, Roca Roja Path) */
+  var V=[],anc={};(votes||[]).forEach(function(v){if(v.lat==null||v.lon==null)return;var d=String(v.day||"").slice(0,10),loc=em[d+"|"+(MK(v.person||"")||v.person)]||"",ok=!!loc&&LVagree(loc,v.street);
+    V.push({v:v,d:d,loc:loc,ok:ok});if(ok)(anc[loc]=anc[loc]||[]).push([+v.lat,+v.lon])});
+  V.forEach(function(x){var v=x.v,la=+v.lat,lo=+v.lon,d=x.d,who=z(v.person||""),p=null;
+    if(x.loc&&!x.ok&&anc[x.loc]&&!anc[x.loc].some(function(a){return PJhav(la,lo,a[0],a[1])<=2000}))return;
     for(var i=0;i<cp.length;i++){var q=cp[i];if(Math.abs(q.lat-la)<.001&&Math.abs(q.lon-lo)<.0012&&PJhav(la,lo,q.lat,q.lon)<=80){p=q;break}}
     if(!p)cp.push(p={street:String(v.street||""),lat:la,lon:lo,day:d,days:[],who:[],ev:String(v.street||""),em:"",emDay:""});
     if(p.days.indexOf(d)<0)p.days.push(d);if(who&&p.who.indexOf(who)<0)p.who.push(who);if(d>p.day)p.day=d;
-    var loc=em[d+"|"+(MK(v.person||"")||v.person)]||"";if(loc){p.ev+=" "+loc;if(LVagree(loc,v.street)&&d>=p.emDay){p.em=loc;p.emDay=d}}});
+    if(x.loc){p.ev+=" "+x.loc;if(x.ok&&d>=p.emDay){p.em=x.loc;p.emDay=d}}});
   cp.forEach(function(q){q.own=q.em.replace(/\s*\([^)]*\)/g,"").trim()||(q.street.length>3?LVtitle(q.street):"Jobsite")});   /* a label without the email's notes: "503 Radam Ln (No activities today due to rain)" */
   /* a learned spot keeps its name only if the crew-days within reach mention it; else the name they use, most crew-days first
      (no crew email loaded = no evidence either way: nothing is renamed) */
