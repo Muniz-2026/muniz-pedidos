@@ -2129,7 +2129,7 @@ function TOroom({d:e,t:tok}){
   var trace=tr?PJh("div",{className:"to-trace"},
     PJh("div",{className:"to-t"},PJh("span",{className:"to-tk"},"PHONE"),PJh("b",null,tr.po),PJh("span",{className:"dim"},z(tr.who)+" · "+TOday(tr.day)+(TOmin(tr.at)!=null?" · "+(Math.floor(TOmin(tr.at)/60)%12||12)+":"+String(TOmin(tr.at)%60).padStart(2,"0")+(TOmin(tr.at)<720?" AM":" PM"):"")+" · "+(TOV[tr.station]||tr.station))),
     PJh("i",{className:"to-arrow","aria-hidden":"true"}),
-    PJh("div",{className:"to-t"+(tr.gps==="not"?" to-t-p":"")},PJh("span",{className:"to-tk"},"GPS"),PJh("b",null,TOGPS[{at:"VERIFICADO",not:"NO_ESTABA",none:"SIN_UNIDAD"}[tr.gps]]||"Not checked yet"),PJh("span",{className:"dim to-clip2"},tr.gpsNote||"")),
+    PJh("div",{className:"to-t"+(tr.gps==="not"?" to-t-p":"")},PJh("span",{className:"to-tk"},"GPS"),PJh("b",null,TOGPS[{at:"VERIFICADO",not:"NO_ESTABA",none:"SIN_UNIDAD"}[tr.gps]]||"Not checked yet"),PJh("span",{className:"dim to-clip2"},MZen(tr.gpsNote)||"")),
     PJh("i",{className:"to-arrow","aria-hidden":"true"}),
     PJh("div",{className:"to-t"+(tr.bill==="nobill"?" to-t-p":"")},PJh("span",{className:"to-tk"},"BILL"),PJh("b",null,tr.bill==="billed"?(tr.invs.map(function(k){return(TOV[k.split("|")[0]]||"")+" "+k.split("|")[1]}).join(", ")||"Leo's ticket"):tr.bill==="notin"?"Bill not in yet":"No bill found"),
       PJh("span",{className:"dim"},tr.bill==="billed"?(TOgal(tr)?TOgal(tr).toFixed(2)+" gal · ":"")+TOusd(tr.usd,!0):tr.bill==="notin"?"bills in through "+TOday(lb[tr.station]):"bill dated within the bills on file"))):
@@ -3332,6 +3332,7 @@ var MZdict=[
  [/^Nunca lleg[o\u00F3] a (\S+) \((.+?)\)\. M[a\u00E1]s cerca: ([\d.]+) mi de (.+?) al momento del PO/,"Never reached $1 ($2). Closest: $3 mi from $4 at PO time"],
  [/^Nunca lleg[o\u00F3] a (\S+) \((.+?)\)\. M[a\u00E1]s cerca: ([\d.]+) mi al momento del PO/,"Never reached $1 ($2). Closest: $3 mi at PO time"],
  [/, estaba en (.+)$/,", was at $1"],
+ [/^Sin posici[o\u00F3]n GPS \u00B1(\d+) min del PO y sin visita a (\S+) en las (\d+) h siguientes/,"No GPS position within \u00B1$1 min of the PO and no visit to $2 in the next $3 h"],
  [/^Sin visita a (\S+) todav[i\u00ED]a \u00B7 se revisa hasta /,"No visit to $1 yet \u00B7 checking until "],
  [/ \(esperando datos del GPS\)/," (waiting for GPS data)"],
  [/^Sin posici[o\u00F3]n GPS \u00B120 min del PO y sin visita a (\S+) en las (\d+) h siguientes/,"No GPS position \u00B120 min of the PO and no visit to $1 in the next $2 h"],
