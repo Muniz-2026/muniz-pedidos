@@ -3466,10 +3466,9 @@ function MZloadCat(){if(MZcat)return;MZcat={};["ace","cmc","rss","whitecap"].for
     try{window.dispatchEvent(new Event("mz-theme"))}catch(e){}}).catch(function(){})})}
 function MZitem(code,descr){var en=MZcat&&code&&MZcat[String(code).toUpperCase()];return en||MZen(descr)}
 try{setTimeout(MZloadCat,900)}catch(e){}
-/* the browser tab carries the count of things waiting on you */
+/* the browser tab keeps its plain name, no count in front (Tito, Oct 27: not "(18) Command Center · Muñiz") */
 var MZtitleBase="Command Center \u00B7 Mu\u00F1iz";
-function MZtitle(){try{var n=0;document.querySelectorAll(".rail .badge").forEach(function(b){n+=parseInt(b.textContent,10)||0});
-  var t=(n?"("+n+") ":"")+MZtitleBase;if(document.title!==t)document.title=t}catch(e){}}
+function MZtitle(){try{if(document.title!==MZtitleBase)document.title=MZtitleBase}catch(e){}}
 /* a warm hello after signing in */
 function MZgreet(){try{var h=new Date().getHours(),g=h<12?"Good morning":h<18?"Good afternoon":"Good evening";
   var ob=document.querySelector(".rail .rb-orders .badge"),n=ob?parseInt(ob.textContent,10)||0:0;
