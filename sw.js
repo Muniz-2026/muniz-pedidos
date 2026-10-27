@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v216
+/* MUÑIZ Pedidos - service worker  ·  v217
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -24,9 +24,10 @@
        the accepted PIN travels with PEDIR PARA and TICKET, config.js carries names only.
      · v215: supervisors enter the bandeja by tapping their name (parche176); only the office types a PIN.
      · v216: the Command Center's EDIT PO also changes a fuel PO's station (parche177).
+     · v217: the Command Center's ACTIVITY room fits an iPhone (phone cards, feed times).
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v216";
+const CACHE = "muniz-pedidos-v217";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
