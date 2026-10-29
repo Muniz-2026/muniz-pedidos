@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v238
+/* MUÑIZ Pedidos - service worker  ·  v239
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -38,9 +38,11 @@
        a permit replaced before its date reads "replaced · valid through <date>", not "expired".
      · v238: the fuel app refuses an odometer that doesn't match Fleetio + the GPS miles since (parche189; the
        office can still go ahead), and the Command Center's fuel PO window shows each PO's odometer check.
+     · v239: the odometer never stops a fuel PO (Tito, Oct 29: "do not block anyone from being able to fuel"):
+       a reading that doesn't match only warns, and the office sees the PO flagged (parche190).
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v238";
+const CACHE = "muniz-pedidos-v239";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
