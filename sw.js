@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v239
+/* MUÑIZ Pedidos - service worker  ·  v240
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -40,9 +40,12 @@
        office can still go ahead), and the Command Center's fuel PO window shows each PO's odometer check.
      · v239: the odometer never stops a fuel PO (Tito, Oct 29: "do not block anyone from being able to fuel"):
        a reading that doesn't match only warns, and the office sees the PO flagged (parche190).
+     · v240: a long order's approval text carries a short link (texts over ~1,000 characters reached Miguel's phone
+       without the order in the link): the supervisor's phone loads the order from the server (order_for_link,
+       parche192); a cut link is rescued the same way; a link that can't open tells Tito and offers the Bandeja.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v239";
+const CACHE = "muniz-pedidos-v240";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"

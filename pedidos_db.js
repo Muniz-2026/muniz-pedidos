@@ -1,5 +1,9 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.3
+   MUÑIZ PEDIDOS · REGISTRO EN LA BASE DE DATOS (Fase 2)  ·  v2.4
+   v2.4 (v240): un pedido largo manda al supervisor un link CORTO (solo mayordomo, tienda y hora; los textos de más
+         de ~1,000 letras no le llegaban completos a Miguel). El pedido completo viaja en el botón MANDAR
+         (data-mzr) y de ahí se registra igual que siempre. shortOK(): el app manda links cortos solo cuando este
+         teléfono ya vio contestar a order_for_link (parche192); se pregunta al abrir, una vez cada 12 h.
    v2.3: la clave de oficina vive en la base de datos (parche175). MODO OFICINA pregunta a office_unlock con el nombre
          tocado y la clave; la clave aceptada se queda en sessionStorage (nunca en localStorage) y viaja con cada PEDIR
          PARA y cada TICKET en el momento de mandarlos; si el servidor no la acepta, el aviso lo dice. config.js ya no
@@ -42,7 +46,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: el app sigue igual que antes
 
-  var VERSION = "2.3";
+  var VERSION = "2.4";
   var K_DEV = "muniz_device_id", K_OUT = "muniz_db_outbox", K_LAST = "muniz_db_last", K_PED = "muniz_pedido";
   var PROVS = { ACE: 1, CMC: 1, RSS: 1, WHITECAP: 1 };
   var STAGE = { r: "SOLICITADO", t: "APROBADO", p: "TICKET" };
@@ -324,6 +328,8 @@
 
     var href = a.getAttribute("href") || "";
     var sms = parseSms(href); if (!sms) return;
+    // v2.4: un pedido largo manda un link corto (v240); el pedido completo viaja en el botón (data-mzr)
+    if (!sms.tok && sms.kind === "r") { var full = b64urlJson(a.getAttribute("data-mzr") || ""); if (full && Array.isArray(full.o)) sms.tok = full; }
 
     // RECHAZAR: el link va al mayordomo sin código; el pedido es el que está abierto en la pantalla (#r=)
     if (!sms.tok && /RECHAZ/.test(txt + " " + sms.body)) {
@@ -427,12 +433,27 @@
       .observe(document.documentElement, { childList: true, subtree: true });
   } catch (e) { }
 
+  /* ---------- v2.4 · ¿el servidor ya abre links cortos? (parche192 · order_for_link) ----------
+     Hasta que este teléfono lo vea contestar, el app manda el link largo de siempre (v240 y parche192 pueden salir en
+     cualquier orden). Se pregunta al abrir y al volver al app, como mucho una vez cada 12 h. */
+  var K_SHORT = "muniz_short_ok";
+  function shortOK() { var t = Number(ls(K_SHORT, 0)) || 0; return t > 0 && Date.now() - t < 7 * 24 * 3600e3; }
+  function probeShort() {
+    var t = Number(ls(K_SHORT, 0)) || 0;
+    if (t > 0 && Date.now() - t < 12 * 3600e3) return;
+    try {
+      fetch(URL_ + "/rest/v1/rpc/order_for_link", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_f: "", p_ts: 0, p_p: "" }) })
+        .then(function (r) { if (r.ok) lsSet(K_SHORT, Date.now()); else if (r.status === 404) lsSet(K_SHORT, 0); })
+        .catch(function () { });
+    } catch (e) { }
+  }
+
   /* ---------- reintentos y presencia ---------- */
   window.addEventListener("online", flush);
-  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { flush(); logEvent("open"); refreshMine(); } });
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { flush(); logEvent("open"); refreshMine(); probeShort(); } });
   setInterval(flush, 60e3);
   setInterval(function () { if (document.visibilityState === "visible" && navigator.onLine !== false) refreshMine(); }, 120e3);   // el PO llega solo, sin texto
-  setTimeout(function () { flush(); logEvent("open"); refreshMine(); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
+  setTimeout(function () { flush(); logEvent("open"); refreshMine(); probeShort(); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
 
-  window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; }, wasSent: wasSent, registerPara: registerPara };
+  window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; }, wasSent: wasSent, registerPara: registerPara, shortOK: shortOK };
 })();
