@@ -251,7 +251,7 @@ function Pm(e,t){t=t||Date.now();var out=[],cut=t-LVFEEDH*36e5,push=function(ts,
   /* crews arriving and leaving, as this browser saw them */
   LVlogLoad().forEach(function(l){push(l.ts,"CREW",l.in?_.green:_.cyan,l.text,l.lat!=null?{fly:[l.lat,l.lon,l.who]}:{board:"crews"})});
   /* app errors */
-  (e.ev||[]).forEach(function(l){if(l.event!=="error")return;var m=l.meta||{};push(Date.parse(l.ts),"SYS",_.red,("App error \u00B7 "+(l.who||"unknown")+" \u00B7 "+[m.stage,m.status&&"HTTP "+m.status,m.err,m.msg,m.error].filter(Boolean).join(" \u00B7 ")).slice(0,140),null)});
+  (e.ev||[]).forEach(function(l){if(l.event!=="error")return;var m=l.meta||{},fx=MZevFix(e.ev,l);if(fx)return push(Date.parse(l.ts),"SYS",_.dim,("No signal for a moment \u00B7 "+(l.who||"unknown")+" \u00B7 "+(fx.po||"the PO")+" went through "+ACdur(fx.ms)+" later").slice(0,140),null);push(Date.parse(l.ts),"SYS",_.red,("App error \u00B7 "+(l.who||"unknown")+" \u00B7 "+[m.stage,m.status&&"HTTP "+m.status,m.err,m.msg,m.error].filter(Boolean).join(" \u00B7 ")).slice(0,140),null)});
   out.sort(function(a,b){return b.ts-a.ts});return out.slice(0,200)}
 var LVLANES={all:null,orders:{ORDER:1},fuel:{FUEL:1,GPS:1,STOP:1},fleet:{IDLE:1,DUMP:1,HAUL:1,FLEET:1},crews:{CREW:1}};
 /* ===== LIVE · the landing page =================================================
@@ -2254,6 +2254,17 @@ function ACmed(a){if(!a.length)return null;var b=a.slice().sort(function(x,y){re
 function ACpct(a,p){if(!a.length)return null;var b=a.slice().sort(function(x,y){return x-y});return b[Math.min(b.length-1,Math.floor(p*b.length))]}
 function ACst(e){return e==="TEXCON"?"Tex-Con":e==="LEOS"?"Leo's":e||""}
 function ACfu(f){return(f||[]).map(function(x){return x==="VERDE"?"green diesel":x==="ROJO"?"red diesel":x==="GASOLINA"?"gas":String(x).toLowerCase()}).join(" + ")}
+/* v245 · a fuel PO send that failed because the phone had no signal, then went through on the same phone within a minute (copies
+   before v245: the person's REINTENTAR; v245+: the phone's own retry, k "retry") is a blip, not an error: the feed says it in grey
+   ("no signal for a moment · F1341 went through 3 s later", Enrique Chapa, Nov 6) and the errors count and filter leave it out.
+   ACfixes marks those rows once per new list (ACfixW, by row); MZevFix does the same for the events rows on the Live page. */
+var ACfixW=new WeakMap(),MZnetRe=/load failed|failed to fetch|networkerror|network connection|internet connection|timed? ?out|abort/i;
+function ACfixes(all){var open={};all.filter(function(r){return r.ev==="fuel"&&r.device_id}).sort(function(a,b){return Date.parse(a.at)-Date.parse(b.at)||a.id-b.id}).forEach(function(r){var x=r.data||{},d=r.device_id,t=Date.parse(r.at);
+    if(x.k==="retry"||x.k==="error"&&MZnetRe.test(String(x.msg||"")))(open[d]=open[d]||[]).push([r,t]);
+    else if(x.k==="po_created"&&open[d]){open[d].forEach(function(o){if(t-o[1]<=6e4)ACfixW.set(o[0],{po:x.po||"",ms:t-o[1]})});delete open[d]}})}
+function MZevFix(ev,l){if(!l.device_id||!MZnetRe.test(String((l.meta||{}).msg||"")))return null;var t=Date.parse(l.ts),b=null;
+  (ev||[]).forEach(function(q){var u;if(q.event==="po_created"&&q.device_id===l.device_id&&(u=Date.parse(q.ts))>=t&&u-t<=6e4&&(!b||u<b.u))b={u:u,po:(q.meta||{}).po||""}});
+  return b?{po:b.po,ms:b.u-t}:null}
 /* one feed line: [text, color] · null = not shown */
 function ACline(r){var x=r.data||{},it,nm;
   switch(r.ev){
@@ -2268,8 +2279,9 @@ function ACline(r){var x=r.data||{},it,nm;
   case"field":return[(x.f==="placa"?"typed the plate ":x.f==="odometro"?"typed the odometer ":"searched the names for ")+"“"+x.v+"”",_.orange];
   case"sent":return["SENT the order · "+x.lines+" line"+(x.lines===1?"":"s")+" · "+x.units+" unit"+(x.units===1?"":"s")+(x.prov?" · "+x.prov:"")+(x.to?" → "+z(x.to):"")+(x.first!=null?" · "+ACdur(x.first)+" from the first item":"")+(x.ad?" · add-on":"")+(x.dm?" · practice":""),_.green];
   case"fuel":if(x.k==="open")return["started a fuel PO"+(x.para?" for "+z(x.para):""),_.orange];
-    if(x.k==="po_created")return["fuel PO "+(x.po||"")+" · "+(x.secs!=null?x.secs+" s":ACdur(x.ms))+(x.est?" · "+ACst(x.est):"")+(x.para?" · for "+z(x.para):""),_.green];
-    if(x.k==="error")return["fuel PO error · "+(x.msg||x.where||""),_.red];
+    if(x.k==="po_created")return["fuel PO "+(x.po||"")+" · "+(x.secs!=null?x.secs+" s":ACdur(x.ms))+(x.est?" · "+ACst(x.est):"")+(x.para?" · for "+z(x.para):"")+(x.tries>1?" · on try "+x.tries:""),_.green];
+    if(x.k==="error"){var fx=ACfixW.get(r);return fx?["no signal for a moment · "+(fx.po||"the PO")+" went through "+ACdur(fx.ms)+" later",_.dim]:["fuel PO error · "+(x.msg||x.where||""),_.red]}
+    if(x.k==="retry")return["no signal · the phone tries again by itself"+(x.st?" · HTTP "+x.st:x.msg&&!MZnetRe.test(x.msg)?" · "+x.msg:""),_.dim];
     return[String(x.k||"fuel"),_.dim];
   case"hide":return["app in the background · on "+ACscr(r.screen),_.faint];
   case"show":return["back in the app"+(x.ms>=5e3?" after "+ACdur(x.ms):""),_.faint];
@@ -2283,7 +2295,7 @@ function ACline(r){var x=r.data||{},it,nm;
   case"err":return["app error · "+(x.m||"")+(x.f?" ("+x.f+":"+(x.ln||0)+")":""),_.red];
   }
   return null}
-function ACkind(r){var x=r.data||{};if(r.ev==="err"||r.ev==="fuel"&&x.k==="error")return"err";
+function ACkind(r){var x=r.data||{};if(r.ev==="err"||r.ev==="fuel"&&x.k==="error"&&!ACfixW.has(r))return"err";
   if(/^fuel\//.test(r.screen||"")||r.ev==="fuel"||r.ev==="field"&&(x.f==="placa"||x.f==="odometro"))return"fuel";return"mat"}
 /* the answers, from the rows of the period */
 function ACcalc(rows,ppl){
@@ -2486,7 +2498,7 @@ function ACroom({d:e,t:tok}){
     tick();var vis=function(){if(!document.hidden&&alive&&!busy){clearTimeout(timer);tick()}};document.addEventListener("visibilitychange",vis);
     return function(){alive=!1;clearTimeout(timer);document.removeEventListener("visibilitychange",vis)}},[range]);
   var from=ACfrom(range),today=ACmidnight(),mx=ACcache.max,nr=ACcache.rows.length,nP=(e.ppl||[]).length;
-  var rows=(0,M.useMemo)(function(){return ACcache.rows.filter(function(r){return Date.parse(r.at)>=from})},[mx,nr,from]);
+  var rows=(0,M.useMemo)(function(){ACfixes(ACcache.rows);return ACcache.rows.filter(function(r){return Date.parse(r.at)>=from})},[mx,nr,from]);
   var tRows=(0,M.useMemo)(function(){return ACcache.rows.filter(function(r){return Date.parse(r.at)>=today}).sort(function(a,b){return Date.parse(a.at)-Date.parse(b.at)||a.id-b.id})},[mx,nr,today]);   // by phone time: a phone without signal sends late
   var c=(0,M.useMemo)(function(){return ACcalc(rows,e.ppl)},[rows,nP]);
   var nowT=Date.now(),tails={},recs={},gones={},feed=[],i,j;

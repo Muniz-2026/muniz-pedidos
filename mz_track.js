@@ -1,5 +1,7 @@
 /* =====================================================================
-   MUÑIZ · ACTIVIDAD EN VIVO  ·  mz_track.js  ·  v1.1
+   MUÑIZ · ACTIVIDAD EN VIVO  ·  mz_track.js  ·  v1.2
+   v1.2 (6 nov 2026): los reintentos solos del PO de combustible (fuel.js "retry", v245) salen en ACTIVITY con su número y
+         el error; el PO dice en qué intento salió (tries).
    v1.1 (22 oct 2026): MZT.screen() dice en qué pantalla está el app (solo lectura): updater.js 2.0 la usa para
          recargar a una versión nueva solo en un momento seguro (nunca a la mitad de un pedido o de un PO).
    v1.0 (Oct 22, 2026): la oficina ve en el Command Center (sala ACTIVITY), mientras pasa, lo que hace cada
@@ -409,8 +411,8 @@
       try { if (window.__mzFuelPor) fuelS.por = up(window.__mzFuelPor).slice(0, 40); } catch (x0) { }
       if (e !== "step") {                         // los pasos salen como cambios de pantalla
         var x = { k: e.slice(0, 16) };
-        if (e === "po_created") { x.po = fuelS.po; x.secs = fuelS.secs; x.est = String(m.station || fuelS.est || "").slice(0, 20); x.fu = (m.fuels || fuelS.fu || []).slice(0, 4); x.ms = now() - (fuelS.t0 || now()); }
-        if (e === "error") { x.where = String(m.where || "").slice(0, 30); x.msg = String(m.msg || "").slice(0, 160); }
+        if (e === "po_created") { x.po = fuelS.po; x.secs = fuelS.secs; x.est = String(m.station || fuelS.est || "").slice(0, 20); x.fu = (m.fuels || fuelS.fu || []).slice(0, 4); x.ms = now() - (fuelS.t0 || now()); if (m.tries > 1) x.tries = m.tries; }
+        if (e === "error" || e === "retry") { x.where = String(m.where || "").slice(0, 30); x.msg = String(m.msg || "").slice(0, 160); if (m.n) x.n = m.n; if (m.tries) x.tries = m.tries; if (m.status) x.st = m.status; }
         if (fuelS.who && fuelS.who !== who()) x.para = fuelS.who;
         add("fuel", x, "fuel/" + (fuelS.step || "est"));
       }
