@@ -1732,7 +1732,11 @@ html[data-theme] .idc-rd tr:not(.in) td{color:var(--dim)}
 html[data-theme] .py-wkn{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 html[data-theme] .py-wkl{font:600 12.5px/1 var(--sans);color:var(--ink2);min-width:92px;text-align:center}
 html[data-theme] .py-msg{padding:0 4px 10px;font:500 12.5px/1.4 var(--sans);color:var(--dim)}
-html[data-theme] .py-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+html[data-theme] .py-wrap{position:relative;overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* v242 · what the waiting cells wait for: floats over the grid (the toasts' look), so nothing moves when it comes and goes */
+html[data-theme] .py-float{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:3;max-width:calc(100% - 32px);padding:8px 14px;border-radius:12px;
+  background:var(--toast-bg);color:var(--toast-ink);font:500 12.5px/1.35 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  box-shadow:0 10px 30px rgba(0,0,0,.22);pointer-events:none}
 html[data-theme] .py-tbl{min-width:900px;table-layout:fixed}
 html[data-theme] .py-tbl th{white-space:nowrap}
 html[data-theme] .py-tbl th.py-td{color:var(--accent-ink)}

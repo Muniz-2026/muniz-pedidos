@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v241
+/* MUÑIZ Pedidos - service worker  ·  v242
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -46,9 +46,12 @@
      · v241: the Command Center's Haul room has a FOREMEN side, and on it and on TRUCKERS the week of where each one
        worked (the job site the truck sat at most of the day, from its GPS, and that job's cost code from the crew
        emails), with an Excel of foremen and truckers for payroll (Claudia, Nov 6).
+     · v242: weeks on that grid open at once (the nightly payroll_days answers when parche193 has run, the week before
+       read ahead, GPS read eight trucks at a time otherwise), and the whole Command Center redraws and refreshes in the
+       background without blocking a click or a scroll (Tito, Nov 6: "laggy and not very smooth").
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v241";
+const CACHE = "muniz-pedidos-v242";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"

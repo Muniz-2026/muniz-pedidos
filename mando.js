@@ -68,6 +68,11 @@ function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZ
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
   var idle=MZidleMin();if(idle>30)k*=8;else if(idle>10)k*=3;else if(typeof document.hasFocus==="function"&&!document.hasFocus())k*=2;return k}
+/* v242 · a refresh that brings the same rows keeps the list already on screen (the same object), so the rooms' worked-out
+   models (useMemo on these lists) aren't worked out again every 15 seconds for nothing */
+function MZkeep(a,b){if(a===b||!Array.isArray(a)||!Array.isArray(b)||a.length!==b.length)return b;for(var i=0;i<a.length;i++){var x=a[i],y=b[i];if(x!==y&&JSON.stringify(x)!==JSON.stringify(y))return b}return a}
+/* ...and a list that is turned into another (orders and fuel get their time stamp) is turned once per new list */
+function MZmap(S,k,src,f){var C=S.mapped||(S.mapped={}),c=C[k];if(c&&c.src===src)return c.out;var out=(src||[]).map(f);C[k]={src:src,out:out};return out}
 function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem=(0,M.useRef)({data:{},at:{},first:!0});
 /* ===== SYNC ENGINE =============================================================
    Before: every open tab fired ~35 requests + 2 write RPCs every 7 s, visible or not,
@@ -85,7 +90,8 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const inc=async(name,o)=>{const prev=S.data[name],F=S.full||(S.full={});
    if(!Array.isArray(prev)||!prev.length||!F[name]||Date.now()-F[name]>o.every){const v=await $e(o.full,c);if(Array.isArray(v))F[name]=Date.now();return v}
    const v=await $e(o.recent(prev),c);if(!Array.isArray(v))return v;if(!v.length)return prev;
-   const m=new Map();prev.forEach(r=>m.set(o.key(r),r));v.forEach(r=>m.set(o.key(r),r));
+   /* v242 · nothing new or changed in the newest rows → the same list as before */
+   const m=new Map();prev.forEach(r=>m.set(o.key(r),r));let ch=0;v.forEach(r=>{const k=o.key(r),p=m.get(k);if(!p||JSON.stringify(p)!==JSON.stringify(r)){m.set(k,r);ch++}});if(!ch)return prev;
    return[...m.values()].sort((a,b)=>String(b[o.sort]||"").localeCompare(String(a[o.sort]||""))).slice(0,o.keep)};
  const newer=(prev,f)=>{let t="";prev.forEach(r=>{if(r[f]&&String(r[f])>t)t=String(r[f])});return t?"&"+f+"=gt."+encodeURIComponent(t):""};
  const D=[
@@ -154,16 +160,19 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  /* an explicit refresh (after approving, marking test, …) re-reads live + medium right away */
  if(!S.first)D.forEach(d=>{if(d[2]<3)S.at[d[0]]=0});
  const pool=async(jobs,k)=>{let i=0;const run=async()=>{while(i<jobs.length&&alive){const j=jobs[i++];await j()}};await Promise.all(Array.from({length:Math.min(k,jobs.length)},run))};
- const commit=()=>{const d=S.data;try{window.MZrules=d.rules||[]}catch(x){}if(!alive||!d.orders||!d.fuel)return;
-  n({loading:!1,fuel:(d.fuel||[]).map(A=>({...A,ts:new Date(A.created_at).getTime()})),orders:(d.orders||[]).map(A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
-   fuelTest:d.fuelTest||[],ev:d.ev||[],veh:d.veh||[],ppl:d.ppl||[],tickets:d.tickets||[],fleet:d.fleet||[],fleetio:d.fleetio||[],fleetioOdo:d.fleetioOdo||[],fleetioLog:d.fleetioLog||[],fuelGps:d.fuelGps||[],lastPo:(d.lastPo||[])[0]||null,unitDay:d.unitDay||[],oev:d.oev||[],
-   rules:d.rules||[],pmProj:d.pmProj||[],pmSched:d.pmSched||[],crewDay:d.crewDay||[],removedPeople:d.removedPeople||[],permits:d.permits||[],dtix:d.dtix||[],pcosts:d.pcosts||[],idleDay:d.idleDay||[],idleSess:d.idleSess||[],idleWho:d.idleWho||[],stmts:d.stmts||[],stmtChk:d.stmtChk||[],siteDays:d.siteDays||[],haulDays:d.haulDays||[],haulStops:d.haulStops||[],places:d.places||[],geofences:d.geofences||[],pyVotes:d.pyVotes,costCodes:d.costCodes,jobCodeMap:d.jobCodeMap||[],geoKinds:d.geoKinds||[],spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||[],setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||[],ledger:d.ledger||[],poLog:d.poLog||[],sdAlerts:d.sdAlerts||[],fiAlerts:d.fiAlerts||[],appLive:d.appLive||[],catalog:d.catalog,ctStats:d.ctStats||[],ctUnlisted:d.ctUnlisted||[],ctDemand:d.ctDemand||[],ctHist:d.ctHist||[],ctAlt:d.ctAlt||[],ctSugg:d.ctSugg||[],sync:S.sync||Date.now(),err:S.err||""})};
+ /* v242 · the commit is background work (startTransition): a click or a scroll never waits for it; a list that hasn't
+    arrived is the same empty list each time (E0), not a new one that makes the rooms work everything out again */
+ const E0=k=>(S.e0||(S.e0={}))[k]||(S.e0[k]=[]);
+ const commit=()=>{const d=S.data;try{window.MZrules=d.rules||E0("rules")}catch(x){}if(!alive||!d.orders||!d.fuel)return;
+  (0,M.startTransition)(()=>n({loading:!1,fuel:MZmap(S,"fuel",d.fuel,A=>({...A,ts:new Date(A.created_at).getTime()})),orders:MZmap(S,"orders",d.orders,A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
+   fuelTest:d.fuelTest||E0("fuelTest"),ev:d.ev||E0("ev"),veh:d.veh||E0("veh"),ppl:d.ppl||E0("ppl"),tickets:d.tickets||E0("tickets"),fleet:d.fleet||E0("fleet"),fleetio:d.fleetio||E0("fleetio"),fleetioOdo:d.fleetioOdo||E0("fleetioOdo"),fleetioLog:d.fleetioLog||E0("fleetioLog"),fuelGps:d.fuelGps||E0("fuelGps"),lastPo:(d.lastPo||E0("lastPo"))[0]||null,unitDay:d.unitDay||E0("unitDay"),oev:d.oev||E0("oev"),
+   rules:d.rules||E0("rules"),pmProj:d.pmProj||E0("pmProj"),pmSched:d.pmSched||E0("pmSched"),crewDay:d.crewDay||E0("crewDay"),removedPeople:d.removedPeople||E0("removedPeople"),permits:d.permits||E0("permits"),dtix:d.dtix||E0("dtix"),pcosts:d.pcosts||E0("pcosts"),idleDay:d.idleDay||E0("idleDay"),idleSess:d.idleSess||E0("idleSess"),idleWho:d.idleWho||E0("idleWho"),stmts:d.stmts||E0("stmts"),stmtChk:d.stmtChk||E0("stmtChk"),siteDays:d.siteDays||E0("siteDays"),haulDays:d.haulDays||E0("haulDays"),haulStops:d.haulStops||E0("haulStops"),places:d.places||E0("places"),geofences:d.geofences||E0("geofences"),pyVotes:d.pyVotes,costCodes:d.costCodes,jobCodeMap:d.jobCodeMap||E0("jobCodeMap"),geoKinds:d.geoKinds||E0("geoKinds"),spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||E0("spots"),setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||E0("stationStops"),ledger:d.ledger||E0("ledger"),poLog:d.poLog||E0("poLog"),sdAlerts:d.sdAlerts||E0("sdAlerts"),fiAlerts:d.fiAlerts||E0("fiAlerts"),appLive:d.appLive||E0("appLive"),catalog:d.catalog,ctStats:d.ctStats||E0("ctStats"),ctUnlisted:d.ctUnlisted||E0("ctUnlisted"),ctDemand:d.ctDemand||E0("ctDemand"),ctHist:d.ctHist||E0("ctHist"),ctAlt:d.ctAlt||E0("ctAlt"),ctSugg:d.ctSugg||E0("ctSugg"),sync:S.sync||Date.now(),err:S.err||""}))};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
  let pp=!1;const emit=(type,detail)=>{try{window.dispatchEvent(new CustomEvent(type,{detail:detail}))}catch(x){}};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;const forPull=!!S.pullNow;S.pullNow=!1;
   const now=Date.now(),mul=MZmul(S);let ok=0,bad=0,msg="";
   for(const tier of [1,2,3]){const due=D.filter(d=>d[2]===tier&&(S.first||now-(S.at[d[0]]||0)>=MZivl(d[0],d[1])*(d[0]==="rules"?1:mul)));if(!due.length)continue;
-   await pool(due.map(d=>async()=>{try{const v=await d[3]();if(Array.isArray(v)){S.data[d[0]]=v;S.at[d[0]]=Date.now();ok++}else{bad++;msg=msg||String(v&&v.why||JSON.stringify(v)).slice(0,160);retry(d)}}
+   await pool(due.map(d=>async()=>{try{const v=await d[3]();if(Array.isArray(v)){S.data[d[0]]=MZkeep(S.data[d[0]],v);S.at[d[0]]=Date.now();ok++}else{bad++;msg=msg||String(v&&v.why||JSON.stringify(v)).slice(0,160);retry(d)}}
      catch(x){bad++;msg=msg||String(x&&x.message||x).slice(0,160);retry(d)}}),4);
    if(!alive)return;
    if(S.data.orders&&S.data.fuel){S.sync=S.sync&&!ok?S.sync:(ok?Date.now():S.sync);S.err=bad&&!ok?(/JWT|PGRST30|Session expired/i.test(msg)?"SESSION EXPIRED \xB7 renewing\u2026":msg):"";commit()}emit("mz-sync",{tier:tier,ok:ok,bad:bad,pull:forPull})}
@@ -1482,7 +1491,8 @@ function Hl({d:e,now:t,t:tok,onMap:om,onChanged:rf,onSide:onSide}){
   var b1=(0,M.useState)(function(){return PYmon(today)}),pwk=b1[0],setPwk=b1[1],b2=(0,M.useState)(0),setPtick=b2[1],b3=(0,M.useState)(""),pmsg=b3[0],setPmsg=b3[1];
   var ptrk=PYtruckers(e),pids=ptrk.map(function(x){return x.aid}).filter(Boolean),pKey=pids.join(",");
   (0,M.useEffect)(function(){var dead=!1,ds=PYdays(pwk).filter(function(d){return d<=today});if(ds.indexOf(today)<0)ds.push(today);if(day&&ds.indexOf(day)<0)ds.push(day);
-    PYload(pids,ds,tok).then(function(n){if(!dead&&n)setPtick(function(x){return x+1})}).catch(function(){});return function(){dead=!0}},[pKey,pwk,today,day,Math.floor(minute/5)]);
+    var bump=function(){setPtick(function(x){return x+1})};
+    PYweek(pids,ds,today,tok,function(){},bump).then(function(){if(!dead)PYahead(pids,pwk,today,tok,bump)});return function(){dead=!0}},[pKey,pwk,today,day,Math.floor(minute/5)]);
   if(sel&&drivers.length&&drivers.indexOf(sel)<0)sel=drivers[0];
   var m=(0,M.useMemo)(function(){
     var ppl=e.ppl||[],hd=e.haulDays||[],hs=e.haulStops||[],fleet=e.fleet||[];
@@ -1605,7 +1615,7 @@ function Hl({d:e,now:t,t:tok,onMap:om,onChanged:rf,onSide:onSide}){
         PJh("div",{className:"hl-unk-a"},PJh("button",{className:"btn sm",onClick:function(){om(u2.lat,u2.lon,u2.n+" stops here")}},"SEE ON MAP"),PJh("a",{className:"btn sm",href:"https://www.google.com/maps/search/?api=1&query="+u2.lat+","+u2.lon,target:"_blank",rel:"noopener"},"GOOGLE MAPS"),PJh("button",{className:"btn sm primary",onClick:function(){setNm({k:u2.k,lat:u2.lat,lon:u2.lon,name:"",kind:"supplier"})}},"NAME IT")))})):PJh(ve,{ok:!0},"No repeated unknown stops.")),
     /* ---------- v241 · payroll: where each trucker worked ---------- */
     PJh(G,{title:"WHERE EACH TRUCKER WORKED \u00B7 "+(pwk===PYmon(today)?"THIS WEEK":"WEEK OF "+PJday(pwk).toUpperCase()),right:PYweekNav({wk:pwk,setWk:setPwk,today:today,busy:pmsg,onExport:function(){PYexport(e,tok,pwk,setPmsg)}})},
-      PJh(PYgrid,{e:e,who:"Trucker",rows:ptrk,days:PYdays(pwk),today:today,sum:function(aid,d){return PYsum(aid,d,e,t)},sel:tk&&tk.n,selDay:dday,onCell:function(n,d){setSel(n);setDay(d);setTab("day");PYscroll("hl-dos")}}),
+      PJh(PYgrid,{e:e,who:"Trucker",msg:PYwait(e),rows:ptrk,days:PYdays(pwk),today:today,sum:function(aid,d){return PYsum(aid,d,e,t)},sel:tk&&tk.n,selDay:dday,onCell:function(n,d){setSel(n);setDay(d);setTab("day");PYscroll("hl-dos")}}),
       PJh("div",{className:"py-note"},PYrule("Trucker"))),
     PJh("div",{id:"hl-dos",className:"py-anchor"}),
     /* ---------- dossier ---------- */
@@ -1851,35 +1861,73 @@ function PYcalc(pos,day,e,ws,now){
   return{day:day,ran:ran,sites:sites,total:total,main:sites[0]||null,home:home,stops:mg,trail:trail,hd:{first_on:on,last_off:off}}}
 /* GPS for trucks and days: a truck-day = its positions from midnight to 4 AM the next day (the night after tells home from
    a job) and Actsoft's work stops. A day is read once; today (and yesterday until its night is in) again after 5 minutes.
-   Several trucks for today alone = one read; anything longer = one read per truck, four at a time. */
-async function PYload(aids,days,tok,step){var now=Date.now(),today=qt(now),need={},list=[];
-  (aids||[]).forEach(function(a){if(!a)return;(days||[]).forEach(function(d){if(d>today)return;var k=a+"|"+d,at=PYC.at[k];if(PYC.fly[k])return;
+   v242: a past day the nightly table already answers is not read (o.full: read it anyway, for the dossier's replay). The work
+   stops are read first, beside the positions, and each truck's days show as soon as its own positions are in (never before
+   the work stops: they name and join the places that are no known job). Several trucks for today alone = one read; anything
+   longer = one read per truck and week, eight at a time (o.lanes). */
+async function PYload(aids,days,tok,step,o){o=o||{};var now=Date.now(),today=qt(now),need={},list=[];
+  (aids||[]).forEach(function(a){if(!a)return;(days||[]).forEach(function(d){if(d>today)return;var k=a+"|"+d,at=PYC.at[k];if(PYC.fly[k]||(!o.full&&d<today&&PYS.rows[k]))return;
     if(at&&(at>new Date(PYadd(d,1)+"T04:30:00").getTime()||now-at<3e5))return;(need[a]=need[a]||[]).push(d)})});
-  Object.keys(need).forEach(function(a){list.push({a:a,d:need[a].sort()})});if(!list.length)return 0;
+  Object.keys(need).forEach(function(a){need[a].sort().forEach(function(d){var L=list[list.length-1];if(L&&L.a===a&&d<PYadd(L.d[0],7))L.d.push(d);else list.push({a:a,d:[d]})})});if(!list.length)return 0;
   list.forEach(function(x){x.d.forEach(function(d){PYC.fly[x.a+"|"+d]=1})});
-  var keep=function(a,d,rows){var A=new Date(d+"T00:00:00").getTime(),B=new Date(PYadd(d,1)+"T04:00:00").getTime();PYC.pos[a+"|"+d]=rows.filter(function(q){return q.t>=A&&q.t<B});PYC.at[a+"|"+d]=Date.now();delete PYC.sum[a+"|"+d]};
   var rd=function(q){var t=Date.parse(q.ts),dt=new Date(t);return{a:String(q.actsoft_id),t:t,lat:+q.lat,lon:+q.lon,sp:+q.speed||0,gf:q.geofence||"",ign:!!q.ignition,h:dt.getHours(),dk:qt(t)}};
   var url=function(ids,d0,d1){return"gps_positions?select=actsoft_id,ts,lat,lon,speed,geofence,ignition&actsoft_id="+(ids.length>1?"in.("+ids.join(",")+")":"eq."+ids[0])+"&ts=gte."+encodeURIComponent(new Date(d0+"T00:00:00").toISOString())
     +"&ts=lt."+encodeURIComponent(new Date(PYadd(d1,1)+"T04:00:00").toISOString())+"&lat=not.is.null&order=actsoft_id.asc,ts.asc"};
-  var done=0;
+  var D=[].concat.apply([],list.map(function(x){return x.d})).sort(),ids=list.map(function(x){return x.a}).filter(function(a,j,A){return A.indexOf(a)===j}),WS=null;
+  var wsP=go("gps_work_stops?select=actsoft_id,day,street,block,addr,lat,lon,minutes&actsoft_id=in.("+ids.join(",")+")&day=gte."+D[0]+"&day=lte."+D[D.length-1],tok,10)
+    .then(function(W){var m={};list.forEach(function(x){x.d.forEach(function(d){m[x.a+"|"+d]=[]})});(W||[]).forEach(function(w){var k=w.actsoft_id+"|"+String(w.day).slice(0,10);if(m[k])m[k].push(w)});Object.keys(m).forEach(function(k){PYlead(m[k])});WS=m},function(){});
+  var keep=function(a,d,rows){var k=a+"|"+d,A=new Date(d+"T00:00:00").getTime(),B=new Date(PYadd(d,1)+"T04:00:00").getTime();PYC.pos[k]=rows.filter(function(q){return q.t>=A&&q.t<B});if(WS)PYC.ws[k]=WS[k]||[];PYC.at[k]=Date.now();delete PYC.sum[k];delete PYC.fly[k]};
+  var done=0,n=list.length;
   try{var solo=list.filter(function(x){return x.d.length===1&&x.d[0]===today}),many=list.filter(function(x){return solo.indexOf(x)<0});
-    if(solo.length){var r0=await go(url(solo.map(function(x){return x.a}),today,today),tok,40),by={};(r0||[]).map(rd).forEach(function(q){(by[q.a]=by[q.a]||[]).push(q)});
-      solo.forEach(function(x){keep(x.a,today,by[x.a]||[])});done+=solo.length;step&&step(done,list.length)}
-    var i=0,run=async function(){while(i<many.length){var x=many[i++];try{var r=await go(url([x.a],x.d[0],x.d[x.d.length-1]),tok,60),P=(r||[]).map(rd);x.d.forEach(function(d){keep(x.a,d,P)})}
-        catch(err){PYC.err=String(err&&err.message||err).slice(0,140)}done++;step&&step(done,list.length)}};
-    await Promise.all([run(),run(),run(),run()]);
-    var D=[].concat.apply([],list.map(function(x){return x.d})).sort();
-    try{var W=await go("gps_work_stops?select=actsoft_id,day,street,block,addr,lat,lon,minutes&actsoft_id=in.("+list.map(function(x){return x.a}).join(",")+")&day=gte."+D[0]+"&day=lte."+D[D.length-1],tok,10);
-      list.forEach(function(x){x.d.forEach(function(d){PYC.ws[x.a+"|"+d]=[];delete PYC.sum[x.a+"|"+d]})});(W||[]).forEach(function(w){var k=w.actsoft_id+"|"+String(w.day).slice(0,10);if(PYC.ws[k])PYC.ws[k].push(w)});list.forEach(function(x){x.d.forEach(function(d){PYlead(PYC.ws[x.a+"|"+d])})})}catch(err){}}
+    var one=async function(){if(!solo.length)return;var r0=await go(url(solo.map(function(x){return x.a}),today,today),tok,40),by={};(r0||[]).map(rd).forEach(function(q){(by[q.a]=by[q.a]||[]).push(q)});
+      await wsP;solo.forEach(function(x){keep(x.a,today,by[x.a]||[])});done+=solo.length;step&&step(done,n)};
+    var i=0,run=async function(){while(i<many.length){var x=many[i++];try{var r=await go(url([x.a],x.d[0],x.d[x.d.length-1]),tok,60),P=(r||[]).map(rd);await wsP;x.d.forEach(function(d){keep(x.a,d,P)})}
+        catch(err){PYC.err=String(err&&err.message||err).slice(0,140)}done++;step&&step(done,n)}};
+    var L=[one(),wsP];for(var j=Math.min(o.lanes||8,many.length);j>0;j--)L.push(run());await Promise.all(L)}
   finally{list.forEach(function(x){x.d.forEach(function(d){delete PYC.fly[x.a+"|"+d]})})}
-  return list.length}
+  return n}
 /* the evidence a day needs besides its GPS: the job places (spots + crew-day work stops), the crew emails' job numbers and
    the jobsite log. Until each has arrived (an array, even an empty one: the crew-day stops of the last 60 days run out ~Dec 20
    if crew emails stay unloaded), every day reads as loading — never "no job #" for a code that just hasn't arrived */
 function PYready(e){return Array.isArray(e.spots)&&Array.isArray(e.jobPlaces)&&Array.isArray(e.pyVotes)&&Array.isArray(e.costCodes)}
-/* one truck-day's answer (null until its GPS is read); today is worked out again each minute */
-function PYsum(aid,day,e,now){if(!aid||!PYready(e))return null;var k=aid+"|"+day,pos=PYC.pos[k];if(!pos)return null;PYplaces(e);var n=now||Date.now(),td=day===qt(n),c=PYC.sum[k];
+/* one truck-day's answer (null until it is known): a past day from the nightly table when it has it (v242), else worked out
+   here from its GPS; today is always worked out here, again each minute */
+function PYsum(aid,day,e,now){if(!aid)return null;var n=now||Date.now();if(day<qt(n)){var r=PYS.rows[aid+"|"+day];if(r)return r}return PYfull(aid,day,e,n)}
+/* ...worked out here from the truck's GPS: the only answer that has the day's stops and trail (the dossier's replay) */
+function PYfull(aid,day,e,now){if(!aid||!PYready(e))return null;var k=aid+"|"+day,pos=PYC.pos[k];if(!pos)return null;PYplaces(e);var n=now||Date.now(),td=day===qt(n),c=PYC.sum[k];
   if(c&&c.v===PYC.v&&(!td||n-c.at<6e4))return c.r;var r=PYcalc(pos,day,e,PYC.ws[k],td?n:0);PYC.sum[k]={v:PYC.v,at:n,r:r};return r}
+/* v242 · the nightly answers (parche193: payroll_days = this same rule run on the server for every past foreman- and
+   trucker-day, as diag158). One read brings a week of them, so a week shows at once, and the week before is read ahead.
+   Until parche193 runs the table isn't there: one miss, then GPS as before (PYS.miss) */
+var PYS={rows:{},asked:{},fly:{},miss:!1};
+function PYsrvRow(r){var sites=(Array.isArray(r.sites)?r.sites:[]).map(function(q,i){var lb=q.label||"",no=/^NOCODE /.test(lb),u=q.typ==="U",nm=String(q.name||"");
+    var ev=!lb?null:q.map?{label:lb,code:lb,contract:"",n:0,tot:0,ring:0,map:!0,mix:[]}:{label:lb,code:no?"":lb,contract:no?lb.slice(7):"",n:+q.n||0,tot:+q.tot||0,ring:+q.ring||0,mix:(Array.isArray(q.mix)?q.mix:[]).map(function(m){return{label:String(m.label||""),n:+m.n||0,last:String(m.last||"")}})};
+    return{typ:u?"U":"J",key:(u?"U|":"J|")+i+"|"+nm,name:nm,names:Array.isArray(q.names)&&q.names.length?q.names.map(String):[nm],ev:ev,code:ev&&ev.code||"",
+      min:+q.min||0,first:Date.parse(q.first),last:Date.parse(q.last),lat:+q.lat,lon:+q.lon,sure:!!q.sure,share:0}});
+  sites.sort(function(a,b){return b.min-a.min||(a.typ<b.typ?-1:a.typ>b.typ?1:0)||a.name.localeCompare(b.name)});
+  var total=sites.reduce(function(s,x){return s+x.min},0);sites.forEach(function(x){x.share=total?x.min/total:0});
+  return{day:String(r.day).slice(0,10),ran:!!r.ran,sites:sites,total:total,main:sites[0]||null,home:0,srv:!0}}
+function PYsrv(aids,d0,d1,tok){aids=(aids||[]).filter(Boolean);if(PYS.miss||!aids.length||!d0||!d1||d1<d0)return Promise.resolve(0);
+  var now=Date.now(),days=[];for(var d=d0;d<=d1;d=PYadd(d,1))days.push(d);
+  var want=aids.filter(function(a){return days.some(function(x){var t=PYS.asked[a+"|"+x];return !t||now-t>6*36e5})});if(!want.length)return Promise.resolve(0);
+  var key=want.join(",")+"|"+d0+"|"+d1;if(PYS.fly[key])return PYS.fly[key];
+  return PYS.fly[key]=go("payroll_days?select=actsoft_id,day,ran,total_min,sites&actsoft_id=in.("+want.join(",")+")&day=gte."+d0+"&day=lte."+d1,tok,30)
+    .then(function(R){var t=Date.now();want.forEach(function(a){days.forEach(function(x){PYS.asked[a+"|"+x]=t})});(R||[]).forEach(function(r){PYS.rows[r.actsoft_id+"|"+String(r.day).slice(0,10)]=PYsrvRow(r)});return(R||[]).length},
+      function(err){if(err&&err.status===404||/PGRST20[25]|payroll_days/.test(String(err&&err.message||err)))PYS.miss=!0;return 0})
+    .then(function(n){delete PYS.fly[key];return n})}
+/* v242 · a week for a grid: the nightly answers first (one read, every past day), then GPS for today and any day the table
+   doesn't have; the cells fill in as each truck's GPS comes in (a redraw at most every 150 ms) */
+async function PYweek(aids,ds,today,tok,say,bump){var past=ds.filter(function(d){return d<today}).sort(),last=0,tm=0,
+    draw=function(){if(tm)return;tm=setTimeout(function(){tm=0;last=Date.now();bump()},Math.max(0,150-(Date.now()-last)))};
+  try{if(past.length&&await PYsrv(aids,past[0],past[past.length-1],tok))draw();
+    if(await PYload(aids,ds,tok,function(i,k){if(k>3)say("Reading GPS · "+i+" of "+k+" trucks…");draw()}))draw()}
+  catch(x){}finally{say("")}}
+/* v242 · the week before the one on screen, read while nobody waits for it, so ‹ shows it at once */
+function PYahead(aids,wk,today,tok,bump){var prev=PYdays(PYadd(wk,-7)).filter(function(d){return d<today});if(!prev.length||!(aids||[]).length)return;
+  var run=function(){PYsrv(aids,prev[0],prev[prev.length-1],tok).then(function(n){n&&bump();return PYload(aids,prev,tok,null,{lanes:3})}).then(function(n){n&&bump()}).catch(function(){})};
+  if(window.requestIdleCallback)requestIdleCallback(run,{timeout:2000});else setTimeout(run,300)}
+/* what a grid's waiting cells are waiting for */
+function PYwait(e){return PYready(e)?"Reading GPS…":"Reading the job places and the crew emails' job numbers…"}
 /* how the cost code was found, in words (cell tooltips, the day's answer, the Excel's last column) */
 function PYhow(s,e){if(!s)return"";var ev=s.ev;
   if(!ev)return s.typ==="U"?"No job site has been learned here yet (no crew email or learned spot within 400 m)":"No crew email has named this job site yet";
@@ -1900,13 +1948,13 @@ function PYweekNav(o){var cur=PYmon(o.today);return PJh("div",{className:"py-wkn
   PJh("span",{className:"py-wkl"},o.wk===cur?"This week":"Week of "+PJday(o.wk)),
   PJh("button",{className:"btn sm",title:"The week after",disabled:o.wk>=cur,onClick:function(){o.setWk(PYadd(o.wk,7))}},"›"),
   PJh("button",{className:"btn sm primary",disabled:!!o.busy,title:"Excel: every foreman and trucker, each day of this week, the job they were at most of the day and its cost code",onClick:o.onExport},o.busy||"↓ EXCEL"))}
-function PYgrid(p){var today=p.today,cols=p.days.filter(function(d,i){return i<5||p.rows.some(function(x){var s=d<=today?p.sum(x.aid,d):null;return !!(s&&(s.ran||s.sites.length))})});
-  return PJh("div",{className:"py-wrap"},PJh("table",{className:"tbl py-tbl"},
+function PYgrid(p){var today=p.today,wait=0,cols=p.days.filter(function(d,i){return i<6||p.rows.some(function(x){var s=d<=today?p.sum(x.aid,d):null;return !!(s&&(s.ran||s.sites.length))})});
+  var tb=PJh("table",{className:"tbl py-tbl"},
     PJh("thead",null,PJh("tr",null,PJh("th",null,p.who==="Trucker"?"TRUCKER":"FOREMAN"),cols.map(function(d){return PJh("th",{key:d,className:d===today?"py-td":""},PYDF.format(new Date(d+"T12:00:00")))}),PJh("th",null,"WEEK"))),
     PJh("tbody",null,p.rows.map(function(x){var wsum={},wmin=0,wdays=0;
       var cells=cols.map(function(d){if(d>today)return PJh("td",{key:d},PJh("span",{className:"py-c fut"}));var s=p.sum(x.aid,d);
         if(!x.aid)return PJh("td",{key:d},PJh("span",{className:"py-c off"},PJh("b",null,"—")));
-        if(!s)return PJh("td",{key:d},PJh("span",{className:"py-c load"},PJh("b",null,"…")));
+        if(!s){wait++;return PJh("td",{key:d},PJh("span",{className:"py-c load"},PJh("b",null,"…")))}
         var m=s.main,on=p.sel===x.n&&p.selDay===d;if(m){wdays++;s.sites.forEach(function(q){var k=q.code||q.name;wsum[k]=(wsum[k]||0)+q.min;wmin+=q.min})}
         var cls=!m?(s.ran?"none":"off"):!m.code?"nocode":m.sure?"ok":"chk";
         return PJh("td",{key:d},PJh("button",{className:"py-c "+cls+(on?" on":""),title:PYtip(s,p.e),onClick:function(){p.onCell(x.n,d)}},
@@ -1915,7 +1963,9 @@ function PYgrid(p){var today=p.today,cols=p.days.filter(function(d,i){return i<5
           m?PJh("span",null,m.name):null))});
       var top=Object.keys(wsum).sort(function(a,b){return wsum[b]-wsum[a]})[0];
       return PJh("tr",{key:(x.aid||"")+"|"+x.n},PJh("td",{className:"py-who"},PJh("b",null,z(x.n)),PJh("span",{className:"dim"},x.u&&x.u.vehicle_id?x.u.vehicle_id:x.aid?"tracker":"no tracker")),cells,
-        PJh("td",{className:"py-wk"},top?PJh("b",null,top):PJh("span",{className:"dim"},"—"),wmin?PJh("span",{className:"dim"},wdays+" day"+(wdays===1?"":"s")+" · "+PYhr(wmin)):null))}))))}
+        PJh("td",{className:"py-wk"},top?PJh("b",null,top):PJh("span",{className:"dim"},"—"),wmin?PJh("span",{className:"dim"},wdays+" day"+(wdays===1?"":"s")+" · "+PYhr(wmin)):null))})));
+  /* v242 · what the waiting cells wait for floats over the grid: nothing moves when it comes and goes */
+  return PJh("div",{className:"py-wrap"},wait&&p.msg?PJh("div",{className:"py-float",role:"status"},p.msg):null,tb)}
 /* a day's answer: every job the truck sat at, its share, hours and cost code */
 function PYanswer(s,e){if(!s)return PJh(ve,null,"Reading GPS…");
   if(!s.sites.length)return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT · 6 AM – 5 PM"),PJh("div",{className:"py-none"},s.ran?"No time on a job site: the truck ran but only stopped at the yard, stations, suppliers or home.":"The truck didn't run this day."));
@@ -1957,11 +2007,16 @@ function FMroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
   var aids=men.map(function(x){return x.aid}).filter(Boolean),aidKey=aids.join(","),wdays=PYdays(wk),slot=Math.floor(minute/5);
   /* the week on screen and today, for every foreman; today again every 5 minutes (not while nobody is looking) */
   (0,M.useEffect)(function(){var dead=!1,ds=wdays.filter(function(d){return d<=today});if(ds.indexOf(today)<0)ds.push(today);if(PYC.at[aids[0]+"|"+today]&&(document.hidden||MZidleMin()>10))return;
-    PYload(aids,ds,tok,function(i,n){if(!dead&&n>3)setMsg("Reading GPS · "+i+" of "+n+" trucks…")}).then(function(n){if(!dead){setMsg("");n&&setTick(function(x){return x+1})}}).catch(function(){if(!dead)setMsg("")});
+    var bump=function(){setTick(function(x){return x+1})};
+    PYweek(aids,ds,today,tok,function(m){if(!dead)setMsg(m)},bump).then(function(){if(!dead)PYahead(aids,wk,today,tok,bump)});
     return function(){dead=!0}},[aidKey,wk,today,slot]);
   /* the dossier's foreman: the last 31 days and the day on screen */
-  (0,M.useEffect)(function(){if(!faid)return;var dead=!1,ds=[];for(var i=30;i>=0;i--)ds.push(PYadd(today,-i));if(ds.indexOf(dday)<0)ds.push(dday);
-    PYload([faid],ds,tok).then(function(n){if(!dead&&n)setTick(function(x){return x+1})}).catch(function(){});return function(){dead=!0}},[faid,dday,today,slot]);
+  (0,M.useEffect)(function(){if(!faid)return;var dead=!1,ds=[],bump=function(){if(!dead)setTick(function(x){return x+1})};for(var i=30;i>=0;i--)ds.push(PYadd(today,-i));if(ds.indexOf(dday)<0)ds.push(dday);ds.sort();
+    /* v242 · the day on screen first, from its GPS (the replay needs its stops); then the 30 days' answers from the nightly
+       table, and GPS only for the days it doesn't have, two at a time (the week grid goes first) */
+    PYload([faid],[dday],tok,null,{full:!0}).then(function(n){n&&bump();var y=PYadd(today,-1);return ds[0]<=y?PYsrv([faid],ds[0],y,tok):0})
+      .then(function(n){n&&bump();return PYload([faid],ds,tok,null,{lanes:2})}).then(function(n){n&&bump()}).catch(function(){});
+    return function(){dead=!0}},[faid,dday,today,slot]);
   var S=function(aid,d){return PYsum(aid,d,e,t)};
   var rows=men.map(function(x){var st=FMstatus(x.u,e,t),td=S(x.aid,today);return{x:x,st:st,td:td,mi:PYmiles(e,x.aid,today)}});
   var onSite=rows.filter(function(r){return r.st.k==="site"}).length,hrsT=rows.reduce(function(s,r){return s+(r.td?r.td.total:0)},0);
@@ -2002,12 +2057,11 @@ function FMroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
       PJh(K,{label:"DAYS WITH A COST CODE",value:wkCode+"/"+wkd.length,sub:(wk===PYmon(today)?"this week":"week of "+PJday(wk))+" · from the crew emails"}),
       PJh(K,{label:"NEED A JOB NUMBER",value:String(wkNo),tone:wkNo?_.amber:void 0,sub:wkNo?"foreman-days at a site with no job number":"every day has a cost code"})),
     PJh(G,{title:"WHERE EACH FOREMAN WORKED · "+(wk===PYmon(today)?"THIS WEEK":"WEEK OF "+PJday(wk).toUpperCase()),right:PYweekNav({wk:wk,setWk:setWk,today:today,busy:xmsg,onExport:function(){PYexport(e,tok,wk,setXmsg)}})},
-      msg||!PYready(e)?PJh("div",{className:"py-msg"},msg||"Reading the job places and the crew emails' job numbers…"):null,
-      PJh(PYgrid,{e:e,who:"Foreman",rows:men,days:wdays,today:today,sum:S,sel:fm&&fm.n,selDay:dday,onCell:pick}),
+      PJh(PYgrid,{e:e,who:"Foreman",rows:men,days:wdays,today:today,sum:S,sel:fm&&fm.n,selDay:dday,onCell:pick,msg:msg||PYwait(e)}),
       PJh("div",{className:"py-note"},PYrule("Foreman"))),
     PJh("div",{id:"fm-dos",className:"py-anchor"}),
     fm?PJh(G,{title:"FOREMAN DOSSIER",right:PJh("select",{className:"sel",value:fm.n,"aria-label":"Foreman",onChange:function(ev){setSel(ev.target.value);setDay("")}},men.map(function(x){return PJh("option",{key:(x.aid||"")+"|"+x.n,value:x.n},z(x.n))}))},
-      FMdossier({e:e,fm:fm,t:t,today:today,dday:dday,tab:tab,setTab:setTab,setDay:setDay,S:S,st:(rows.find(function(r){return r.x===fm})||{}).st,om:om})):null)}
+      FMdossier({e:e,fm:fm,t:t,today:today,dday:dday,tab:tab,setTab:setTab,setDay:setDay,S:S,F:function(aid,d){return PYfull(aid,d,e,t)},st:(rows.find(function(r){return r.x===fm})||{}).st,om:om})):null)}
 /* the dossier's body, a function (not a component: it never remounts on a redraw) */
 function FMdossier(o){var e=o.e,fm=o.fm,t=o.t,today=o.today,dday=o.dday,tab=o.tab,S=o.S,u=fm.u;
   var last=[];for(var i=29;i>=0;i--)last.push(PYadd(today,-i));
@@ -2018,7 +2072,7 @@ function FMdossier(o){var e=o.e,fm=o.fm,t=o.t,today=o.today,dday=o.dday,tab=o.ta
   var tod=function(f){var a=work.map(function(x){var v=f(x.s);if(!v)return null;var dt=new Date(v);return dt.getHours()*60+dt.getMinutes()}).filter(function(v){return v!=null});if(!a.length)return"—";
     var m=Math.round(a.reduce(function(s,v){return s+v},0)/a.length);return PYtm(new Date(2000,0,3,Math.floor(m/60),m%60).getTime())};
   var firstOn=function(s){return s.sites.reduce(function(a,q){return a==null||q.first<a?q.first:a},null)},lastOn=function(s){return s.sites.reduce(function(a,q){return a==null||q.last>a?q.last:a},null)};
-  var s=S(fm.aid,dday),shift=function(n){var k=PYadd(dday,n);if(k<=today)o.setDay(k)};
+  var s=S(fm.aid,dday),sf=o.F?o.F(fm.aid,dday):s,shift=function(n){var k=PYadd(dday,n);if(k<=today)o.setDay(k)};
   var mm=new Date(t),y0=mm.getFullYear(),m0=mm.getMonth(),lead=(new Date(y0,m0,1).getDay()+6)%7,nd=new Date(y0,m0+1,0).getDate(),cells=[];
   for(var i2=0;i2<lead;i2++)cells.push(null);for(var d2=1;d2<=nd;d2++)cells.push(qt(new Date(y0,m0,d2,12).getTime()));
   return PJh("div",{className:"hl-dos"},
@@ -2032,10 +2086,10 @@ function FMdossier(o){var e=o.e,fm=o.fm,t=o.t,today=o.today,dday=o.dday,tab=o.ta
         PJh("b",null,new Date(dday+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})),
         s?PJh("span",{className:"dim"},s.main?PYhr(s.total)+" on job sites · first on site "+PYtm(firstOn(s))+" · last "+PYtm(lastOn(s)):(s.ran?"no time on a job site":"the truck didn't run")):PJh("span",{className:"dim"},"reading GPS…")),
       PYanswer(s,e),
-      s?PJh(HLtimeline,{day:dday,stops:s.stops,hd:s.hd,today:today,now:t}):null,
-      s?PJh("div",{className:"hl-day-b"},
-        PJh(HLmap,{className:"hl-fmap",stops:s.stops,trails:[{pts:s.trail,color:fm.color,weight:3.5}],fitTrails:!0,sig:fm.n+dday+s.stops.length+"|"+s.trail.length,maxZoom:15,wheel:!0}),
-        PJh("div",{className:"hl-stops"},s.stops.length?s.stops.map(function(x){return PYstopRow(x,e)}):PJh(ve,null,"No stops recorded for this day."))):null):null,
+      sf?PJh(HLtimeline,{day:dday,stops:sf.stops,hd:sf.hd,today:today,now:t}):null,
+      sf?PJh("div",{className:"hl-day-b"},
+        PJh(HLmap,{className:"hl-fmap",stops:sf.stops,trails:[{pts:sf.trail,color:fm.color,weight:3.5}],fitTrails:!0,sig:fm.n+dday+sf.stops.length+"|"+sf.trail.length,maxZoom:15,wheel:!0}),
+        PJh("div",{className:"hl-stops"},sf.stops.length?sf.stops.map(function(x){return PYstopRow(x,e)}):PJh(ve,null,"No stops recorded for this day."))):s?PJh(ve,null,"Reading this day's GPS for the map and the stops…"):null):null,
     tab==="month"?PJh("div",{className:"hl-cal"},
       PJh("div",{className:"hl-cal-g"},["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w){return PJh("span",{key:w,className:"hl-cal-w"},w)}),cells.map(function(c,i){if(!c)return PJh("i",{key:"e"+i,className:"hl-cell empty"});var r=c<=today?S(fm.aid,c):null,m=r&&r.main;
         return PJh("button",{key:c,className:"hl-cell py-cell"+(c===today?" td":"")+(c>today?" fut":"")+(m&&!m.code?" no":m&&!m.sure?" chk":""),title:r?PYtip(r,e):"",onClick:function(){if(c<=today){o.setDay(c);o.setTab("day")}},style:m?{"--h":Math.min(1,.18+r.total/600*.82)}:null},
@@ -2090,7 +2144,8 @@ function PYrows(e,wk,now){var today=qt(now),days=PYdays(wk).filter(function(d){r
 async function PYexport(e,tok,wk,say){var now=Date.now(),today=qt(now),days=PYdays(wk).filter(function(d){return d<=today}),who=PYmen(e).concat(PYtruckers(e)).filter(function(x){return x.aid});
   if(!who.length||!days.length){MZtoast("Nothing to export: no foremen or truckers with a tracker this week.","info");return}
   if(!PYready(e)){MZtoast("Still reading the job places and the crew emails' job numbers — try again in a moment.","info");return}
-  try{say("READING 0/"+who.length+"…");await PYload(who.map(function(x){return x.aid}),days,tok,function(i,n){say("READING "+i+"/"+n+"…")});
+  try{say("READING…");var ids=who.map(function(x){return x.aid}),past=days.filter(function(d){return d<today});if(past.length)await PYsrv(ids,past[0],past[past.length-1],tok);
+    await PYload(ids,days,tok,function(i,n){say("READING "+i+"/"+n+"…")});
     say("WRITING…");var X=PYrows(e,wk,now);
     var rows=X.R.map(function(r){var s=r.s,m=s.main,f=s.sites.reduce(function(a,q){return a==null||q.first<a?q.first:a},null),l=s.sites.reduce(function(a,q){return a==null||q.last>a?q.last:a},null);
       return[PYxday(r.d),PYDF.format(new Date(r.d+"T12:00:00")).split(",")[0],z(r.x.n),r.x.role,r.x.u&&r.x.u.vehicle_id||"",
@@ -3546,7 +3601,7 @@ function MZVersion(){let[run,sRun]=(0,M.useState)(null),[pub,sPub]=(0,M.useState
     (0,s.jsx)("button",{className:"vr-x",title:"This tab runs v"+run+". Reload to get v"+pub+".",onClick:()=>location.reload(),children:"Reload"})]});
   return(0,s.jsxs)("div",{className:"mz-ver",title:"This tab runs v"+run+", the newest published version"+(at?" \xB7 checked "+new Date(at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}):""),
     children:["v",run," \xB7 up to date"]})}
-function Fm({t:e,onOut:t}){let[,mzS]=(0,M.useState)(0);(0,M.useEffect)(()=>{let f=()=>mzS(x=>x+1);window.addEventListener("mz-theme",f);return()=>window.removeEventListener("mz-theme",f)},[]);let[n,r]=Cm(e),[l,o]=(0,M.useState)(()=>localStorage.getItem(Ld)||"situation"),[i,u]=(0,M.useState)(""),[c,p]=(0,M.useState)(null),[w,S]=(0,M.useState)(Date.now()),[y,E]=(0,M.useState)(new Date);(0,M.useEffect)(()=>{let d=setInterval(()=>{S(Date.now())},15e3);return()=>{clearInterval(d)}},[]),(0,M.useEffect)(()=>{localStorage.setItem(Ld,l)},[l]),(0,M.useEffect)(()=>{let f=ev=>{let v=ev&&ev.detail;if(typeof v=="string"&&Dd.some(x=>x[0]===v))o(v)};return window.addEventListener("mz-go",f),()=>window.removeEventListener("mz-go",f)},[]),(0,M.useEffect)(()=>{let d=N=>{(N.metaKey||N.ctrlKey)&&N.key.toLowerCase()==="k"&&(N.preventDefault(),document.getElementById("q")?.focus()),N.key==="Escape"&&u("")};return window.addEventListener("keydown",d),()=>window.removeEventListener("keydown",d)},[]);let[h,O]=zm(n.fleet||[],e),D=(d,N)=>{o(d),p(N)},a=(n.orders||[]).filter(d=>!d.is_practice&&d.status==="SOLICITADO").length,f=(n.fuelGps||[]).filter(d=>d.gps_check==="NO_ESTABA").length,mzL=(n.appLive||[]).filter(d=>!d.hid&&Date.now()-Date.parse(d.updated_at)<12e4).length;return(0,s.jsxs)("div",{className:n.sync?"ops":"ops mz-boot",children:[(0,s.jsxs)("nav",{className:"rail",children:[(0,s.jsxs)("div",{className:"brand",children:[(0,s.jsx)("div",{className:"bm",children:"M"}),(0,s.jsxs)("div",{children:[(0,s.jsx)("div",{className:"bn",children:"MU\xD1IZ"}),(0,s.jsx)("div",{className:"bs",children:"OPS \xB7 COMMAND"})]})]}),Dd.map(([d,N,g])=>(0,s.jsxs)("button",{className:`rb rb-${d} ${l===d?"on":""}`,onClick:()=>{u(""),o(d)},children:[(0,s.jsx)("span",{className:"ri",children:g}),MZtc(N),d==="activity"&&mzL?(0,s.jsx)("span",{className:"badge green",title:"phones with the app open right now",children:mzL}):null,d==="orders"&&a?(0,s.jsx)("span",{className:"badge amber",children:a}):null,d==="fuel"&&f?(0,s.jsx)("span",{className:"badge red",children:f}):null]},d)),(0,s.jsx)("div",{className:"grow"}),(0,s.jsxs)("div",{className:"rf",children:[(0,s.jsx)(MZClock,{}),(0,s.jsx)(MZVersion,{})]})]}),(0,s.jsxs)("main",{className:"stage",children:[(0,s.jsxs)("header",{className:"cmd",children:[(0,s.jsxs)("div",{className:"crumb",children:[(0,s.jsx)("span",{className:"dim",children:"Mu\xF1iz Concrete & Contracting"}),(0,s.jsx)("span",{className:"sep",children:"/"}),(0,s.jsx)("b",{children:MZtc(i.trim().length>=2?"SEARCH":Dd.find(d=>d[0]===l)[1])})]}),(0,s.jsxs)("div",{className:"search",children:[(0,s.jsx)("span",{className:"dim",children:"\u2315"}),(0,s.jsx)("input",{id:"q",value:i,onChange:d=>u(d.target.value),placeholder:"Search \u2014 req, PO, name, plate, jobsite, item\u2026   \u2318K"})]}),(0,s.jsx)("div",{className:"stat",children:n.err?(0,s.jsx)("span",{className:"red",children:n.err}):n.loading?(0,s.jsx)("span",{className:"dim",children:MZtc("CONNECTING\u2026")}):(0,s.jsxs)(s.Fragment,{children:[(0,s.jsx)(ae,{c:_.green,pulse:!0}),(0,s.jsxs)("span",{className:"mono",children:["Live \xB7 ",n.sync?Fd(n.sync):""]})]})}),(0,s.jsx)("div",{className:"who mono dim",children:e.email}),(0,s.jsx)(MzTheme,{}),(0,s.jsx)(MzBell,{t:e}),(0,s.jsx)(MzPw,{t:e}),(0,s.jsx)("button",{className:"btn sm",onClick:t,children:"Sign out"})]}),i.trim().length>=2?(0,s.jsx)(Um,{d:n,q:i,now:w,mapGo:O,onGo:d=>{u(""),o(d)},onFocusOrder:d=>{u(""),o("orders"),p(d)}}):null,i.trim().length>=2?null:(0,s.jsxs)(s.Fragment,{children:[(window.MZroomNow!==l&&(window.MZroomNow=l,setTimeout(function(){try{window.dispatchEvent(new Event("mz-wake"))}catch(x){}},0)),l==="situation")?(0,s.jsx)(Rm,{d:n,now:w,go:D,mapNode:h,mapGo:O}):null,l==="tieout"?(0,s.jsx)(TOroom,{d:n,now:w,t:e}):null,l==="activity"?(0,s.jsx)(ACroom,{d:n,now:w,t:e}):null,l==="projects"?(0,s.jsx)(Pj,{d:n,now:w,t:e,onChanged:r,onOrder:d=>{o("orders"),p(d)},onMap:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="ledger"?(0,s.jsx)(Im,{d:n,q:i,t:e}):null,l==="orders"?(0,s.jsx)(Am,{d:n,now:w,t:e,q:i,focus:c,clearFocus:()=>p(null),onChanged:r}):null,l==="catalog"?(0,s.jsx)(CTroom,{d:n,now:w,t:e,onChanged:r}):null,l==="fuel"?(0,s.jsx)(Dm,{d:n,now:w,q:i,t:e,onChanged:r,mapGo:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="fleet"?(0,s.jsx)($m,{d:n,now:w,q:i,mapNode:h,mapGo:O}):null,l==="haul"?(0,s.jsx)(HlRoot,{d:n,now:w,t:e,onChanged:r,onMap:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="permits"?(0,s.jsx)(PMroom,{d:n,now:w,t:e,onChanged:r}):null,l==="people"?(0,s.jsx)(Mm,{d:n,t:e,onChanged:r}):null,l==="rules"?(0,s.jsx)(xm,{d:n,t:e,onChanged:r}):null]})]})]})}/* v203 · search results: the section and the row are real components, defined once. They used to be created inside Um,
+function Fm({t:e,onOut:t}){let[,mzS]=(0,M.useState)(0);(0,M.useEffect)(()=>{let f=()=>mzS(x=>x+1);window.addEventListener("mz-theme",f);return()=>window.removeEventListener("mz-theme",f)},[]);let[n,r]=Cm(e),[l,o]=(0,M.useState)(()=>localStorage.getItem(Ld)||"situation"),[i,u]=(0,M.useState)(""),[c,p]=(0,M.useState)(null),[w,S]=(0,M.useState)(Date.now()),[y,E]=(0,M.useState)(new Date);(0,M.useEffect)(()=>{let d=setInterval(()=>{(0,M.startTransition)(()=>S(Date.now()))},15e3);return()=>{clearInterval(d)}},[]),(0,M.useEffect)(()=>{localStorage.setItem(Ld,l)},[l]),(0,M.useEffect)(()=>{let f=ev=>{let v=ev&&ev.detail;if(typeof v=="string"&&Dd.some(x=>x[0]===v))o(v)};return window.addEventListener("mz-go",f),()=>window.removeEventListener("mz-go",f)},[]),(0,M.useEffect)(()=>{let d=N=>{(N.metaKey||N.ctrlKey)&&N.key.toLowerCase()==="k"&&(N.preventDefault(),document.getElementById("q")?.focus()),N.key==="Escape"&&u("")};return window.addEventListener("keydown",d),()=>window.removeEventListener("keydown",d)},[]);let[h,O]=zm(n.fleet||[],e),D=(d,N)=>{o(d),p(N)},a=(n.orders||[]).filter(d=>!d.is_practice&&d.status==="SOLICITADO").length,f=(n.fuelGps||[]).filter(d=>d.gps_check==="NO_ESTABA").length,mzL=(n.appLive||[]).filter(d=>!d.hid&&Date.now()-Date.parse(d.updated_at)<12e4).length;return(0,s.jsxs)("div",{className:n.sync?"ops":"ops mz-boot",children:[(0,s.jsxs)("nav",{className:"rail",children:[(0,s.jsxs)("div",{className:"brand",children:[(0,s.jsx)("div",{className:"bm",children:"M"}),(0,s.jsxs)("div",{children:[(0,s.jsx)("div",{className:"bn",children:"MU\xD1IZ"}),(0,s.jsx)("div",{className:"bs",children:"OPS \xB7 COMMAND"})]})]}),Dd.map(([d,N,g])=>(0,s.jsxs)("button",{className:`rb rb-${d} ${l===d?"on":""}`,onClick:()=>{u(""),o(d)},children:[(0,s.jsx)("span",{className:"ri",children:g}),MZtc(N),d==="activity"&&mzL?(0,s.jsx)("span",{className:"badge green",title:"phones with the app open right now",children:mzL}):null,d==="orders"&&a?(0,s.jsx)("span",{className:"badge amber",children:a}):null,d==="fuel"&&f?(0,s.jsx)("span",{className:"badge red",children:f}):null]},d)),(0,s.jsx)("div",{className:"grow"}),(0,s.jsxs)("div",{className:"rf",children:[(0,s.jsx)(MZClock,{}),(0,s.jsx)(MZVersion,{})]})]}),(0,s.jsxs)("main",{className:"stage",children:[(0,s.jsxs)("header",{className:"cmd",children:[(0,s.jsxs)("div",{className:"crumb",children:[(0,s.jsx)("span",{className:"dim",children:"Mu\xF1iz Concrete & Contracting"}),(0,s.jsx)("span",{className:"sep",children:"/"}),(0,s.jsx)("b",{children:MZtc(i.trim().length>=2?"SEARCH":Dd.find(d=>d[0]===l)[1])})]}),(0,s.jsxs)("div",{className:"search",children:[(0,s.jsx)("span",{className:"dim",children:"\u2315"}),(0,s.jsx)("input",{id:"q",value:i,onChange:d=>u(d.target.value),placeholder:"Search \u2014 req, PO, name, plate, jobsite, item\u2026   \u2318K"})]}),(0,s.jsx)("div",{className:"stat",children:n.err?(0,s.jsx)("span",{className:"red",children:n.err}):n.loading?(0,s.jsx)("span",{className:"dim",children:MZtc("CONNECTING\u2026")}):(0,s.jsxs)(s.Fragment,{children:[(0,s.jsx)(ae,{c:_.green,pulse:!0}),(0,s.jsxs)("span",{className:"mono",children:["Live \xB7 ",n.sync?Fd(n.sync):""]})]})}),(0,s.jsx)("div",{className:"who mono dim",children:e.email}),(0,s.jsx)(MzTheme,{}),(0,s.jsx)(MzBell,{t:e}),(0,s.jsx)(MzPw,{t:e}),(0,s.jsx)("button",{className:"btn sm",onClick:t,children:"Sign out"})]}),i.trim().length>=2?(0,s.jsx)(Um,{d:n,q:i,now:w,mapGo:O,onGo:d=>{u(""),o(d)},onFocusOrder:d=>{u(""),o("orders"),p(d)}}):null,i.trim().length>=2?null:(0,s.jsxs)(s.Fragment,{children:[(window.MZroomNow!==l&&(window.MZroomNow=l,setTimeout(function(){try{window.dispatchEvent(new Event("mz-wake"))}catch(x){}},0)),l==="situation")?(0,s.jsx)(Rm,{d:n,now:w,go:D,mapNode:h,mapGo:O}):null,l==="tieout"?(0,s.jsx)(TOroom,{d:n,now:w,t:e}):null,l==="activity"?(0,s.jsx)(ACroom,{d:n,now:w,t:e}):null,l==="projects"?(0,s.jsx)(Pj,{d:n,now:w,t:e,onChanged:r,onOrder:d=>{o("orders"),p(d)},onMap:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="ledger"?(0,s.jsx)(Im,{d:n,q:i,t:e}):null,l==="orders"?(0,s.jsx)(Am,{d:n,now:w,t:e,q:i,focus:c,clearFocus:()=>p(null),onChanged:r}):null,l==="catalog"?(0,s.jsx)(CTroom,{d:n,now:w,t:e,onChanged:r}):null,l==="fuel"?(0,s.jsx)(Dm,{d:n,now:w,q:i,t:e,onChanged:r,mapGo:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="fleet"?(0,s.jsx)($m,{d:n,now:w,q:i,mapNode:h,mapGo:O}):null,l==="haul"?(0,s.jsx)(HlRoot,{d:n,now:w,t:e,onChanged:r,onMap:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="permits"?(0,s.jsx)(PMroom,{d:n,now:w,t:e,onChanged:r}):null,l==="people"?(0,s.jsx)(Mm,{d:n,t:e,onChanged:r}):null,l==="rules"?(0,s.jsx)(xm,{d:n,t:e,onChanged:r}):null]})]})]})}/* v203 · search results: the section and the row are real components, defined once. They used to be created inside Um,
    so every redraw (the 15 s clock tick, each background refresh) handed React brand-new components: it threw all the
    results away and rebuilt them, the rise-in animation replayed, and the screen flashed while a search was open. */
 function UmSec({label:a,n:f,room:d,go:r,children:N}){return f?(0,s.jsx)(G,{title:`${a} \xB7 ${f}`,right:(0,s.jsxs)("button",{className:"btn sm",onClick:()=>r(d),children:["open ",a.toLowerCase()," \u2192"]}),children:N}):null}
@@ -3683,6 +3738,8 @@ function MZvt(update,kind,pred,settled){
     kinds.forEach(function(k){keep.indexOf(k)<0&&de.classList.remove(k)});
     document.querySelectorAll("[data-mzvt]").forEach(function(el){if(!MZvtCur){el.style.viewTransitionName="";el.removeAttribute("data-mzvt")}})};
   tr.finished.then(done,done);
+  /* v242 · a cross-fade cut short by a quicker click rejects "ready": expected, not an error in the console */
+  try{tr.ready.catch(function(){})}catch(e){}
   return tr.finished.catch(function(){});
 }
 /* a card that appears *during* a sign-in transition is already being morphed; don't also fade it in */
