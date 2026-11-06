@@ -1482,8 +1482,9 @@ function HLdrivers(e){var r=(e.rules||[]).find(function(x){return x.key==="fuel_
 /* one Leaflet map for everything haul: trails, trucks, numbered stops, places, a planned route */
 function HLmap(p){var box=(0,M.useRef)(null),map=(0,M.useRef)(null),lay=(0,M.useRef)(null);
   (0,M.useEffect)(function(){var L=window.L;if(!L||!box.current||map.current)return;
-    map.current=L.map(box.current,{zoomControl:!1,attributionControl:!1,scrollWheelZoom:!!p.wheel}).setView([30.27,-97.74],11);
-    /* v243 · the Fleet / Live map's styles and switch (MZlayers); a light map follows the theme switch */
+    map.current=L.map(box.current,{zoomControl:!1,attributionControl:!1,scrollWheelZoom:p.wheel!==!1}).setView([30.27,-97.74],11);
+    /* v243 · the Fleet / Live map's styles and switch (MZlayers); a light map follows the theme switch.
+       v244 · every Haul map zooms with the mouse wheel like the Fleet map (Tito, Nov 6); a caller can still pass wheel:false */
     var ly=MZlayers(L,map.current,{dark:p.dark,op:.85}),th=function(){ly.theme(MZTHEME)};window.addEventListener("mz-theme",th);
     L.control.zoom({position:"bottomright"}).addTo(map.current);lay.current=L.layerGroup().addTo(map.current);
     setTimeout(function(){try{map.current.invalidateSize()}catch(x){}},90);
