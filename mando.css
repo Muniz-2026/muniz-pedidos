@@ -1725,3 +1725,69 @@ html[data-theme] .idc-strip i.in{opacity:1}
 html[data-theme] .idc-axis{display:flex;justify-content:space-between;gap:8px;font:500 11px/1.3 var(--mono);color:var(--dim);margin-top:5px}
 html[data-theme] .idc-rd td,html[data-theme] .idc-rd th{white-space:nowrap;font-size:12px}
 html[data-theme] .idc-rd tr:not(.in) td{color:var(--dim)}
+
+/* ===== FOREMEN + PAYROLL (v241): Haul → FOREMEN, the "where each one worked" week grid, the foreman dossier ===== */
+.fm-today{margin-top:4px;color:rgba(232,236,242,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.py-anchor{scroll-margin-top:12px}
+html[data-theme] .py-wkn{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+html[data-theme] .py-wkl{font:600 12.5px/1 var(--sans);color:var(--ink2);min-width:92px;text-align:center}
+html[data-theme] .py-msg{padding:0 4px 10px;font:500 12.5px/1.4 var(--sans);color:var(--dim)}
+html[data-theme] .py-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+html[data-theme] .py-tbl{min-width:900px;table-layout:fixed}
+html[data-theme] .py-tbl th{white-space:nowrap}
+html[data-theme] .py-tbl th.py-td{color:var(--accent-ink)}
+html[data-theme] .py-tbl tbody tr{cursor:default}
+html[data-theme] .py-tbl tbody tr:hover{background:transparent}
+html[data-theme] .py-tbl td{padding:5px 4px;vertical-align:top}
+html[data-theme] .py-tbl tr>:first-child{position:sticky;left:0;z-index:1;background:var(--card);width:170px;padding-left:16px}
+html[data-theme] .py-tbl tr>:last-child{width:150px;padding-right:16px}
+html[data-theme] .py-who b{display:block;font:650 13.5px/1.25 var(--sans);color:var(--ink)}
+html[data-theme] .py-who .dim{display:block;margin-top:3px;font:500 11.5px/1.2 var(--sans)}
+html[data-theme] .py-wk{padding-left:10px}
+html[data-theme] .py-wk b{display:block;font:650 12.5px/1.25 var(--sans);font-variant-numeric:tabular-nums;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html[data-theme] .py-wk .dim{display:block;margin-top:3px;font-size:11.5px}
+html[data-theme] .py-c{display:flex;flex-direction:column;gap:2px;width:100%;min-height:58px;padding:7px 9px;border-radius:10px;border:1px solid var(--mini-line);background:var(--btn);color:var(--ink);text-align:left;font:inherit;cursor:pointer;transition:background-color .15s,border-color .15s,box-shadow .15s}
+html[data-theme] button.py-c:hover{background:var(--btn-hover);border-color:var(--btn-line-hover)}
+html[data-theme] .py-c:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+html[data-theme] .py-c b{font:650 12.5px/1.2 var(--sans);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-theme] .py-c span{font:500 11.5px/1.25 var(--sans);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html[data-theme] .py-c.on{box-shadow:inset 0 0 0 2px var(--accent)}
+html[data-theme] .py-c.chk{border-color:var(--amber-f)}
+html[data-theme] .py-c.chk b{color:var(--amber)}
+html[data-theme] .py-c.nocode{background:var(--tint-amber);border-color:transparent}
+html[data-theme] .py-c.nocode b{color:var(--tint-amber-ink)}
+html[data-theme] .py-c.none{background:transparent;border-style:dashed}
+html[data-theme] .py-c.none b{color:var(--dim)}
+html[data-theme] .py-c.off,html[data-theme] .py-c.fut,html[data-theme] .py-c.load{background:transparent;border-color:transparent;cursor:default}
+html[data-theme] .py-c.off b,html[data-theme] .py-c.load b{color:var(--faint)}
+html[data-theme] .py-note{margin:12px 4px 2px;font:500 12.5px/1.5 var(--sans);color:var(--dim);max-width:980px}
+html[data-theme] .py-chip{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--line2);font:600 11.5px/1 var(--sans);font-variant-numeric:tabular-nums;color:var(--ink2);white-space:nowrap;flex:0 0 auto}
+html[data-theme] .py-chip.chk{border-color:var(--amber-f);color:var(--amber)}
+html[data-theme] .py-chip.no{background:var(--tint-amber);border-color:transparent;color:var(--tint-amber-ink)}
+html[data-theme] .py-ans{margin:0 0 16px;padding:12px 16px 8px;border-radius:14px;background:var(--panel2,var(--hover-fill))}
+html[data-theme] .py-ans .pj-sec{margin-top:0}
+html[data-theme] .py-ar{display:grid;grid-template-columns:minmax(0,1fr) minmax(80px,180px) 140px;gap:14px;align-items:center;padding:9px 0;border-top:1px solid var(--hair)}
+html[data-theme] .py-ans .pj-sec+.py-ar{border-top:0}
+html[data-theme] .py-alh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+html[data-theme] .py-al>.dim{display:block;margin-top:3px;font-size:12px;line-height:1.35}
+html[data-theme] .py-code{font:700 15px/1.2 var(--sans);font-variant-numeric:tabular-nums;color:var(--ink)}
+html[data-theme] .py-code.chk{color:var(--amber)}
+html[data-theme] .py-code.no{color:var(--tint-amber-ink)}
+html[data-theme] .py-alh span{font:500 13.5px/1.3 var(--sans);color:var(--ink2)}
+html[data-theme] .py-bar{height:8px;border-radius:999px;background:var(--track);overflow:hidden}
+html[data-theme] .py-bar i{display:block;height:100%;border-radius:999px;background:var(--faint)}
+html[data-theme] .py-ar.main .py-bar i{background:var(--accent)}
+html[data-theme] .py-av{text-align:right}
+html[data-theme] .py-av b{display:block;font:700 15px/1.1 var(--sans);font-variant-numeric:tabular-nums}
+html[data-theme] .py-av .dim{display:block;margin-top:3px;font-size:11.5px;white-space:nowrap}
+html[data-theme] .py-none{font:500 13.5px/1.45 var(--sans);color:var(--dim);padding:2px 0 8px}
+html[data-theme] .py-line{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:var(--panel2,var(--hover-fill))}
+html[data-theme] .py-line .pj-sec{margin:0}
+html[data-theme] .py-line b{font:650 13.5px/1.2 var(--sans)}
+html[data-theme] .py-line .dim{font-size:12.5px}
+html[data-theme] .py-cell span{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+html[data-theme] .py-cell.no span{color:var(--tint-amber-ink)}
+html[data-theme] .py-cell.chk span{color:var(--amber)}
+@media (max-width:900px){html[data-theme] .py-ar{grid-template-columns:minmax(0,1fr) 110px}html[data-theme] .py-bar{grid-column:1/-1;order:3}}
+@media (max-width:640px){html[data-theme] .py-tbl tr>:first-child{width:118px;padding-left:12px}html[data-theme] .py-wkn{justify-content:flex-start}
+  html[data-theme] .sd-switch .sd-sw{letter-spacing:.06em;padding-left:6px;padding-right:6px;white-space:nowrap}}
