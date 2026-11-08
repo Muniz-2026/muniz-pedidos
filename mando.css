@@ -1795,3 +1795,19 @@ html[data-theme] .py-cell.chk span{color:var(--amber)}
 @media (max-width:900px){html[data-theme] .py-ar{grid-template-columns:minmax(0,1fr) 110px}html[data-theme] .py-bar{grid-column:1/-1;order:3}}
 @media (max-width:640px){html[data-theme] .py-tbl tr>:first-child{width:118px;padding-left:12px}html[data-theme] .py-wkn{justify-content:flex-start}
   html[data-theme] .sd-switch .sd-sw{letter-spacing:.06em;padding-left:6px;padding-right:6px;white-space:nowrap}}
+/* v246 · Live map: what it shows while a board tab filters it (top left; the layers switch is top right) */
+.mz-mapf{position:absolute;left:10px;top:10px;z-index:800;display:inline-flex;align-items:center;gap:8px;max-width:calc(100% - 74px);
+  font:600 10px var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);background:var(--panel);border:1px solid var(--line2);padding:4px 4px 4px 10px}
+.mz-mapf-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mz-mapf-t b{color:var(--ink);font-weight:700}
+.mz-mapf .lv-act{flex:0 0 auto}
+html[data-theme] .mz-mapf{background:var(--pop-glass2);border:0;border-radius:999px;box-shadow:var(--pop-shadow);font:500 12px/1 var(--sans);letter-spacing:0;
+  text-transform:none;color:var(--ink2);padding:5px 5px 5px 12px}
+html[data-theme] .mz-mapf-t b{color:var(--ink);font-weight:650}
+html[data-theme] .mz-mapf .lv-act{border-radius:999px}
+/* v246 · five tabs on the Live board (All first): each as wide as its words, a little tighter, never on top of each other */
+.lv-board .lv-tab{flex:1 1 auto}
+html[data-theme] .lv-board .lv-tabs{gap:6px}
+html[data-theme] .lv-board .lv-tab{gap:4px;padding-left:5px;padding-right:5px}
+html[data-theme] .lv-board .lv-tc{padding:3px 5px}
+@media (min-width:901px){.lv-board{max-width:48%}}

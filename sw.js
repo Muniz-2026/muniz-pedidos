@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v245
+/* MUÑIZ Pedidos - service worker  ·  v246
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -54,9 +54,10 @@
      · v244: every Haul map zooms with the mouse wheel, like the Fleet map.
      · v245: a fuel PO that meets a moment with no signal tries again by itself (same tap, up to 25 s) before SIN SEÑAL;
        the Command Center shows such a blip in grey ("no signal for a moment · F#### went through 3 s later").
+     · v246: the Command Center's Live map shows only what the board's tab lists (All, Crews, Moving, Idling, Dark).
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v245";
+const CACHE = "muniz-pedidos-v246";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
