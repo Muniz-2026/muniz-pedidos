@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v249
+/* MUÑIZ Pedidos - service worker  ·  v250
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -61,9 +61,12 @@
        PIN had been entered showed them under every name tapped after it.
      · v249: tapping a notification opens the exact thing it is about: an order's push opens that order, a fuel PO's push
        that PO, an idle truck's push the Live map on that truck (Tito, Nov 9). The push's tag carries the id.
+     · v250: speed, quick fixes after the Nov 9 audit: the pages connect to the database while they load, the catalog
+       files start with the scripts, the Command Center builds its number / time formatters once and reads its ten live
+       lists together on first load. Nothing changes in how phones cache or update.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v249";
+const CACHE = "muniz-pedidos-v250";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
