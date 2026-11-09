@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v248
+/* MUÑIZ Pedidos - service worker  ·  v249
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -59,9 +59,11 @@
        opened from the phone's copy takes its files from that same copy at once (no 3.5 s wait per file).
      · v248: the OFICINA button and MODO OFICINA show only under an office name (Tito, Claudia). A phone where the office
        PIN had been entered showed them under every name tapped after it.
+     · v249: tapping a notification opens the exact thing it is about: an order's push opens that order, a fuel PO's push
+       that PO, an idle truck's push the Live map on that truck (Tito, Nov 9). The push's tag carries the id.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v248";
+const CACHE = "muniz-pedidos-v249";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
@@ -111,18 +113,48 @@ self.addEventListener("push", (e) => {
   e.waitUntil(self.registration.showNotification(title, {
     body: d.body || "", tag: d.tag || undefined, renotify: !!d.tag,
     icon: "./icon-192.png", badge: "./icon-192.png", timestamp: d.ts || Date.now(),
-    data: { url: d.url || "./mando.html" }
+    data: { url: d.url || "./mando.html", tag: d.tag || "" }
   }));
 });
+/* v249 · a tap opens the exact thing the push is about (Tito, Nov 9: "when i click on an order notification I want it to open up
+   that exact order and not just take me to the orders tab. Same with the idle notification I want it to take me to the live tab
+   and go to that exact fleet location that is idling"). The database names each push by what it is about — tag mat-/matpo-<order
+   id>, fuel-<fuel PO id>, notracker-<F####>, fidle-/dump-<tracker id> — and the Command Center opens #order/…, #fuelpo/… and
+   #unit/… (mando.js MZjump). Any other push keeps its own address. A notification shown before v249 has its tag on itself. */
+function exactLink(url, tag) {
+  const t = String(tag || ""); let m;
+  if ((m = /^(?:mat|matpo)-(\d+)$/.exec(t))) return "./mando.html#order/" + m[1];
+  if ((m = /^fuel-(\d+)$/.exec(t))) return "./mando.html#fuelpo/" + m[1];
+  if ((m = /^notracker-(F\d+)$/i.exec(t))) return "./mando.html#fuelpo/" + m[1].toUpperCase();
+  if ((m = /^(?:fidle|dump)-(\d+)$/.exec(t))) return "./mando.html#unit/" + m[1];
+  return url;
+}
+function ourPage(u) { try { const x = new URL(u || "./mando.html", self.registration.scope); return x.origin === self.location.origin ? x.href : null; } catch (err) { return null; } }
+/* an open Command Center from v249 on opens the link in place and answers MUNIZ_OPENED; an older one doesn't answer */
+const asked = new Map();
+function askPage(client, url) {
+  return new Promise(res => {
+    const id = Math.random().toString(36).slice(2);
+    let t = 0;
+    const done = ok => { clearTimeout(t); asked.delete(id); res(ok); };
+    asked.set(id, () => done(true));
+    t = setTimeout(() => done(false), 2000);
+    try { client.postMessage({ type: "MUNIZ_OPEN", url: url, id: id }); } catch (err) { done(false); }
+  });
+}
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  let target = new URL("./mando.html", self.registration.scope).href;   // only our own pages open from a notification
-  try { const u = new URL((e.notification.data && e.notification.data.url) || "./mando.html", self.registration.scope); if (u.origin === self.location.origin) target = u.href; } catch (err) { }
+  const data = e.notification.data || {};
+  const plain = ourPage(data.url) || ourPage("./mando.html");   // only our own pages open from a notification
+  const target = ourPage(exactLink(data.url, data.tag || e.notification.tag)) || plain;
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const mando = wins.find(c => /mando\.html/.test(c.url));
-    if (mando) { try { await mando.focus(); if (typeof mando.navigate === "function") await mando.navigate(target); } catch (err) {} return; }
-    await self.clients.openWindow(target);
+    if (!mando) { await self.clients.openWindow(target); return; }
+    try { await mando.focus(); } catch (err) { }
+    if (target !== plain && await askPage(mando, target)) return;
+    /* a page from before v249 (or no answer): the push's own address, as before */
+    if (typeof mando.navigate === "function") { try { await Promise.race([mando.navigate(plain), new Promise(r => setTimeout(r, 3000))]); } catch (err) { } }
   })());
 });
 
@@ -130,6 +162,7 @@ self.addEventListener("message", (e) => {
   const d = e.data || {};
   if (d.type === "MUNIZ_ACK" && e.source) acked.add(e.source.id);
   if (d.type === "MUNIZ_SKIP_WAITING") self.skipWaiting();
+  if (d.type === "MUNIZ_OPENED" && asked.has(d.id)) asked.get(d.id)();   // v249: the page opened the notification's link
   if (d.type === "MUNIZ_VERSION" && e.source) e.source.postMessage({ type: "MUNIZ_SW_VERSION", cache: CACHE, stale: stale.has(e.source.id) });
 });
 
