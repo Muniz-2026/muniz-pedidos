@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v250
+/* MUÑIZ Pedidos - service worker  ·  v251
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -64,11 +64,14 @@
      · v250: speed, quick fixes after the Nov 9 audit: the pages connect to the database while they load, the catalog
        files start with the scripts, the Command Center builds its number / time formatters once and reads its ten live
        lists together on first load. Nothing changes in how phones cache or update.
+     · v251: the product photos are kept in their own copy ("muniz-fotos") under the hash of their content, and a release
+       no longer deletes or re-downloads them (it was 11 MB per phone per release). The catalog asks for a vendor's photos
+       when that vendor is opened, not for all of them on every open. Code files: exactly as before.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v250";
+const CACHE = "muniz-pedidos-v251";
 const SHELL = [
-  "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
+  "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
 ];
 const NET_TIMEOUT_MS = 3500;
@@ -79,11 +82,74 @@ const CRITICAL = ["./index.html","./updater.js","./app.js","./styles.css","./con
    home. Any other page (the Command Center, admin) is only ever answered with itself (v226) */
 const PHONE_PAGES = SHELL.filter(u => u === "./" || /\.html$/.test(u)).map(u => new URL(u, location.href).pathname);
 
+/* v251 · product photos have their own copy on the phone, and a release does not throw it away. Before, every release
+   emptied the whole copy and GitHub Pages stamps every file as new on each deploy, so each phone downloaded all the photos
+   again (11 MB) after every release, and read 15 MB of them on every open. Each photo file is kept under the hash of its
+   content (FOTOS): the same hash is answered from the phone with no request; a new hash is downloaded once.
+   A release that changes a photo file rewrites FOTOS (tools/release/v251/fotos_map.js) — a stale hash = stale photos. */
+const FOTOS = {"fotos_ace.json":"582812a5f09ab609","fotos_cmc.json":"90286523c228680c","fotos_rss.json":"a6c5348ab1ad210b","fotos_whitecap.json":"3a57f9ac70d5d66b","fotos_hd_ace.json":"c09dd4c4c46a81fc","fotos_hd_cmc.json":"0575ce31d4882ab8","fotos_hd_rss.json":"2b7a15006fb0d7ae","fotos_hd_whitecap.json":"be6f75079197b2a3"};
+const FCACHE = "muniz-fotos";
+const THUMBS = ["fotos_ace.json","fotos_cmc.json","fotos_rss.json","fotos_whitecap.json"];
+const isFoto = n => Object.prototype.hasOwnProperty.call(FOTOS, n);
+const fotoKey = n => new URL("./" + n + "?h=" + FOTOS[n], location.href).href;
+const fotoBusy = new Map();
+async function fotoSha(buf) { const d = await crypto.subtle.digest("SHA-256", buf); return Array.from(new Uint8Array(d)).map(x => x.toString(16).padStart(2, "0")).join(""); }
+/* older versions of a photo file go once its current version is on the phone (or the file is no longer used) */
+async function fotoPrune(c) {
+  const keep = new Set(Object.keys(FOTOS).map(fotoKey));
+  for (const r of await c.keys()) {
+    if (keep.has(r.url)) continue;
+    const n = new URL(r.url).pathname.split("/").pop();
+    if (!isFoto(n) || await c.match(fotoKey(n), { ignoreVary: true })) await c.delete(r);
+  }
+}
+/* download one photo file into the photo copy (one download at a time per file); true = it is on the phone */
+function fotoFill(n) {
+  if (fotoBusy.has(n)) return fotoBusy.get(n);
+  const p = (async () => {
+    try {
+      const c = await caches.open(FCACHE), key = fotoKey(n);
+      if (await c.match(key, { ignoreVary: true })) return true;
+      const res = await fetch(new Request("./" + n, { cache: "no-cache" }));
+      if (!res || res.status !== 200) return false;
+      await c.put(key, res);
+      await fotoPrune(c);
+      return true;
+    } catch (err) { return false; } finally { fotoBusy.delete(n); }
+  })();
+  fotoBusy.set(n, p); return p;
+}
+/* the copies an earlier version kept inside its release copy move over, when they are byte for byte the current file */
+async function fotoSeed() {
+  const c = await caches.open(FCACHE);
+  for (const n of Object.keys(FOTOS)) {
+    try {
+      if (await c.match(fotoKey(n), { ignoreVary: true })) continue;
+      const old = await caches.match(new URL("./" + n, location.href).href, { ignoreVary: true });
+      if (!old || old.status !== 200) continue;
+      const buf = await old.arrayBuffer();
+      if ((await fotoSha(buf)).slice(0, 16) !== FOTOS[n]) continue;
+      await c.put(fotoKey(n), new Response(buf, { status: 200, headers: { "Content-Type": "application/json" } }));
+    } catch (err) { }
+  }
+}
+async function fotoServe(n) {
+  try {
+    const c = await caches.open(FCACHE), key = fotoKey(n);
+    const hit = await c.match(key, { ignoreVary: true }); if (hit) return hit;
+    await fotoFill(n);
+    const got = await c.match(key, { ignoreVary: true }); if (got) return got;
+  } catch (err) { }
+  try { return await fetch("./" + n); } catch (err) { return Response.error(); }   // the copy could not be kept (no room): the network, as before
+}
+
 self.addEventListener("install", (e) => { e.waitUntil((async () => {
   const c = await caches.open(CACHE);
   const ok = await Promise.all(SHELL.map(u => c.add(new Request(u, { cache: "no-cache" })).then(() => u, () => null)));
   const missing = CRITICAL.filter(u => ok.indexOf(u) < 0);
   if (missing.length) { await caches.delete(CACHE); throw new Error("install incomplete: " + missing.join(",")); }
+  /* v251 · photos: what the phone already has moves over; only a missing or changed thumbnail file is downloaded */
+  try { await fotoSeed(); await Promise.all(THUMBS.map(fotoFill)); } catch (err) { }
   self.skipWaiting();
 })()); });
 
@@ -94,7 +160,8 @@ self.addEventListener("install", (e) => { e.waitUntil((async () => {
 const acked = new Set();
 self.addEventListener("activate", (e) => { e.waitUntil((async () => {
   const keys = await caches.keys();
-  await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+  await Promise.all(keys.filter(k => k !== CACHE && k !== FCACHE).map(k => caches.delete(k)));
+  try { await fotoPrune(await caches.open(FCACHE)); } catch (err) { }
   await self.clients.claim();
   const cl = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
   cl.forEach(c => c.postMessage({ type: "MUNIZ_SW_ACTIVATED", cache: CACHE }));
@@ -165,6 +232,8 @@ self.addEventListener("message", (e) => {
   const d = e.data || {};
   if (d.type === "MUNIZ_ACK" && e.source) acked.add(e.source.id);
   if (d.type === "MUNIZ_SKIP_WAITING") self.skipWaiting();
+  /* v251 · the page asks for a photo file to be kept (the ACE zoom photos): downloaded only if it is not on the phone */
+  if (d.type === "MUNIZ_WARM_FOTOS" && Array.isArray(d.names)) e.waitUntil(Promise.all(d.names.filter(isFoto).map(fotoFill)));
   if (d.type === "MUNIZ_OPENED" && asked.has(d.id)) asked.get(d.id)();   // v249: the page opened the notification's link
   if (d.type === "MUNIZ_VERSION" && e.source) e.source.postMessage({ type: "MUNIZ_SW_VERSION", cache: CACHE, stale: stale.has(e.source.id) });
 });
@@ -190,6 +259,8 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin === location.origin) {
     if (/\/sw\.js$/.test(url.pathname)) return;         // the version check (updater.js) always asks the server
+    const fn = url.pathname.split("/").pop();
+    if (isFoto(fn) && !url.search) { e.respondWith(fotoServe(fn)); return; }   // v251: photos from their own copy, by content hash
     const nav = req.mode === "navigate", code = nav || /(\.(html?|js|css)|\/)$/.test(url.pathname), cid = e.resultingClientId || e.clientId;
     // app files: newest if there is signal, cached copy if not
     e.respondWith((async () => {
