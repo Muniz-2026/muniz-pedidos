@@ -28,7 +28,7 @@ body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-r
 #root .font-black{letter-spacing:-.01em}
 
 /* the hazard stripe becomes a quiet brand line */
-.h-2.w-full[style*="repeating-linear-gradient"],.mzf-stripe,div[style^="height:8px;background:repeating-linear-gradient"],div[style^="height: 8px; background: repeating-linear-gradient"]{height:3px!important;background:linear-gradient(90deg,#FF5A00 0%,#FF8A3D 60%,#FFB36B 100%)!important}
+.h-2.w-full[style*="repeating-linear-gradient"],div[style^="height:8px;background:repeating-linear-gradient"],div[style^="height: 8px; background: repeating-linear-gradient"]{height:3px!important;background:linear-gradient(90deg,#FF5A00 0%,#FF8A3D 60%,#FFB36B 100%)!important}
 
 /* ---------- navigation bar: iOS glass ---------- */
 .sticky.top-0{z-index:40!important}
@@ -37,18 +37,20 @@ body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-r
 .sticky.top-0 [style*="Archivo Black"]{font-size:17px!important;letter-spacing:-.02em!important}
 
 /* back buttons: round, light, blue chevron — like every iPhone app */
-button[aria-label="Atras"],#mz-back,#mz-para-back,.mzf-back{width:38px!important;height:38px!important;min-width:38px!important;border-radius:999px!important;
+button[aria-label="Atras"],#mz-back,#mz-para-back,#mz-fpara-back,.mzf-back{width:44px!important;height:44px!important;min-width:44px!important;border-radius:999px!important;
   background:var(--pz-fill)!important;color:var(--pz-blue)!important;font-size:19px!important;font-weight:700!important;border:0!important;box-shadow:none!important;
   display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important}
 
 /* ---------- cards ---------- */
-#root .grid.grid-cols-2>button{background:var(--pz-card)!important;border:0!important;border-radius:14px!important;box-shadow:var(--pz-shadow)!important;
-  color:var(--pz-ink)!important;font-weight:700!important;letter-spacing:.005em!important;font-size:12.5px!important}
+/* v247: only the name tiles (they carry min-h-…); AGREGAR / CANCELAR and other two-column buttons keep their own look */
+#root .grid.grid-cols-2>button[class*="min-h-"]{background:var(--pz-card)!important;border:0!important;border-radius:12px!important;box-shadow:var(--pz-shadow)!important;
+  color:var(--pz-ink)!important;font-weight:800!important;letter-spacing:.005em!important;font-size:15px!important}
 button.border-4{border-width:0!important;border-radius:22px!important;box-shadow:var(--pz-shadow-lg)!important;padding:18px 18px 16px!important}
 button.border-4 .rounded-lg{border-radius:999px!important;padding:9px 14px!important;letter-spacing:.02em!important;box-shadow:0 6px 14px -8px rgba(0,0,0,.45)}
 button[style*="border:3px solid"]{border-width:0!important;box-shadow:var(--pz-shadow-lg)!important;border-radius:24px!important}
 button[style*="border:3px solid"] [style*="border-radius:14px"]{border-radius:999px!important;box-shadow:0 8px 18px -10px rgba(0,0,0,.45)}
-#root .border-2{border-width:0!important;border-radius:16px!important;box-shadow:var(--pz-shadow)!important}
+/* v247: only neutral frames turn into soft cards; an edge that means something (field, selected, warning, removed) stays */
+#root .border-2:not(input):not(textarea):not([class*="border-["]),#root .border-2.border-\[\#D8D4CB\]:not(input):not(textarea),#root .border-2.border-\[\#EDEBE6\]:not(input):not(textarea){border-width:0!important;border-radius:16px!important;box-shadow:var(--pz-shadow)!important}
 /* catalog product cards: 500+ of them, so keep them cheap (no blurred shadow)
    and keep the border so the orange "added" state stays visible */
 #root .relative.rounded-xl.overflow-hidden.border-2{border-width:2px!important;border-radius:14px!important;box-shadow:none!important}
@@ -58,25 +60,24 @@ button[style*="border:3px solid"] [style*="border-radius:14px"]{border-radius:99
 /* ---------- search + inputs: iOS fields (17 px → no zoom on focus) ---------- */
 #root input[type="search"],#root input[placeholder*="Buscar"],#root input[placeholder*="buscar"]{background:var(--pz-fill)!important;border:0!important;border-radius:12px!important;
   min-height:44px;font-size:17px!important;box-shadow:none!important;transition:box-shadow .2s var(--pz-ease),background-color .2s}
-#root input:focus,.mzf input:focus,.mzf-input:focus{outline:none!important;box-shadow:0 0 0 3.5px rgba(0,113,227,.28)!important;background:#fff!important}
-#root input,#root textarea,.mzf input,.mzf textarea,.mzf-input{font-size:max(16px,1em)!important}
+#root input:focus{outline:none!important;box-shadow:0 0 0 3px rgba(0,102,204,.25)!important;background:#fff!important}
+#root input,#root textarea{font-size:max(16px,1em)!important}
 
 /* ---------- presses give a little ---------- */
-#root button,.mzf button,button[id^="mz-"],[id^="mz-"] button{transition:transform .2s var(--pz-ease),box-shadow .25s var(--pz-ease);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-#root button:active:not(:disabled),.mzf button:active:not(:disabled),button[id^="mz-"]:active,[id^="mz-"] button:active{transform:scale(.965)!important;transition-duration:.08s!important}
+#root button,button[id^="mz-"],[id^="mz-"] button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+/* v247: pressed = a little smaller; with reduced motion, a little darker instead */
+@media (prefers-reduced-motion:no-preference){#root button,button[id^="mz-"],[id^="mz-"] button{transition:transform .2s var(--pz-ease),box-shadow .25s var(--pz-ease)}
+#root button:active:not(:disabled),button[id^="mz-"]:active,[id^="mz-"] button:active{transform:scale(.965)!important;transition-duration:.08s!important}}
+@media (prefers-reduced-motion:reduce){#root button:active:not(:disabled),button[id^="mz-"]:active,[id^="mz-"] button:active{filter:brightness(.9)}}
 #root button:disabled{opacity:.45}
 
 /* ---------- bottom bar + sheets ---------- */
 .fixed.bottom-0.left-0.right-0.z-30{box-shadow:0 -10px 30px -18px rgba(0,0,0,.28)}
 .fixed.bottom-0.left-0.right-0.z-30 button{border-radius:14px!important}
-.rounded-t-2xl{border-radius:22px 22px 0 0!important;animation:pzSheetUp .5s var(--pz-ease) both;position:relative}
+.rounded-t-2xl{border-radius:22px 22px 0 0!important;position:relative}
 .rounded-t-2xl::before{content:"";position:absolute;top:7px;left:50%;width:36px;height:5px;margin-left:-18px;border-radius:3px;background:rgba(60,60,67,.22)}
-.fixed.inset-0[class*="bg-black"]{animation:pzFade .25s ease both}
 
 /* ---------- fuel wizard ---------- */
-.mzf-card,.mzf-choice{border-width:2px!important;border-radius:18px!important;box-shadow:var(--pz-shadow)!important;transition:transform .2s var(--pz-ease),box-shadow .2s,border-color .2s}
-.mzf-cta{border-radius:14px!important;min-height:54px;letter-spacing:.01em!important;box-shadow:0 10px 22px -12px rgba(0,0,0,.45)!important}
-.mzf-input{border-radius:12px!important}
 .mzf-head{-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px)}
 
 /* ---------- motion ---------- */
@@ -98,8 +99,75 @@ button[style*="border:3px solid"] [style*="border-radius:14px"]{border-radius:99
 }
 .pz-burst{position:fixed;width:9px;height:9px;border-radius:3px;pointer-events:none;opacity:0;z-index:100000;animation:pzBurst .9s cubic-bezier(.2,.7,.3,1) forwards}
 
-/* ---------- toast ---------- */
-.pz-toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 90px);transform:translateX(-50%);z-index:100001;max-width:88vw;
-  background:rgba(28,28,30,.9);color:#fff;font:600 15px/1.3 -apple-system,system-ui,sans-serif;padding:12px 18px;border-radius:16px;
-  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);box-shadow:0 14px 40px rgba(0,0,0,.28);animation:pzRise .45s var(--pz-ease) both}
 .mzf-display{font-family:-apple-system,"SF Pro Display",system-ui,sans-serif!important;font-weight:800!important;letter-spacing:-.024em!important}
+
+/* =====================================================================
+   v247 · iPhone UX pass (docs/DESIGN.md, docs/UX_IPHONE_AUDIT_2026-11-08.md)
+   tokens · nothing under 13 px · field edges · 44 px taps · press feedback · overlays that scroll
+   ===================================================================== */
+:root{--bg:#F2F2F7;--surface:#FFFFFF;--fill:#E9E9EE;--line:#D1D1D6;--line-strong:#8E8E93;--ink:#1C1C1E;--ink-2:#3A3A3C;--ink-3:#636366;--ink-faint:#8E8E93;
+  --brand:#FF5A00;--action:#C2410C;--go:#1E7B34;--stop:#C81E1E;--warn:#FFB800;--warn-ink:#B45309;--link:#0066CC;--fuel:#1E3A8A;
+  --dark:#1C1C1E;--dark-raised:#2C2C2E;--dark-ink-2:#AEAEB2;--brand-tint:#FFF4E8;--go-tint:#E3F4E7;--stop-tint:#FDECEC;--warn-tint:#FFF6D6;--link-tint:#EAF1F8;
+  --pz-blue:#0066CC;--pz-orange:#C2410C;--pz-green:#1E7B34;--pz-dim:#636366}
+/* the bundle's color classes point at the tokens (styles.css names say the old hex) */
+.bg-\[\#FF5A00\]{background-color:var(--action)}.text-\[\#FF5A00\]{color:var(--action)}
+.bg-\[\#1F8A3B\]{background-color:var(--go)}.text-\[\#1F8A3B\]{color:var(--go)}.border-\[\#1F8A3B\]{border-color:var(--go)}
+.bg-\[\#C81E1E\]{background-color:var(--stop)}.text-\[\#C81E1E\]{color:var(--stop)}.border-\[\#C81E1E\]{border-color:var(--stop)}
+.bg-\[\#2E5C8A\]{background-color:var(--link)}.text-\[\#2E5C8A\]{color:var(--link)}.border-\[\#2E5C8A\]{border-color:var(--link)}
+.text-\[\#6B675E\],.text-\[\#8A867C\]{color:var(--ink-3)}
+.text-\[\#7A4E1D\]{color:#7A4E1D}.bg-\[\#7A4E1D\]{background-color:#7A4E1D}.border-\[\#7A4E1D\]{border-color:#7A4E1D}
+/* nothing a person has to read is under 13 px */
+#root .text-\[8px\],#root .text-\[9px\],#root .text-\[10px\],#root .text-\[11px\],#root .text-\[12px\],#root .text-xs{font-size:13px;line-height:1.3}
+/* fields always show their edge; focus is blue */
+#root input.border-2,#root textarea.border-2{border-color:var(--line-strong)!important}
+#root input.border-2:focus,#root textarea.border-2:focus{border-color:var(--link)!important}
+/* the picked name tile shows it */
+#root .grid.grid-cols-2>button[class*="min-h-"].border-\[\#FF5A00\],#root .grid.grid-cols-2>button[class*="min-h-"].bg-\[\#2E5C8A\],#root .grid.grid-cols-2>button[class*="min-h-"].bg-\[\#7A4E1D\]{box-shadow:0 0 0 2px var(--brand),var(--pz-shadow)!important}
+/* 44 px taps (Apple) */
+#root .w-9.h-9,#root .w-10.h-10.rounded-lg{width:44px;height:44px}
+#root button.h-9.rounded-full{height:44px}
+.mz-sec{min-height:48px;padding-left:14px;padding-right:14px}
+a.mz-sec{display:flex!important;align-items:center;justify-content:center}
+.mz-out{box-shadow:inset 0 0 0 2px var(--line)!important}
+.mz-chip{min-height:44px!important;padding-left:14px!important;padding-right:14px!important}
+.mz-hit:not(.absolute){position:relative}
+.mz-hit::after{content:"";position:absolute;top:-12px;bottom:-12px;left:-8px;right:-8px}
+.mz-x{margin-left:12px}
+.mz-cnt{padding:4px;margin:-4px;border-radius:999px}
+.mz-band .mz-bandlbl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mz-qn{min-width:2rem;padding:0 2px;text-align:center}
+/* the cart's quantity: one tap opens the number pad */
+.mz-qin{width:3.4em;min-width:44px;height:44px;padding:0;text-align:center;font:800 20px/1 -apple-system,system-ui,sans-serif!important;color:var(--ink);background:transparent;border:2px solid transparent;border-radius:8px;-webkit-appearance:none;appearance:none}
+#root input.mz-qin:focus{border-color:var(--link)!important;background:#fff!important}
+/* the review: the whole name, the steppers on their own line under it */
+.mz-rv{flex-wrap:wrap}.mz-rv>.flex-1{flex:1 1 calc(100% - 72px)}.mz-rv>.shrink-0:last-child{margin-left:auto}
+/* one short hint where the person is looking (MZhint in app.js) */
+.mz-hint{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);z-index:100002;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--ink);color:#fff;font:700 15px/1.3 -apple-system,system-ui,sans-serif;padding:10px 10px 10px 16px;min-height:48px;box-sizing:border-box;border-radius:12px;box-shadow:var(--shadow-2,0 8px 24px rgba(0,0,0,.22));
+  opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+.mz-hint.on{opacity:1;transform:none}.mz-hint.on button{pointer-events:auto}
+.mz-hint-stop{background:var(--stop)}.mz-hint-go{background:var(--go)}
+.mz-hint button{flex:none;min-height:44px;padding:0 14px;border:0;border-radius:10px;background:rgba(255,255,255,.2);color:#fff;font:800 15px/1 -apple-system,system-ui,sans-serif;letter-spacing:.02em}
+/* full-screen overlays scroll when they don't fit (Safari zoom, landscape) and never cut their top */
+.fixed.inset-0.z-\[60\],.fixed.inset-0.z-\[80\]{justify-content:flex-start!important;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:max(24px,env(safe-area-inset-top))!important;padding-bottom:max(24px,env(safe-area-inset-bottom))!important}
+.fixed.inset-0.z-\[60\]>:first-child,.fixed.inset-0.z-\[80\]>:first-child{margin-top:auto}
+.fixed.inset-0.z-\[60\]>:last-child,.fixed.inset-0.z-\[80\]>:last-child{margin-bottom:auto}
+.fixed.inset-0.z-\[80\] .w-20.h-20{width:min(80px,21vw)!important;height:min(80px,21vw)!important}
+.fixed.inset-0.z-\[80\] .text-\[\#8A867C\],.fixed.inset-0.z-\[80\] .text-\[\#6B675E\]{color:var(--dark-ink-2)}
+/* every button looks pressed (pedidos-motion.js adds the touchstart listener iOS needs) */
+#root a[href]:active,a[data-mz-mis]:active,#root [role=button]:active{opacity:.75}
+.fixed.bottom-0.left-0.right-0.z-30 a:active{transform:scale(.97);filter:brightness(.88)}
+#root h1:focus,.mzf-scroll h1:focus{outline:none}
+@media (prefers-reduced-motion:no-preference){
+  .rounded-t-2xl{animation:pzSheetUp .5s var(--pz-ease) both}
+  .fixed.inset-0.z-\[60\],.fixed.inset-0.z-\[70\],.fixed.inset-0.z-\[80\]{animation:pzFade .18s ease both}
+}
+@media (prefers-reduced-motion:reduce){.mz-hint{transition:none}#root .animate-pulse{animation:none!important}}
+/* Safari's aA 150 % + and landscape: the bars stop sticking so the list keeps room; MIS PEDIDOS shows only its icon */
+@media (max-height:430px),(max-width:300px){
+  #root .sticky.top-0{position:relative!important}
+  #root .fixed.bottom-0.left-0.right-0.z-30{position:static!important;box-shadow:none}
+  .mz-mis-t{display:none}
+}
+@media (max-width:300px){.mz-rv>.shrink-0:last-child{flex-shrink:1;min-width:0;flex-wrap:wrap;justify-content:flex-end;row-gap:8px}}
+

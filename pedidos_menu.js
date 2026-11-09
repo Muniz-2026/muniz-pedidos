@@ -51,9 +51,9 @@
     var p = lastFuelPO(name);
     if (!p) return "PO de diésel o gasolina · Tex-Con · Leo's";
     return '<span style="display:inline-block;background:#FFF4E8;border:2px solid #FF5A00;border-radius:10px;padding:6px 10px;color:#1C1C1E">' +
-      '<span style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.08em;color:#FF5A00">TU ÚLTIMO PO · ' + p.ago.toUpperCase() + '</span><br>' +
+      '<span style="font:800 13px/1 -apple-system,system-ui,sans-serif;letter-spacing:.06em;color:#C2410C">TU ÚLTIMO PO · ' + p.ago.toUpperCase() + '</span><br>' +
       '<span style="font:900 26px/1.1 ui-monospace,Menlo,Consolas,monospace">' + p.po + '</span>' +
-      '<span style="font:700 12px/1 system-ui,sans-serif;color:#6E6E73"> · ' + (p.est === "TEXCON" ? "TEX-CON" : p.est === "LEOS" ? "LEO\'S" : (p.est || "")) + (p.placa ? " · " + p.placa : "") + '</span></span>';
+      '<span style="font:700 13px/1.2 -apple-system,system-ui,sans-serif;color:#636366"> · ' + (p.est === "TEXCON" ? "TEX-CON" : p.est === "LEOS" ? "LEO\'S" : (p.est || "")) + (p.placa ? " · " + p.placa : "") + '</span></span>';
   }
   /* el último PO de material de esta persona (lo guarda pedidos_db.js cuando la oficina lo asigna) */
   function lastMatPO(name) {
@@ -70,17 +70,17 @@
     var p = lastMatPO(name);
     if (!p) return "Pedir a ACE · CMC · RSS · White Cap";
     return '<span style="display:inline-block;background:#E6F5EA;border:2px solid #248A3D;border-radius:10px;padding:6px 10px;color:#1C1C1E">' +
-      '<span style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.08em;color:#248A3D">TU ÚLTIMO PO · ' + p.ago.toUpperCase() + '</span><br>' +
+      '<span style="font:800 13px/1 -apple-system,system-ui,sans-serif;letter-spacing:.06em;color:#1E7B34">TU ÚLTIMO PO · ' + p.ago.toUpperCase() + '</span><br>' +
       '<span style="font:900 26px/1.1 ui-monospace,Menlo,Consolas,monospace">' + p.po + '</span>' +
-      '<span style="font:700 12px/1 system-ui,sans-serif;color:#6E6E73"> · ' + (p.prov || "ACE") + ' ya lo tiene · pasa a recoger</span></span>';
+      '<span style="font:700 13px/1.2 -apple-system,system-ui,sans-serif;color:#636366"> · ' + (p.prov || "ACE") + ' ya lo tiene · pasa a recoger</span></span>';
   }
   window.__mzRefreshMenuCards = function () { try { if (!overlay) return; var n = who() || tapped; var a = overlay.querySelector("#mz-mat-sub"); if (a) a.innerHTML = matSubHTML(n); var b = overlay.querySelector("#mz-fuel-sub"); if (b) b.innerHTML = fuelSubHTML(n); } catch (e) { } };
   function card(id, color, icon, title, sub, btn) {
     return '<button id="' + id + '" style="text-align:left;background:#fff;border:3px solid ' + color + ';border-radius:22px;padding:22px 20px;cursor:pointer;display:block;width:100%">' +
       '<div style="font-size:40px;line-height:1">' + icon + '</div>' +
-      '<div style="font:900 34px/1 \'Archivo Black\',system-ui,sans-serif;color:' + color + ';margin-top:10px;letter-spacing:-.02em">' + title + '</div>' +
-      '<div id="' + id + '-sub" style="font:600 15px/1.3 system-ui,sans-serif;color:#374151;margin-top:8px">' + sub + '</div>' +
-      '<div style="display:inline-block;margin-top:14px;background:' + color + ';color:#fff;font:900 15px/1 system-ui,sans-serif;padding:14px 18px;border-radius:14px;letter-spacing:.03em">' + btn + '</div>' +
+      '<div style="font:800 34px/1.05 -apple-system,system-ui,sans-serif;color:' + color + ';margin-top:10px;letter-spacing:-.02em;overflow-wrap:anywhere">' + title + '</div>' +
+      '<div id="' + id + '-sub" style="font:600 15px/1.3 -apple-system,system-ui,sans-serif;color:#3A3A3C;margin-top:8px">' + sub + '</div>' +
+      '<div style="display:inline-block;margin-top:14px;background:' + color + ';color:#fff;font:800 17px/1.15 -apple-system,system-ui,sans-serif;padding:14px 18px;border-radius:12px;letter-spacing:.02em">' + btn + '</div>' +
     '</button>';
   }
 
@@ -119,16 +119,16 @@
     var g = peopleForPicker();
     function grid(title, color, list) {
       if (!list.length) return "";
-      return '<div style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.1em;color:' + color + ';margin:16px 2px 8px">' + title + '</div>' +
+      return '<div style="font:800 13px/1 -apple-system,system-ui,sans-serif;letter-spacing:.06em;color:' + color + ';margin:24px 2px 8px">' + title + '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
-        list.map(function (n) { return '<button data-para="' + n + '" style="min-height:52px;border-radius:12px;border:2px solid #E3E3E8;background:#fff;font:900 13px/1.15 system-ui,sans-serif;color:#1C1C1E;padding:6px">' + n + '</button>'; }).join("") + '</div>';
+        list.map(function (n) { return '<button data-para="' + n + '" style="min-height:56px;border-radius:12px;border:0;box-shadow:0 1px 2px rgba(0,0,0,.06),0 4px 12px -6px rgba(0,0,0,.18);background:#fff;font:800 15px/1.15 -apple-system,system-ui,sans-serif;color:#1C1C1E;padding:6px">' + n + '</button>'; }).join("") + '</div>';
     }
     overlay.innerHTML =
       '<div style="position:fixed;inset:0;background:#F2F2F7;z-index:9997;overflow:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 24px)">' +
         '<div style="display:flex;align-items:center;gap:10px">' +
-          '<button id="mz-para-back" style="width:52px;height:52px;border-radius:14px;background:#1C1C1E;color:#fff;border:0;font:900 26px/1 system-ui">\u2190</button>' +
-          '<div><div style="font:900 22px/1.05 \'Archivo Black\',system-ui,sans-serif;color:#1C1C1E">\u00bfPARA QUI\u00c9N ES?</div>' +
-          '<div style="font:700 12px/1.3 system-ui,sans-serif;color:#6E6E73;margin-top:3px">Pides con acceso de oficina. El pedido sale a su nombre y t\u00fa lo apruebas.</div></div>' +
+          '<button id="mz-para-back" aria-label="Regresar" style="width:52px;height:52px;border-radius:14px;background:#1C1C1E;color:#fff;border:0;font:900 26px/1 system-ui">\u2190</button>' +
+          '<div><h1 tabindex="-1" style="margin:0;font:800 22px/1.1 -apple-system,system-ui,sans-serif;color:#1C1C1E;outline:none">\u00bfPARA QUI\u00c9N ES?</h1>' +
+          '<div style="font:600 13px/1.3 -apple-system,system-ui,sans-serif;color:#636366;margin-top:3px">Pides con acceso de oficina. El pedido sale a su nombre y t\u00fa lo apruebas.</div></div>' +
         '</div>' +
         grid("MAYORDOMOS", "#1C1C1E", g.may) + grid("SUPERVISORES", "#0071E3", g.sup) + grid("GERENTES DE PROYECTO", "#7A4E1D", g.pm) +
         '<button id="mz-para-me" style="margin-top:22px;width:100%;min-height:48px;border-radius:12px;border:2px dashed #C7C7CC;background:transparent;font:800 13px/1 system-ui,sans-serif;color:#6E6E73">PARA LA OFICINA (a mi nombre)</button>' +
@@ -165,18 +165,18 @@
       return;
     }
     overlay = document.createElement("div");
-    overlay.setAttribute("role", "dialog");
-    overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#F2F2F7;display:flex;flex-direction:column;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#111;";
+    overlay.setAttribute("role", "dialog"); overlay.setAttribute("aria-modal", "true"); overlay.setAttribute("aria-label", "\u00bfQu\u00e9 vas a hacer?");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#F2F2F7;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:-apple-system,system-ui,'Segoe UI',sans-serif;color:#1C1C1E;";
     /* misma cabecera que el resto del app: franja, flecha negra de 48px, título Archivo Black 15px, nombre en gris */
     overlay.innerHTML =
       '<div style="height:8px;background:repeating-linear-gradient(45deg,#1C1C1E 0 14px,#FFB800 14px 28px)"></div>' +
       '<div style="background:#fff;border-bottom:1px solid #E3E3E8;padding:6px 8px;display:flex;align-items:center;gap:8px">' +
         '<button id="mz-back" aria-label="Regresar" style="width:48px;height:48px;flex:none;border:0;border-radius:12px;background:#1C1C1E;color:#fff;font-size:24px;font-weight:900;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center">←</button>' +
-        '<div style="flex:1;min-width:0"><div style="font:900 15px/1.2 \'Archivo Black\',system-ui,sans-serif;letter-spacing:-.025em;color:#1C1C1E">¿QUÉ VAS A HACER?</div>' +
-        '<div style="font:400 10px/1.25 system-ui,sans-serif;color:#6E6E73;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div></div>' +
+        '<div style="flex:1;min-width:0"><h1 tabindex="-1" style="margin:0;font:800 17px/1.2 -apple-system,system-ui,sans-serif;letter-spacing:-.02em;color:#1C1C1E;outline:none">¿QUÉ VAS A HACER?</h1>' +
+        '<div style="font:600 13px/1.25 -apple-system,system-ui,sans-serif;color:#636366;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div></div>' +
       '</div>' +
-      '<div style="padding:18px 16px;display:flex;flex-direction:column;gap:16px;flex:1">' +
-        card("mz-mat", "#FF5A00", "🧱", "MATERIALES", matSubHTML(name), "ENTRAR A PEDIDOS →") +
+      '<div style="padding:18px 16px;display:flex;flex-direction:column;gap:16px;flex:1 0 auto">' +
+        card("mz-mat", "#C2410C", "🧱", "MATERIALES", matSubHTML(name), "ENTRAR A PEDIDOS →") +
         card("mz-fuel", "#1E3A8A", "⛽", "COMBUSTIBLE", fuelSubHTML(name), lastFuelPO(name) ? "OTRO PO →" : "PO PARA COMBUSTIBLE →") +
       '</div>';
     document.body.appendChild(overlay);
@@ -257,8 +257,8 @@
       '<div style="position:fixed;inset:0;background:#F2F2F7;z-index:9997;overflow:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 24px)">' +
         '<div style="display:flex;align-items:center;gap:10px">' +
           '<button id="mz-fpara-back" aria-label="Regresar" style="width:52px;height:52px;flex:none;border-radius:14px;background:#1C1C1E;color:#fff;border:0;font:900 26px/1 system-ui">\u2190</button>' +
-          '<div><div style="font:900 22px/1.05 \'Archivo Black\',system-ui,sans-serif;color:#1C1C1E">\u00bfPARA QUI\u00c9N ES EL COMBUSTIBLE?</div>' +
-          '<div style="font:700 12px/1.3 system-ui,sans-serif;color:#6E6E73;margin-top:3px">El PO sale a nombre de quien va a cargar, con su unidad. Queda anotado que lo pediste t\u00fa.</div></div>' +
+          '<div><h1 tabindex="-1" style="margin:0;font:800 22px/1.1 -apple-system,system-ui,sans-serif;color:#1C1C1E;outline:none">\u00bfPARA QUI\u00c9N ES EL COMBUSTIBLE?</h1>' +
+          '<div style="font:600 13px/1.3 -apple-system,system-ui,sans-serif;color:#636366;margin-top:3px">El PO sale a nombre de quien va a cargar, con su unidad. Queda anotado que lo pediste t\u00fa.</div></div>' +
         '</div>' +
         '<button id="mz-fpara-me" style="margin-top:16px;width:100%;min-height:68px;border-radius:16px;border:0;background:#1E3A8A;color:#fff;padding:12px 16px;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer">' +
           '<span style="font-size:30px;line-height:1;flex:none">\u26FD</span>' +
@@ -266,7 +266,7 @@
           '<span style="display:block;font:700 12px/1.25 system-ui,sans-serif;opacity:.85;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fEsc(name) + ' \u00b7 a mi nombre</span></span>' +
           '<span style="font:900 22px/1 system-ui;flex:none">\u2192</span>' +
         '</button>' +
-        '<div style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.1em;color:#6E6E73;margin:22px 2px 0">O A NOMBRE DE OTRA PERSONA</div>' +
+        '<div style="font:800 13px/1 -apple-system,system-ui,sans-serif;letter-spacing:.06em;color:#636366;margin:24px 2px 0">O A NOMBRE DE OTRA PERSONA</div>' +
         '<input id="mz-fpara-q" type="search" placeholder="Buscar nombre\u2026" autocomplete="off" autocapitalize="characters" style="margin-top:8px;width:100%;box-sizing:border-box;min-height:50px;border-radius:12px;border:2px solid #C7C7CC;background:#fff;padding:0 14px;font:800 16px/1 system-ui,sans-serif;color:#1C1C1E">' +
         '<div id="mz-fpara-list"><div style="padding:28px 0;text-align:center;font:700 13px/1.3 system-ui,sans-serif;color:#6E6E73">Cargando nombres\u2026</div></div>' +
       '</div>';
@@ -277,12 +277,12 @@
       hide(); openFuel(name);
     };
     function btn(x) {
-      return '<button data-fpara="' + fEsc(x.name) + '" data-fold="' + fEsc(fFold(x.name)) + '" style="min-height:56px;border-radius:12px;border:2px solid #E3E3E8;background:#fff;font:900 13px/1.15 system-ui,sans-serif;color:#1C1C1E;padding:6px;text-align:center">' +
-        fEsc(x.name) + (x.role ? '<span style="display:block;font:700 10px/1.2 system-ui,sans-serif;color:#8E8E93;margin-top:3px">' + fEsc(ROLE_ES[x.role] || x.role.toLowerCase()) + '</span>' : '') + '</button>';
+      return '<button data-fpara="' + fEsc(x.name) + '" data-fold="' + fEsc(fFold(x.name)) + '" style="min-height:56px;border-radius:12px;border:0;box-shadow:0 1px 2px rgba(0,0,0,.06),0 4px 12px -6px rgba(0,0,0,.18);background:#fff;font:800 15px/1.15 -apple-system,system-ui,sans-serif;color:#1C1C1E;padding:6px;text-align:center">' +
+        fEsc(x.name) + (x.role ? '<span style="display:block;font:600 13px/1.2 -apple-system,system-ui,sans-serif;color:#636366;margin-top:3px">' + fEsc(ROLE_ES[x.role] || x.role.toLowerCase()) + '</span>' : '') + '</button>';
     }
     function section(title, color, arr) {
       if (!arr.length) return "";
-      return '<div data-fsec><div style="font:900 11px/1 system-ui,sans-serif;letter-spacing:.1em;color:' + color + ';margin:16px 2px 8px">' + title + '</div>' +
+      return '<div data-fsec><div style="font:800 13px/1 -apple-system,system-ui,sans-serif;letter-spacing:.06em;color:' + color + ';margin:24px 2px 8px">' + title + '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + arr.map(btn).join("") + '</div></div>';
     }
     function filter() {
@@ -308,10 +308,10 @@
   
 function openFuel(name, por) {
     if (panel) return;
-    if (!(window.MunizFuel && window.MunizFuel.mount)) { alert("No cargó combustible (fuel.js). Recarga el app."); return; }
+    if (!(window.MunizFuel && window.MunizFuel.mount)) { try { if (window.MZhint) window.MZhint("No abri\u00f3 combustible. Cierra el app y \u00e1brelo otra vez.", { tone: "stop", ms: 6000 }); } catch (e) { } return; }
     dlg(true);
     panel = document.createElement("div");
-    panel.setAttribute("role", "dialog");
+    panel.setAttribute("role", "dialog"); panel.setAttribute("aria-modal", "true"); panel.setAttribute("aria-label", "Combustible");
     panel.className = "mzf-scroll";
     panel.style.cssText = "position:fixed;inset:0;z-index:9995;background:#F2F2F7;overflow:hidden;";
     document.body.appendChild(panel);

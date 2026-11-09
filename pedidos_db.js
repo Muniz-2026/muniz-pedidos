@@ -89,14 +89,15 @@
   window.__mzOfPinMsg = "";
   window.__mzOfPin = function (name, pin) {
     window.__mzOfPinMsg = "";
-    return fetch(URL_ + "/rest/v1/rpc/office_unlock", { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_name: String(name || ""), p_pin: String(pin || "") }) })
+    var ac = null; try { ac = new AbortController(); setTimeout(function () { try { ac.abort(); } catch (e) { } }, 10000); } catch (e) { }
+    return fetch(URL_ + "/rest/v1/rpc/office_unlock", { method: "POST", signal: ac ? ac.signal : undefined, headers: { apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, body: JSON.stringify({ p_name: String(name || ""), p_pin: String(pin || "") }) })
       .then(function (r) { return r.text().then(function (t) { var j = null; try { j = JSON.parse(t); } catch (e) { } if (!r.ok) throw new Error(errText(t)); return j; }); })
       .then(function (j) {
         if (j && j.ok && j.name) { try { sessionStorage.setItem("muniz_of_pin", String(pin || "")); } catch (e) { } return String(j.name); }
         window.__mzOfPinMsg = (j && j.error) ? String(j.error) : "Nombre o PIN incorrecto";
         return "";
       })
-      .catch(function (e) { window.__mzOfPinMsg = (e && e.message && !/fetch|network|load/i.test(e.message)) ? e.message : "Sin se\u00f1al. Intenta otra vez."; return ""; });
+      .catch(function (e) { var m = (e && e.message) || ""; window.__mzOfPinMsg = /fetch|network|load|abort/i.test(m) || !m ? "Sin se\u00f1al. Intenta otra vez." : /timeout|statement|function|schema|permission|jwt|pgrst|syntax|column|relation|undefined/i.test(m) ? "La oficina no contest\u00f3. Intenta otra vez." : m; return ""; });
   };
   // la clave se agrega al mandar (sessionStorage), nunca se guarda con la cola en localStorage
   function withPin(item) {
@@ -298,11 +299,11 @@
   /* ---------- aviso en pantalla (no estorba el botón de abajo) ---------- */
   var toastEl = null, toastTimer = null;
   function toast(msg, tone, ms, link) {
-    var colors = { green: "#1F8A3B", amber: "#B45309", red: "#C81E1E", gray: "#4B5563" };
+    var colors = { green: "#1E7B34", amber: "#B45309", red: "#C81E1E", gray: "#3A3A3C" };
     if (!toastEl) {
       toastEl = document.createElement("div");
       toastEl.setAttribute("role", "status");
-      toastEl.style.cssText = "position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);z-index:9999;color:#fff;font:800 14px/1.25 system-ui,-apple-system,sans-serif;padding:12px 14px;border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.28);text-align:center;transform:translateY(-140%);transition:transform .25s ease;pointer-events:none;";
+      toastEl.style.cssText = "position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 72px);z-index:9999;color:#fff;font:700 15px/1.3 -apple-system,system-ui,sans-serif;padding:12px 14px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.28);text-align:center;transform:translateY(-140%);transition:transform .25s ease;pointer-events:none;";
       document.body.appendChild(toastEl);
     }
     toastEl.textContent = msg + (link ? "  ›  MIS PEDIDOS" : ""); toastEl.style.background = colors[tone] || colors.gray;
@@ -323,10 +324,10 @@
         var last = ls(K_LAST, null);
         if (last && Date.now() - last.t < 30 * 60e3) enqueue("CONFIRMADO", { f: last.f, ts: last.ts, p: last.p }, false);
       }
-      return;
+      if (!a.getAttribute("data-mzsms")) return;          // v2.5: COPIAR TEXTO carries the same text as MANDAR
     }
 
-    var href = a.getAttribute("href") || "";
+    var href = a.getAttribute("data-mzsms") || a.getAttribute("href") || "";
     var sms = parseSms(href); if (!sms) return;
     // v2.4: un pedido largo manda un link corto (v240); el pedido completo viaja en el botón (data-mzr)
     if (!sms.tok && sms.kind === "r") { var full = b64urlJson(a.getAttribute("data-mzr") || ""); if (full && Array.isArray(full.o)) sms.tok = full; }
@@ -360,20 +361,20 @@
   function misPedidosButton() {
     if (document.hidden) return;   // nadie lo ve; al volver a la pantalla refreshMine lo vuelve a pintar
     try {
-      var pend = ls(K_OUT, []).length;
+      var pend = ls(K_OUT, []).filter(function (i) { return i && i.stage !== "CONFIRMADO"; }).length;
       var badge = 0;
       try { var lst = ls("muniz_db_mine_cache", null); if (lst && lst.t > Date.now() - 6e5) badge = lst.n; } catch (e) { }
       if (!misBtn) {
         misBtn = document.createElement("a");
         misBtn.href = "./bandeja.html#mis";
         misBtn.setAttribute("aria-label", "Mis pedidos");
-        misBtn.style.cssText = "position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:9998;background:#1F2937;color:#fff;font:900 11px/1 system-ui,-apple-system,sans-serif;padding:8px 10px;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.35);text-decoration:none;letter-spacing:.04em;display:flex;align-items:center;gap:6px;opacity:.92";
+        misBtn.style.cssText = "position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 70px);z-index:9998;background:#1C1C1E;color:#fff;font:800 13px/1 -apple-system,system-ui,sans-serif;padding:0 12px;min-height:44px;box-sizing:border-box;border-radius:999px;box-shadow:0 4px 12px rgba(0,0,0,.35);text-decoration:none;letter-spacing:.04em;display:flex;align-items:center;gap:6px;opacity:.92";
         document.body.appendChild(misBtn);
       }
       var mk = badge + "|" + pend;
       if (mk !== misKey) {   // solo cuando cambia: reescribir el HTML cada 3 s despertaba a los observadores del DOM de toda la página
         misKey = mk;
-        misBtn.innerHTML = "📋 MIS PEDIDOS" + (badge ? '<span style="background:#F5B800;color:#111;border-radius:999px;padding:2px 6px;font-size:10px">' + badge + "</span>" : "") + (pend ? '<span style="background:#B45309;border-radius:999px;padding:2px 6px;font-size:10px">⏳' + pend + "</span>" : "");
+        misBtn.innerHTML = "📋 MIS PEDIDOS" + (badge ? '<span style="background:#FFB800;color:#1C1C1E;border-radius:999px;padding:2px 6px;font-size:13px">' + badge + "</span>" : "") + (pend ? '<span style="background:#B45309;border-radius:999px;padding:2px 6px;font-size:13px">⏳' + pend + "</span>" : "");
         try { window.dispatchEvent(new Event("mz-mis")); } catch (e) { }   // el MIS PEDIDOS de la cabecera del app se actualiza
       }
       misVis();
@@ -387,7 +388,7 @@
       var hash = location.hash || "", names = false;
       try { var h = document.querySelector("#root .px-3.pt-3.pb-2"); names = !!(h && /Toca tu nombre/i.test(h.textContent || "")); } catch (e) { }
       var inApp = !!document.querySelector("#root [data-mz-mis]");   // el app ya lo trae en su cabecera
-      var want = (/^#[rtp]=/.test(hash) || names || inApp) ? "none" : "flex";
+      var want = (/^#[rtp]=/.test(hash) || names || inApp || document.getElementById("boot")) ? "none" : "flex";
       if (misBtn.style.display !== want) misBtn.style.display = want;
     } catch (e) { }
   }
@@ -455,5 +456,5 @@
   setInterval(function () { if (document.visibilityState === "visible" && navigator.onLine !== false) refreshMine(); }, 120e3);   // el PO llega solo, sin texto
   setTimeout(function () { flush(); logEvent("open"); refreshMine(); probeShort(); ["ACE", "CMC", "RSS", "WHITECAP"].forEach(loadCat); }, 2500);
 
-  window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).length; }, wasSent: wasSent, registerPara: registerPara, shortOK: shortOK };
+  window.MUNIZ_DB = { version: VERSION, flush: flush, pending: function () { return ls(K_OUT, []).filter(function (i) { return i && i.stage !== "CONFIRMADO"; }).length; }, wasSent: wasSent, registerPara: registerPara, shortOK: shortOK };
 })();

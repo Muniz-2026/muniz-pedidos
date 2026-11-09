@@ -56,5 +56,22 @@
         (function (e) { setTimeout(function () { burst(e); }, 140); })(el);
       }
     }).observe(document.body, { subtree: true, childList: true });
+    /* v247 · iOS shows :active (pressed buttons) only when the page listens to touchstart */
+    document.addEventListener("touchstart", function () { }, { passive: true });
+
+    /* v247 · VoiceOver: when the screen changes, its title (h1) gets the focus — never while someone is typing */
+    var lastH = null, hRaf = 0;
+    function focusTitle() {
+      hRaf = 0;
+      var h = document.querySelector(".mzf-scroll h1, body > [role=dialog] h1, #root h1");
+      var t = h ? (h.textContent || "").trim() : "";
+      if (t === lastH) return;
+      var first = lastH === null; lastH = t;
+      if (!h || first) return;
+      var a = document.activeElement;
+      if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+      try { h.focus({ preventScroll: true }); } catch (e) { }
+    }
+    new MutationObserver(function () { if (!hRaf) hRaf = requestAnimationFrame(focusTitle); }).observe(document.body, { subtree: true, childList: true });
   } catch (e) { /* motion is optional */ }
 })();

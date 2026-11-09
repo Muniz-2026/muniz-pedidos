@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v246
+/* MUÑIZ Pedidos - service worker  ·  v247
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -55,12 +55,14 @@
      · v245: a fuel PO that meets a moment with no signal tries again by itself (same tap, up to 25 s) before SIN SEÑAL;
        the Command Center shows such a blip in grey ("no signal for a moment · F#### went through 3 s later").
      · v246: the Command Center's Live map shows only what the board's tab lists (All, Crews, Moving, Idling, Dark).
+     · v247: the phone app's iPhone pass (docs/DESIGN.md): readable sizes, 44 px taps, clear errors, undo, a page that
+       opened from the phone's copy takes its files from that same copy at once (no 3.5 s wait per file).
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v246";
+const CACHE = "muniz-pedidos-v247";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./fotos_ace.json","./fotos_cmc.json","./catalog_rss.json","./fotos_rss.json","./catalog_whitecap.json","./fotos_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
-  "./icon-192.png","./icon-512.png","./apple-touch-icon.png"
+  "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
 ];
 const NET_TIMEOUT_MS = 3500;
 /* without these the app cannot run: if they fail to download, the install fails
@@ -129,6 +131,9 @@ self.addEventListener("message", (e) => {
   if (d.type === "MUNIZ_VERSION" && e.source) e.source.postMessage({ type: "MUNIZ_SW_VERSION", cache: CACHE, stale: stale.has(e.source.id) });
 });
 
+/* v247: pages that just opened from the phone's copy: their files come from that copy at once for 20 s */
+const fast = new Map();
+function markFast(id) { if (!id) return; const now = Date.now(); fast.set(id, now); fast.forEach((t, k) => { if (now - t > 60000) fast.delete(k); }); }
 /* pages whose code came from the cache because the network failed or was too slow (kept 10 min) */
 const stale = new Map();
 function markStale(id) {
@@ -152,15 +157,19 @@ self.addEventListener("fetch", (e) => {
     e.respondWith((async () => {
       const c = await caches.open(CACHE);
       const ask = () => fetch(new Request(req, { cache: "no-cache" })), net = ask();
+      if (!nav && cid && fast.has(cid) && Date.now() - fast.get(cid) < 20000) {
+        const quick = await c.match(req);
+        if (quick) { net.then(res => { if (res && res.status === 200) c.put(req, res.clone()); }, () => { }); return quick; }
+      }
       try {
         const res = await withTimeout(net, NET_TIMEOUT_MS);
         if (res && res.status === 200) { c.put(req, res.clone()); return res; }
         if (res && res.status === 304) { const cached = await c.match(req); if (cached) return cached; }
-        const cached = await c.match(req); if (cached && code) markStale(cid); return cached || res;
+        const cached = await c.match(req); if (cached && code) { markStale(cid); if (nav) markFast(cid); } return cached || res;
       } catch (err) {
         const cached = await c.match(req) || (nav ? await c.match(req, { ignoreSearch: true }) : undefined);
-        if (cached) { if (code) markStale(cid); return cached; }
-        if (nav && PHONE_PAGES.indexOf(url.pathname) >= 0) { const home = await c.match("./index.html"); if (home) { markStale(cid); return home; } }
+        if (cached) { if (code) markStale(cid); if (nav) markFast(cid); return cached; }
+        if (nav && PHONE_PAGES.indexOf(url.pathname) >= 0) { const home = await c.match("./index.html"); if (home) { markStale(cid); markFast(cid); return home; } }
         /* no copy on this device (the Command Center is saved on first use, and every release starts an empty copy):
            a slow answer is still the right page, so wait for it; a page load asks again for ~8 s (a computer just
            back from sleep has no network for a moment). Never another page instead (v226) */

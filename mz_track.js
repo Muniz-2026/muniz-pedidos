@@ -271,7 +271,7 @@
   function textOf(el) {
     var t = "";
     try {
-      t = el.getAttribute("aria-label") || "";
+      t = el.getAttribute("data-mzt") || el.getAttribute("aria-label") || "";
       if (!t && el.tagName !== "SELECT") {          // una tarjeta trae título y renglones que cambian (TU ÚLTIMO PO…): cuenta el título
         var lines = String((el.innerText != null ? el.innerText : el.textContent) || "").split(/\n+/);
         for (var i = 0; i < lines.length && !t; i++) if (LETTER.test(lines[i])) t = lines[i];
@@ -293,7 +293,7 @@
     var code = cardCode(el), v;
     if (code) {
       var al = el.getAttribute("aria-label") || "", t0 = String(el.textContent || "").trim();
-      return ["ARTÍCULO" + (al ? " · 🔍" : (t0 === "−" || t0 === "+") ? " · " + t0 : ""), { c: code }];
+      return ["ARTÍCULO" + (/^Ver foto/.test(al) ? " · 🔍" : (t0 === "−" || t0 === "+") ? " · " + t0 : ""), { c: code }];
     }
     v = el.getAttribute("data-para") || el.getAttribute("data-fpara");
     if (v) return ["NOMBRE", { v: up(v).slice(0, 40) }];
