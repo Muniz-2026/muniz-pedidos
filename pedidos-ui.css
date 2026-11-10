@@ -156,6 +156,10 @@ a.mz-sec{display:flex!important;align-items:center;justify-content:center}
 .fixed.inset-0.z-\[60\]>:last-child,.fixed.inset-0.z-\[80\]>:last-child{margin-bottom:auto}
 .fixed.inset-0.z-\[80\] .w-20.h-20{width:min(80px,21vw)!important;height:min(80px,21vw)!important}
 .fixed.inset-0.z-\[80\] .text-\[\#8A867C\],.fixed.inset-0.z-\[80\] .text-\[\#6B675E\]{color:var(--dark-ink-2)}
+/* v261 · the PIN pad keeps a 20 px line under the dots for REVISANDO… / the error: the keys and the dots never jump when it
+   shows (grid 24 px + line 12 + 20 when it is not there). Tito, Nov 10: "after i put in the password … it looks glitchy" */
+.fixed.inset-0.z-\[80\]>[role=status],.fixed.inset-0.z-\[80\]>[role=alert]{line-height:20px}
+.fixed.inset-0.z-\[80\]>.mt-4.flex+.mt-6.grid{margin-top:calc(1.5rem + .75rem + 20px)}
 /* every button looks pressed (pedidos-motion.js adds the touchstart listener iOS needs) */
 #root a[href]:active,a[data-mz-mis]:active,#root [role=button]:active{opacity:.75}
 .fixed.bottom-0.left-0.right-0.z-30 a:active{transform:scale(.97);filter:brightness(.88)}

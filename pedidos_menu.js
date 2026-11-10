@@ -1,5 +1,12 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.12
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.13
+   v2.13: la tienda ya no se ve antes del menú, ni el menú antes de la CLAVE (Tito, Nov 10, video: "a different screen
+          blinks quickly"). El menú salía en el toque del nombre y, si el app pedía la CLAVE (oficina), se quitaba un
+          cuadro después; y después de la clave (o al abrir el app en la tienda guardada, al regresar del carrito
+          guardado, al volver del combustible de la oficina) check() lo ponía 60 ms tarde, con la tienda ya pintada.
+          Ahora now() corre desde el observador (y al cerrar el combustible),
+          después de cada cambio del app y antes de que el teléfono pinte, y pone el menú en el mismo cuadro en que
+          sale la tienda. Con la CLAVE: teclado → REVISANDO… → menú, sin nada en medio. Release v261.
    v2.12: en horizontal el menú y las listas PARA no quedan debajo de la muesca: index.html pide la pantalla completa
           (viewport-fit=cover, v253) y estas capas fijas guardan el área segura a los lados. En vertical, igual que antes.
    v2.11: COMBUSTIBLE de la oficina: PARA MÍ va arriba, grande, con tu nombre (antes era un renglón gris al
@@ -159,6 +166,7 @@
   var directFuel = false;
   function show(name) {
     if (overlay || panel) return;
+    pend = "";                                    // v2.13: el nombre tocado ya tiene su pantalla
     dlg(true);
     if (isDriver(name)) {
       directFuel = true; markSeen(name);
@@ -332,7 +340,7 @@ function openFuel(name, por) {
     else showPills();
     if (window.__mzFlushReload) window.__mzFlushReload();   // si llegó una versión nueva mientras cargaba, ahora sí
     if (directFuel) { directFuel = false; clearSeen(); appBack(); return; }   // chofer: de regreso a la lista de nombres
-    clearSeen(); check();                           // de vuelta al menú ¿QUÉ VAS A HACER?
+    clearSeen(); onStores = false; now(); check();   // de vuelta al menú ¿QUÉ VAS A HACER?, en este mismo cuadro (v2.13)
   }
   /* mientras hay una pantalla nuestra encima (menú, PARA, combustible), el app de abajo no se ve:
      la pantalla que entra se dibuja sobre el fondo liso, no sobre la lista de tiendas */
@@ -356,8 +364,9 @@ function openFuel(name, por) {
   }
 
 
-  /* ---------- el toque en el nombre: el menú aparece EN ESE INSTANTE, antes de que el app cambie de pantalla ---------- */
-  var tapped = "", tappedAt = 0;
+  /* ---------- el toque en el nombre: el menú aparece en el mismo cuadro en que el app pasa a la tienda (v2.13, now()) ----------
+     Antes salía en el toque mismo, antes que el app: con la CLAVE (oficina) se veía un cuadro y se quitaba. */
+  var tapped = "", tappedAt = 0, pend = "";    // pend: el nombre tocado, hasta que tiene su menú (v2.13)
   /* ¿está la pantalla de la CLAVE (oficina) encima? */
   function pinOpen() {
     var els = document.querySelectorAll("div");
@@ -376,15 +385,7 @@ function openFuel(name, por) {
     var txt = (b.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
     if (!txt || NOT_NAME.test(txt) || txt.length > 40 || !NAME_RE.test(txt)) return;
     tapped = txt; tappedAt = Date.now();
-    show(tapped);
-    // si el app pidió la CLAVE (oficina) o no pasó a la tienda, el menú se quita solo - rápido
-    var tries = 0, w = setInterval(function () {
-      tries++;
-      if (!overlay || panel) { clearInterval(w); return; }
-      if (pinOpen()) { clearInterval(w); hide(); clearSeen(); return; }
-      if (hasText(TITLE, "h1,h2,h3,div,span")) { clearInterval(w); return; }
-      if (tries >= 10) { clearInterval(w); hide(); clearSeen(); }
-    }, 45);
+    pend = txt;     // v2.13: el menú sale cuando el app pone la tienda, en ese mismo cuadro (now()); con la CLAVE, después de ella
   }, true);
 
   /* ---------- ¿en qué pantalla está el app? ---------- */
@@ -398,13 +399,30 @@ function openFuel(name, por) {
     clearTimeout(t);
     t = setTimeout(function () {
       if (panel) { hidePills(); return; }                                           // combustible abierto encima: no tocar
-      if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { clearSeen(); hide(); if (getPara()) setPara(""); return; }   // lista de nombres: se olvida para quién era
+      if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { if (!pinOpen()) pend = ""; clearSeen(); hide(); if (getPara()) setPara(""); return; }   // lista de nombres: se olvida para quién era
       if (pinOpen()) { hide(); return; }                                             // pantalla de la clave: nada encima
       if (hasText(TITLE, "h1,h2,h3,div,span")) { var n = who() || (Date.now() - tappedAt < 2000 ? tapped : ""); if (n && !seen(n)) show(n); }
       else hide();
     }, 60);
   }
-  new MutationObserver(check).observe(document.documentElement, { childList: true, subtree: true });
+  /* v2.13 · la tienda nunca se ve antes del menú. El observador corre después de cada cambio del app y ANTES de que el
+     teléfono pinte: cuando la tienda acaba de salir (su h1 dice ¿A QUÉ TIENDA VAS? y en el cambio anterior no lo decía:
+     una sola búsqueda, barata en cada cambio) y a esa persona no se le ha enseñado el menú en esta sesión, el menú la
+     tapa en ese mismo cuadro: después de tocar el nombre, después de la CLAVE, al abrir el app en la tienda guardada, al
+     regresar del carrito guardado. Es la regla de check() (que se queda igual, de red) sin sus 60 ms. Sólo la tienda que
+     acaba de salir: la ← del menú quita el menú y toca la ← del app, y por un instante la tienda de abajo sigue ahí; el
+     menú no vuelve. El nombre: el tocado (pend) y si no, el guardado; justo después de la CLAVE el guardado todavía es
+     el de antes (el app lo guarda después de pintar). */
+  var onStores = false;
+  function now() {
+    var h = document.querySelector("#root h1"), st = !!h && TITLE.test(h.textContent || "");
+    var came = st && !onStores; onStores = st;
+    if (!came || overlay || panel) return;                                       // sólo la tienda que acaba de salir
+    var n = pend || who();
+    if (!n || seen(n) || pinOpen() || hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) return;
+    show(n);
+  }
+  new MutationObserver(function () { now(); check(); }).observe(document.documentElement, { childList: true, subtree: true });
   document.addEventListener("DOMContentLoaded", check);
   window.addEventListener("hashchange", check);
   check();
