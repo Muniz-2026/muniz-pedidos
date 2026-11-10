@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v251
+/* MUÑIZ Pedidos - service worker  ·  v252
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -67,9 +67,11 @@
      · v251: the product photos are kept in their own copy ("muniz-fotos") under the hash of their content, and a release
        no longer deletes or re-downloads them (it was 11 MB per phone per release). The catalog asks for a vendor's photos
        when that vendor is opened, not for all of them on every open. Code files: exactly as before.
+     · v252: the Command Center's CREWS ON SITE comes from the foremen's trucks — where each has been working (payroll's
+       places) and where it is now — not from the crew email (Tito, Nov 10). Phones: nothing changes.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v251";
+const CACHE = "muniz-pedidos-v252";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"

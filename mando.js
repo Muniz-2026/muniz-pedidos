@@ -143,6 +143,10 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["permits",600e3,3,()=>He($e("permits_status?select=*&order=crew_no.asc,kind.asc,created_at.desc",c))],
   ["removedPeople",600e3,3,()=>He($e("people_removed?select=id,name,outcome,removed_by,removed_at,refs&restored_at=is.null&order=removed_at.desc&limit=30",c))],
   ["crewDay",600e3,2,()=>He(go("crew_day_office?select=day,crew_no,name_raw,person,project,location&day=gte."+new Date(Date.now()-120*864e5).toISOString().slice(0,10)+"&order=day.desc",c,4))],
+  /* v252 · the crews board reads the trucks: where each Foreman truck worked (payroll_days, the FOREMEN grid's rule) and where every
+     truck spent last night (2-4 AM) */
+  ["crewPat",1800e3,2,()=>He(go("payroll_days?select=actsoft_id,day,vehicle_id,sites&role=eq.Foreman&ran=is.true&day=gte."+new Date(Date.now()-16*864e5).toISOString().slice(0,10)+"&order=day.desc",c,2))],
+  ["nights",3600e3,2,()=>{let a=new Date();a.setHours(2,0,0,0);let b=new Date(a.getTime()+72e5);return He(go("gps_positions?select=actsoft_id,lat,lon&ts=gte."+encodeURIComponent(a.toISOString())+"&ts=lt."+encodeURIComponent(b.toISOString()),c,1))}],
   ["haulDays",300e3,2,()=>He($e("haul_days?select=*&day=gte."+new Date(Date.now()-62*864e5).toISOString().slice(0,10)+"&order=day.desc&limit=2000",c))],
   ["haulStops",300e3,2,()=>He(go("haul_stops?select=*&day=gte."+new Date(Date.now()-46*864e5).toISOString().slice(0,10)+"&order=arrive.asc",c,6))],
   ["places",900e3,3,()=>He($e("haul_places?select=*",c))],
@@ -166,7 +170,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||E0("rules")}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   (0,M.startTransition)(()=>n({loading:!1,fuel:MZmap(S,"fuel",d.fuel,A=>({...A,ts:new Date(A.created_at).getTime()})),orders:MZmap(S,"orders",d.orders,A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||E0("fuelTest"),ev:d.ev||E0("ev"),veh:d.veh||E0("veh"),ppl:d.ppl||E0("ppl"),tickets:d.tickets||E0("tickets"),fleet:d.fleet||E0("fleet"),fleetio:d.fleetio||E0("fleetio"),fleetioOdo:d.fleetioOdo||E0("fleetioOdo"),fleetioLog:d.fleetioLog||E0("fleetioLog"),fuelGps:d.fuelGps||E0("fuelGps"),lastPo:(d.lastPo||E0("lastPo"))[0]||null,unitDay:d.unitDay||E0("unitDay"),oev:d.oev||E0("oev"),
-   rules:d.rules||E0("rules"),pmProj:d.pmProj||E0("pmProj"),pmSched:d.pmSched||E0("pmSched"),crewDay:d.crewDay||E0("crewDay"),removedPeople:d.removedPeople||E0("removedPeople"),permits:d.permits||E0("permits"),dtix:d.dtix||E0("dtix"),pcosts:d.pcosts||E0("pcosts"),idleDay:d.idleDay||E0("idleDay"),idleSess:d.idleSess||E0("idleSess"),idleWho:d.idleWho||E0("idleWho"),stmts:d.stmts||E0("stmts"),stmtChk:d.stmtChk||E0("stmtChk"),siteDays:d.siteDays||E0("siteDays"),haulDays:d.haulDays||E0("haulDays"),haulStops:d.haulStops||E0("haulStops"),places:d.places||E0("places"),geofences:d.geofences||E0("geofences"),pyVotes:d.pyVotes,costCodes:d.costCodes,jobCodeMap:d.jobCodeMap||E0("jobCodeMap"),geoKinds:d.geoKinds||E0("geoKinds"),spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||E0("spots"),setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||E0("stationStops"),ledger:d.ledger||E0("ledger"),poLog:d.poLog||E0("poLog"),sdAlerts:d.sdAlerts||E0("sdAlerts"),fiAlerts:d.fiAlerts||E0("fiAlerts"),appLive:d.appLive||E0("appLive"),catalog:d.catalog,ctStats:d.ctStats||E0("ctStats"),ctUnlisted:d.ctUnlisted||E0("ctUnlisted"),ctDemand:d.ctDemand||E0("ctDemand"),ctHist:d.ctHist||E0("ctHist"),ctAlt:d.ctAlt||E0("ctAlt"),ctSugg:d.ctSugg||E0("ctSugg"),sync:S.sync||Date.now(),err:S.err||""}))};
+   rules:d.rules||E0("rules"),pmProj:d.pmProj||E0("pmProj"),pmSched:d.pmSched||E0("pmSched"),crewDay:d.crewDay||E0("crewDay"),crewPat:(window.__mzPat!==d.crewPat&&d.crewPat&&(window.__mzPat=d.crewPat,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzPat||E0("crewPat")),nights:d.nights||E0("nights"),removedPeople:d.removedPeople||E0("removedPeople"),permits:d.permits||E0("permits"),dtix:d.dtix||E0("dtix"),pcosts:d.pcosts||E0("pcosts"),idleDay:d.idleDay||E0("idleDay"),idleSess:d.idleSess||E0("idleSess"),idleWho:d.idleWho||E0("idleWho"),stmts:d.stmts||E0("stmts"),stmtChk:d.stmtChk||E0("stmtChk"),siteDays:d.siteDays||E0("siteDays"),haulDays:d.haulDays||E0("haulDays"),haulStops:d.haulStops||E0("haulStops"),places:d.places||E0("places"),geofences:d.geofences||E0("geofences"),pyVotes:d.pyVotes,costCodes:d.costCodes,jobCodeMap:d.jobCodeMap||E0("jobCodeMap"),geoKinds:d.geoKinds||E0("geoKinds"),spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||E0("spots"),setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||E0("stationStops"),ledger:d.ledger||E0("ledger"),poLog:d.poLog||E0("poLog"),sdAlerts:d.sdAlerts||E0("sdAlerts"),fiAlerts:d.fiAlerts||E0("fiAlerts"),appLive:d.appLive||E0("appLive"),catalog:d.catalog,ctStats:d.ctStats||E0("ctStats"),ctUnlisted:d.ctUnlisted||E0("ctUnlisted"),ctDemand:d.ctDemand||E0("ctDemand"),ctHist:d.ctHist||E0("ctHist"),ctAlt:d.ctAlt||E0("ctAlt"),ctSugg:d.ctSugg||E0("ctSugg"),sync:S.sync||Date.now(),err:S.err||""}))};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
  let pp=!1;const emit=(type,detail)=>{try{window.dispatchEvent(new CustomEvent(type,{detail:detail}))}catch(x){}};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;const forPull=!!S.pullNow;S.pullNow=!1;
@@ -208,10 +212,10 @@ var LVprev={},LVlog=null;
 function LVlogLoad(){if(LVlog)return LVlog;try{var v=JSON.parse(localStorage.getItem(LVLOGK)||"[]");LVlog=Array.isArray(v)?v:[]}catch(x){LVlog=[]}return LVlog}
 function LVlogPush(ev){var L=LVlogLoad(),cut=Date.now()-LVFEEDH*36e5;L.push(ev);while(L.length&&L[0].ts<cut)L.shift();if(L.length>300)L.splice(0,L.length-300);try{localStorage.setItem(LVLOGK,JSON.stringify(L))}catch(x){}}
 /* called by LVmodel every tick with the crew rows: a crew entering or leaving a learned jobsite spot becomes a feed entry */
-function LVwatchCrews(crews,e,t){var hyst=200;crews.forEach(function(x){var u=x.u;if(!u||u.actsoft_id==null||!x.st||x.st.k==="dark"||u.last_lat==null)return;var aid=u.actsoft_id,sp=LVspot(u,e),cur=sp&&!LVyard(sp.jobsite)?sp.jobsite:"",p=LVprev[aid];
+function LVwatchCrews(crews,e,t){var hyst=200;crews.forEach(function(x){var u=x.u;if(!u||u.actsoft_id==null||!x.st||x.st.k==="dark"||u.last_lat==null)return;var aid=u.actsoft_id,sp=x.at!=null?null:LVspot(u,e),cur=x.at!=null?x.at:sp&&!LVyard(sp.jobsite)?sp.jobsite:"",p=LVprev[aid];
   if(p===undefined){LVprev[aid]={spot:cur};return}
   if(cur===p.spot)return;
-  if(!cur&&p.spot&&!LVgeo(u,e)&&LVplaces(e.spots,e.jobPlaces,e.crewDay).some(function(q){return q.jobsite===p.spot&&PJhav(u.last_lat,u.last_lon,q.lat,q.lon)<=LVREACH+hyst}))return
+  if(!cur&&p.spot&&!LVgeo(u,e)&&(LVplaces(e.spots,e.jobPlaces,e.crewDay).some(function(q){return q.jobsite===p.spot&&PJhav(u.last_lat,u.last_lon,q.lat,q.lon)<=LVREACH+hyst})||(x.sites||[]).some(function(q){return q.name===p.spot&&PJhav(u.last_lat,u.last_lon,q.lat,q.lon)<=LVREACH+hyst})))return
   LVprev[aid]={spot:cur};
   LVlogPush({ts:t,aid:aid,who:z(x.n),text:cur?(p.spot?z(x.n)+" moved from "+p.spot+" to "+cur:z(x.n)+" arrived at "+cur):z(x.n)+" left "+p.spot,lat:u.last_lat,lon:u.last_lon,in:!!cur})})}
 function Pm(e,t){t=t||Date.now();var out=[],cut=t-LVFEEDH*36e5,push=function(ts,kind,c,text,go){if(!(ts>cut)||ts>t+36e5)return;out.push({ts:ts,kind:kind,c:c,text:text,go:go||null})};
@@ -351,6 +355,54 @@ function LVppl(ppl){return LVidx(ppl,function(a){var byName={},byKey={};a.forEac
   return{byKey:byKey,names:names}})}
 /* the last jobsite each person sat on, from crew_site_days (latest day, most minutes) */
 function LVsites(sd){return LVidx(sd,function(a){var best={};a.forEach(function(r){if(!r.person)return;var k=MK(r.person)||r.person,d=String(r.day||"").slice(0,10),m=Number(r.minutes)||0,b=best[k];if(!b||d>b.d||(d===b.d&&m>b.m))best[k]={d:d,j:r.jobsite,m:m}});return best})}
+/* v252 · CREWS ON SITE from the foremen's trucks (Tito, Nov 10: "i do not want the board to use the crew email to identify whether
+   or not a crew is on site. it can recognize where a crew has been working based off of the foremans truck location … based off of
+   patterns"). A crew = a truck of the Actsoft group "Foreman" that spent CRWORK+ minutes at one place on CRMIN of the last CRLOOK
+   workdays (payroll_days: the FOREMEN grid's own rule, stopped 6 AM–5 PM, never a house, never the yard), or is on site now. Its
+   sites = those places (300 m apart), newest first. On site = stopped or creeping (LVSLOW, no geofence) within LVREACH of one of its
+   own sites or of a known job place (LVjob), or CRNEW+ minutes today at a place no list knows; never where the truck spent the
+   night (2–4 AM, CRHOME) unless that is one of its sites. Nov 10, 9:50 AM, live: 21 crew trucks, 20 on site, V-DMO at the yard. */
+var CRWORK=120,CRLOOK=5,CRMIN=2,CRNEW=60,CRHOME=150,CRPAT={r:null,t:"",out:null},CRNT={r:null,out:{}};
+/* "works at Cameron Rd" / "works near 5132 1/2 Bolm Rd" (a place no job list names) */
+function CRwhere(s){var n=String(s&&s.name||"");return /^near /i.test(n)?"works "+n:"works at "+n}
+function CRplace(s){return String(s&&s.name||"").replace(/^near /i,"")}
+function CRpat(rows,today){rows=Array.isArray(rows)?rows:[];if(CRPAT.r===rows&&CRPAT.t===today)return CRPAT.out;
+  var ok=function(s){return !!s&&+s.min>=CRWORK&&s.lat!=null&&s.lon!=null&&!LVyard(s.name)},days={},by={};
+  rows.forEach(function(r){var d=String(r.day||"").slice(0,10);if(d&&d<today&&(r.sites||[]).some(ok))days[d]=1});
+  var wd=Object.keys(days).sort().reverse().slice(0,CRLOOK),inW={};wd.forEach(function(d){inW[d]=1});
+  rows.forEach(function(r){var d=String(r.day||"").slice(0,10);if(!inW[d]||r.actsoft_id==null)return;
+    (r.sites||[]).forEach(function(s){if(!ok(s))return;var T=by[r.actsoft_id]=by[r.actsoft_id]||{sites:[],dset:{},vid:String(r.vehicle_id||"")},la=+s.lat,lo=+s.lon,nm=String(s.name||""),hit=null;T.dset[d]=1;
+      for(var i=0;i<T.sites.length;i++)if(PJhav(la,lo,T.sites[i].lat,T.sites[i].lon)<=300){hit=T.sites[i];break}
+      if(!hit)T.sites.push(hit={name:nm,typ:s.typ,lat:la,lon:lo,min:0,dset:{},last:d,best:0});
+      hit.min+=+s.min;hit.dset[d]=1;if(d>hit.last)hit.last=d;
+      if((s.typ==="J"&&hit.typ!=="J")||(s.typ===hit.typ&&+s.min>hit.best)){hit.best=+s.min;hit.typ=s.typ;if(nm)hit.name=nm}})});   /* a job place's name over "near …" */
+  Object.keys(by).forEach(function(k){var T=by[k];T.days=Object.keys(T.dset).length;T.of=wd.length;
+    T.sites.forEach(function(s){s.days=Object.keys(s.dset).length});
+    T.sites.sort(function(a,b){return a.last<b.last?1:a.last>b.last?-1:b.min-a.min})});   /* where it worked last comes first */
+  CRPAT={r:rows,t:today,out:{by:by,wd:wd}};return CRPAT.out}
+/* where each truck spent last night: its 2–4 AM positions, averaged */
+function CRnight(rows){rows=Array.isArray(rows)?rows:[];if(CRNT.r===rows)return CRNT.out;var a={},out={};
+  rows.forEach(function(p){if(!p||p.actsoft_id==null||p.lat==null||p.lon==null)return;var s=a[p.actsoft_id]=a[p.actsoft_id]||{la:0,lo:0,n:0};s.la+=+p.lat;s.lo+=+p.lon;s.n++});
+  for(var k in a)out[k]={lat:a[k].la/a[k].n,lon:a[k].lo/a[k].n};CRNT={r:rows,out:out};return out}
+/* one crew truck now, against its own sites, the known job places and where it slept */
+function CRrow(u,T,nt,e,t,hours){var st=LVst(u,t),geo=LVgeo(u,e),where=SDplace(u,e),has=u.last_lat!=null&&u.last_lon!=null,la=+u.last_lat,lo=+u.last_lon,
+    stop=has&&!geo&&st.k!=="dark"&&!((+u.last_speed||0)>LVSLOW),sites=T?T.sites:[],main=sites[0]||null,mine=null,bd=1e12,k,c,txt,ex=!1,at="",dm=null;
+  if(stop)sites.forEach(function(s){var d=PJhav(la,lo,s.lat,s.lon);if(d<=LVREACH&&d<bd){bd=d;mine=s}});
+  var home=!mine&&stop&&!!nt&&PJhav(la,lo,nt.lat,nt.lon)<=CRHOME,job=stop&&!mine&&!home?LVjob(u,e):null,d5=new Date(t);d5.setHours(5,0,0,0);
+  var since=u.last_status_since?Date.parse(u.last_status_since):NaN,fresh=stop&&!mine&&!job&&!home&&st.k!=="moving"&&isFinite(since)&&since>=d5.getTime()&&st.min>=CRNEW,
+    eng=st.k==="idling"||st.k==="running"?" · engine on "+SDmin(st.min):st.k==="parked"?" · parked "+SDmin(st.min):"";
+  if(st.k==="dark"){k="dark";c=hours?_.red:_.faint;txt="No signal · "+Ze(u.secs_since_seen)+" ago";ex=hours}
+  else if(mine){k="site";c=_.green;at=mine.name;txt="On site · "+mine.name+eng}
+  else if(job&&!LVyard(job.jobsite)){k="site";c=_.green;at=job.jobsite;txt="On site · "+job.jobsite+eng}
+  else if(LVyard(where)){k="yard";c=hours?_.amber:_.cyan;txt="At "+(/office|oficina/i.test(where)?"the office":"the yard")+" · "+SDmin(st.min);ex=hours&&st.min>=60}
+  else if(st.k==="moving"){k="moving";c=_.cyan;dm=main&&has?PJhav(la,lo,main.lat,main.lon):null;txt="Driving · "+Math.round(u.last_speed||0)+" mph"+(dm!=null?" · "+LVdist(dm)+" from "+CRplace(main):"")}
+  else if(fresh){k="site";c=_.green;at=where?where.replace(/^near /,""):"a new place";txt="On site · new place"+(where?" · "+where:"")+eng}
+  else if(st.k==="idling"||st.k==="running"){k="idle";c=hours?(st.hot?_.red:_.amber):_.cyan;txt="Idling "+SDmin(st.min)+(home?" · where it spent the night":where?" · "+where:"");ex=hours&&!!st.hot}
+  else{k="parked";c=hours?_.amber:_.cyan;txt="Parked "+SDmin(st.min)+(home?" · where it spent the night":where?" · "+where:"")}
+  return{u:u,st:st,k:k,c:c,txt:txt,ex:ex,rank:{dark:0,yard:1,idle:2,parked:3,moving:4,site:5}[k],at:at,main:main,sites:sites,days:T?T.days:0,of:T?T.of:CRLOOK,id:LVunitId(u),lat:u.last_lat,lon:u.last_lon,dm:dm}}
+/* the map shades what counts: the job places plus each crew truck's own sites that no job place already marks (80 m) */
+function CRmapPlaces(P0,rows){var pat=CRpat(rows,qt(Date.now())),out=(P0||[]).slice();Object.keys(pat.by).forEach(function(k){var T=pat.by[k];T.sites.forEach(function(s){
+  if(out.some(function(q){return PJhav(s.lat,s.lon,q.lat,q.lon)<=80}))return;out.push({jobsite:s.name,lat:s.lat,lon:s.lon,spot:!1,from:T.vid,day:s.last,n:s.days})})});return out}
 /* the whole model: everything the page shows, computed once per tick */
 function LVmodel(e,t){
   var orders=(e.orders||[]).filter(function(o){return !o.is_practice}),fuel=(e.fuel||[]).filter(function(f){return !f.is_practice&&!f.statement}),fleet=e.fleet||[],ppl=e.ppl||[];
@@ -366,8 +418,14 @@ function LVmodel(e,t){
   var phoneOf=function(n){var p=pOf(n);return p&&p.phone?String(p.phone):""};
   var namesOf=function(n){var p=pOf(n);return p?PI.names[p.name]||[p.name]:[n]};
   /* the live fleet by driver / assignee, normalized once per fleet refresh */
-  var FK={person:{},assigned:{}};fleet.forEach(function(u){var k;if(u.person&&(k=MK(u.person)||u.person)&&!FK.person[k])FK.person[k]=u;if(u.assigned_to&&(k=MK(u.assigned_to)||u.assigned_to)&&!FK.assigned[k])FK.assigned[k]=u});
-  var unitOf=function(n){if(!n)return null;var ns=namesOf(n),i,k;for(i=0;i<ns.length;i++){k=MK(ns[i])||ns[i];if(FK.person[k])return FK.person[k]}for(i=0;i<ns.length;i++){k=MK(ns[i])||ns[i];if(FK.assigned[k])return FK.assigned[k]}return null};
+  var FK={person:{},assigned:{}},fk=function(M,n,u){var k=n&&(MK(n)||n);if(k)(M[k]=M[k]||[]).push(u)};fleet.forEach(function(u){fk(FK.person,u.person,u);fk(FK.assigned,u.assigned_to,u)});
+  /* v252 · a person's truck (the supervisors): their own tracker (gps_units.person) first, then a unit assigned to them in Fleet; with
+     more than one, the first that is out (not at the yard or the office, heard from in 24 h) */
+  var unitOf=function(n){if(!n)return null;var ns=namesOf(n),c=[],i,j,k,L;
+    for(i=0;i<ns.length;i++){k=MK(ns[i])||ns[i];L=FK.person[k]||[];for(j=0;j<L.length;j++)if(c.indexOf(L[j])<0)c.push(L[j])}
+    for(i=0;i<ns.length;i++){k=MK(ns[i])||ns[i];L=FK.assigned[k]||[];for(j=0;j<L.length;j++)if(c.indexOf(L[j])<0)c.push(L[j])}
+    for(i=0;i<c.length;i++)if(!(c[i].secs_since_seen>86400)&&!LVyard(LVgeo(c[i],e)))return c[i];
+    return c[0]||null};
   var SI=LVsites(e.siteDays||[]);
   /* decisions */
   var P=orders.filter(function(o){return o.status==="SOLICITADO"}).sort(function(a,b){return a.ts-b.ts});
@@ -384,26 +442,15 @@ function LVmodel(e,t){
   var parked=units.filter(function(x){return x.st.k==="parked"}),dark=units.filter(function(x){return x.st.k==="dark"}).sort(function(a,b){return(b.u.secs_since_seen||0)-(a.u.secs_since_seen||0)});
   var hotIdle=idling.filter(function(x){return x.st.hot}),silent=units.filter(function(x){return LVsilent(x.u)}).sort(function(a,b){return(b.u.secs_since_seen||0)-(a.u.secs_since_seen||0)}),silentTrucks=silent.filter(function(x){return !LVequip(x.u)});
   var thr=SDthr(e),dumps=units.filter(function(x){return SDisDump(x.u)}).map(function(x){return Object.assign({},x,{sd:SDstatus(x.u,t,thr)})}),hotDumps=dumps.filter(function(x){return x.sd.hot}).sort(function(a,b){return b.sd.min-a.sd.min});
-  /* crews: the plan (the latest crew email loaded) against the GPS */
-  var cd=e.crewDay||[],today=qt(t),day="";cd.forEach(function(r){var d=String(r.day||"").slice(0,10);if(d<=today&&d>day)day=d});
-  var plan=cd.filter(function(r){return String(r.day||"").slice(0,10)===day&&(r.person||r.name_raw)});
-  var seen={},rows=[];plan.forEach(function(r){var n=r.person||r.name_raw,k=MK(n)||n;if(seen[k])return;seen[k]=1;rows.push({n:n,crew:r.crew_no,project:r.project||"",loc:r.location||"",planned:!0})});
-  if(!rows.length)ppl.filter(function(p){return p.active&&p.role==="MAYORDOMO"&&!(p.same_as&&byName[p.same_as])}).forEach(function(p){rows.push({n:p.name,crew:"",project:"",loc:"",planned:!1})});
-  var hours=LVhours(t),early=LVearly(t);
-  var lastSite=function(n){var ns=namesOf(n),best=null;ns.forEach(function(x){var b=SI[MK(x)||x];if(b&&b.d<=today&&(!best||b.d>best.d||(b.d===best.d&&b.m>best.m)))best=b});
-    if(!best)return null;var sp=(e.spots||[]).find(function(x){return x.jobsite===best.j});return{j:best.j,sp:sp||null,d:best.d}};
-  var crews=rows.map(function(r){var u=unitOf(r.n),st=u?LVst(u,t):null,sp=u?LVspot(u,e):null,where=u?SDplace(u,e):"",k,c,txt,ex=!1,ls=null,dm=null;
-    if(!u){k="none";c=_.faint;txt="No tracker linked"}
-    else if(st.k==="dark"){k="dark";c=hours?_.red:_.faint;txt="No signal · "+Ze(u.secs_since_seen)+" ago";ex=hours}
-    else if(sp&&!LVyard(sp.jobsite)){k="site";c=_.green;txt="On site · "+sp.jobsite+(st.k==="idling"||st.k==="running"?" · engine on "+SDmin(st.min):st.k==="parked"?" · parked "+SDmin(st.min):"")}
-    else if(LVyard(where)||(sp&&LVyard(sp.jobsite))){k="yard";c=hours?_.amber:_.cyan;txt="At "+(/office|oficina/i.test(where)?"the office":"the yard")+" · "+SDmin(st.min);ex=hours&&st.min>=60}
-    else if(st.k==="moving"){k="moving";c=_.cyan;ls=lastSite(r.n);dm=ls&&ls.sp?PJhav(u.last_lat,u.last_lon,ls.sp.lat,ls.sp.lon):null;txt="Driving · "+Math.round(u.last_speed||0)+" mph"+(dm!=null&&dm<1e11?" · "+LVdist(dm)+" from "+ls.j:"")}
-    else if(st.k==="idling"){k="idle";c=hours?(st.hot?_.red:_.amber):_.cyan;txt="Idling "+SDmin(st.min)+(where?" · "+where:"");ex=hours&&st.hot}
-    else{k="parked";c=hours?_.amber:_.cyan;txt="Parked "+SDmin(st.min)+(where?" · "+where:"")}
-    var rank={dark:0,yard:1,idle:2,parked:3,moving:4,site:5,none:6}[k];
-    return{n:r.n,crew:r.crew,project:r.project,loc:r.loc,planned:r.planned,u:u,st:st,k:k,c:c,txt:txt,ex:ex,rank:rank,phone:phoneOf(r.n),lat:u&&u.last_lat,lon:u&&u.last_lon,ls:ls,dm:dm}});
-  var crewOfUnit={};crews.forEach(function(x){if(x.u&&x.u.actsoft_id!=null)crewOfUnit[x.u.actsoft_id]=x});
-  try{LVwatchCrews(crews,e,t)}catch(x){}
+  /* crews: v252 · the foremen's trucks against the places each has been working (CRpat / CRrow) — no crew email */
+  var today=qt(t),hours=LVhours(t),early=LVearly(t),PAT=CRpat(e.crewPat,today),NT=CRnight(e.nights),crews=[];
+  /* judged only once the trucks' history and the job places are in: on the first lists alone every parked truck would read "new
+     place" for a second, and the feed would log each crew "moving" when the rest arrived */
+  var ready=Array.isArray(window.__mzPat)&&Array.isArray(window.__mzJobs);
+  fleet.forEach(function(u){if(!ready||u.group_name!=="Foreman"||u.active===!1)return;var T=PAT.by[u.actsoft_id]||null,x=CRrow(u,T,NT[u.actsoft_id],e,t,hours);if(!(T&&T.days>=CRMIN)&&x.k!=="site")return;
+    var n0=u.assigned_to||u.person||LVwho(u),p0=pOf(n0);x.n=p0?p0.name:n0;x.phone=phoneOf(x.n);crews.push(x)});
+  var crewOfUnit={};crews.forEach(function(x){crewOfUnit[x.u.actsoft_id]=x});
+  if(ready)try{LVwatchCrews(crews,e,t)}catch(x){}
   crews.sort(function(a,b){return a.rank-b.rank||a.n.localeCompare(b.n)});
   var cc={total:crews.length,site:0,moving:0,yard:0,idle:0,parked:0,dark:0,none:0};crews.forEach(function(x){cc[x.k]++});
   var sups=ppl.filter(function(p){return p.active&&p.role==="SUPERVISOR"&&!(p.same_as&&byName[p.same_as])}).map(function(p){var u=unitOf(p.name),st=u?LVst(u,t):null,where=u?SDplace(u,e):"",sp=u?LVspot(u,e):null;
@@ -413,7 +460,7 @@ function LVmodel(e,t){
   var att=[],covered={},cover=function(u){if(u&&u.actsoft_id!=null)covered[u.actsoft_id]=1},isCovered=function(u){return !!(u&&u.actsoft_id!=null&&covered[u.actsoft_id])};
   P.forEach(function(o){var w=(t-o.ts)/6e4;if(w>=LVESC)att.push({kind:"ORDER",c:_.red,text:o.req_no+" · "+z(o.foreman)+" · "+o.provider+(o.est_total?" · "+le(o.est_total):"")+" · waiting "+Ze((t-o.ts)/1e3)+" on "+(z(o.supervisor)||"nobody"),age:t-o.ts,go:{room:"orders",id:o.id},phone:phoneOf(o.supervisor),who:z(Wi(o.supervisor))})});
   R.forEach(function(o){var a=o.approved_at?Date.parse(o.approved_at):0,w=a?(t-a)/6e4:0;if(w>=60)att.push({kind:"PO",c:_.cyan,text:o.req_no+" · "+z(o.foreman)+" · "+o.provider+" · approved "+Ze((t-a)/1e3)+" ago, no PO yet",age:t-a,go:{room:"orders",id:o.id}})});
-  crews.filter(function(x){return x.ex}).forEach(function(x){cover(x.u);att.push({kind:"CREW",c:x.c,text:z(x.n)+(x.crew?" · crew "+x.crew:"")+" · "+x.txt+(x.project||x.loc?" · planned: "+[x.project,x.loc].filter(Boolean).join(" "):""),age:0,board:"crews",lat:x.lat,lon:x.lon,label:z(x.n),phone:x.phone,who:z(Wi(x.n))})});
+  crews.filter(function(x){return x.ex}).forEach(function(x){cover(x.u);att.push({kind:"CREW",c:x.c,text:z(x.n)+(x.id?" · "+x.id:"")+" · "+x.txt+(x.main?" · "+CRwhere(x.main):""),age:0,board:"crews",lat:x.lat,lon:x.lon,label:z(x.n),phone:x.phone,who:z(Wi(x.n))})});
   hotDumps.forEach(function(x){if(isCovered(x.u))return;cover(x.u);att.push({kind:"DUMP",c:_.red,text:"Dump "+SDunit(x.u)+(x.who?" · "+x.who:"")+" · idling "+Math.round(x.sd.min)+" min"+(x.where?" · "+x.where:""),age:x.sd.min*6e4,go:{room:"haul",side:"dump"},lat:x.u.last_lat,lon:x.u.last_lon,label:"Dump "+SDunit(x.u),phone:phoneOf(x.u.person||x.u.assigned_to),who:x.who?z(Wi(x.who)):""})});
   hotIdle.filter(function(x){return !SDisDump(x.u)&&!isCovered(x.u)}).forEach(function(x){cover(x.u);att.push({kind:"IDLE",c:_.amber,text:x.who+(x.id?" · "+x.id:"")+" · idling "+SDmin(x.st.min)+(x.where?" · "+x.where:""),age:x.st.min*6e4,board:"idling",lat:x.u.last_lat,lon:x.u.last_lon,label:x.who,phone:phoneOf(x.u.person||x.u.assigned_to),who:x.who?z(Wi(x.who)):""})});
   silentTrucks.filter(function(x){return !isCovered(x.u)}).forEach(function(x){cover(x.u);att.push({kind:"FLEET",c:_.red,text:(x.id||x.u.name||"Unit")+(x.who?" · "+x.who:"")+" · tracker silent "+Math.round(x.u.secs_since_seen/86400)+" d",age:x.u.secs_since_seen*1e3,go:{room:"fleet"},phone:phoneOf(x.u.person||x.u.assigned_to),who:x.who?z(Wi(x.who)):""})});
@@ -434,7 +481,7 @@ function LVmodel(e,t){
   var head=attNow?attNow+" need"+(attNow===1?"s":"")+" attention":"ALL CLEAR",tone=attNow?(att.some(function(a){return a.kind!=="FUEL"&&a.c===_.red})?_.red:_.amber):_.green;
   return{P:P,R:R,oldest:oldest,oldestSup:oldestSup,humans:humans,med:med,spend7:spend7,spendP:spendP,trend:trend,spendT:spendT,oT:oT,o7:o7,fT:fT,f7:f7,gps:gps,ok:ok,bad:bad,fuelBad:fuelBad,fuelNoTr:fuelNoTr,
     units:units,moving:moving,idling:idling,running:running,parked:parked,dark:dark,hotIdle:hotIdle,silent:silent,silentTrucks:silentTrucks,dumps:dumps,hotDumps:hotDumps,thr:thr,
-    crews:crews,cc:cc,sups:sups,crewOfUnit:crewOfUnit,planDay:day,planToday:day===today,hours:hours,early:early,att:att,attNow:attNow,attFuel:attFuel,head:head,tone:tone,bits:bits,phoneOf:phoneOf}}
+    crews:crews,cc:cc,sups:sups,crewOfUnit:crewOfUnit,crewsReady:ready,hours:hours,early:early,att:att,attNow:attNow,attFuel:attFuel,head:head,tone:tone,bits:bits,phoneOf:phoneOf}}
 /* a tile is a button: label, the number, what it means, where it goes */
 function LVtile(p){var on=!!p.onClick;return PJh("div",{className:"metric lv-tile"+(on?" lv-go":"")+(p.big?" lv-big":"")+(p.className?" "+p.className:""),role:on?"button":undefined,tabIndex:on?0:undefined,
     onClick:p.onClick,onKeyDown:on?function(ev){if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();p.onClick(ev)}}:undefined,title:p.title},
@@ -522,8 +569,8 @@ function Rm({d:e,now:t,go:n,mapNode:r,mapGo:fly,mapOnly:only}){
       PJh(LVtile,{label:"APPROVED \u00B7 NO PO",value:m.R.length,tone:m.R.length?_.cyan:_.ink,sub:m.R.length?"waiting on the office \u00B7 oldest "+Ze((t-(m.R[0].approved_at?Date.parse(m.R[0].approved_at):t))/1e3):"nothing waiting on the office",
         title:m.R.length?"Open "+m.R[0].req_no+" and issue its PO":"",onClick:function(){m.R.length?n("orders",m.R[0].id):n("orders",null)}}),
       PJh(LVtile,{label:"CREWS ON SITE",value:m.cc.total?m.cc.site+"/"+m.cc.total:"\u2014",tone:!m.cc.total?_.ink:m.hours?(m.cc.site>=Math.max(1,Math.ceil((m.cc.total-m.cc.none)*.85))?_.green:_.amber):m.early?_.cyan:_.ink,
-        sub:m.cc.total?[m.cc.moving?m.cc.moving+" driving":"",m.cc.yard?m.cc.yard+" at the yard":"",m.cc.idle+m.cc.parked?(m.cc.idle+m.cc.parked)+" stopped elsewhere":"",m.cc.dark?m.cc.dark+" no signal":"",m.cc.none?m.cc.none+" no tracker":""].filter(Boolean).join(" \u00B7 ")||"everyone on their jobsite":"no crew email loaded",
-        title:"Who is where, against the crew email",onClick:function(){open("crews")}}),
+        sub:m.cc.total?[m.cc.moving?m.cc.moving+" driving":"",m.cc.yard?m.cc.yard+" at the yard":"",m.cc.idle+m.cc.parked?(m.cc.idle+m.cc.parked)+" stopped elsewhere":"",m.cc.dark?m.cc.dark+" no signal":""].filter(Boolean).join(" \u00B7 ")||"everyone on their jobsite":m.crewsReady?"no foreman truck at a site lately":"reading the trucks…",
+        title:"Each foreman's truck against the places it has worked the last "+CRLOOK+" workdays: on site within "+LVREACH+" m of one of them or of a known job place",onClick:function(){open("crews")}}),
       PJh(LVtile,{label:"FLEET",value:m.moving.length,unit:" moving",tone:m.moving.length?_.green:_.ink,
         sub:PJh("span",null,PJh("span",{className:"lv-sub lv-go",onClick:function(ev){ev.stopPropagation();open("idling")}},m.hotIdle.length+" idling "+LVIDLE+"m+"),(" \u00B7 "),PJh("span",{className:"lv-sub lv-go",onClick:function(ev){ev.stopPropagation();open("dark")}},m.dark.length+" dark 24h+"),(" \u00B7 "+m.units.length+" tracked")),
         title:"Who is driving right now",onClick:function(){open("moving")}}),
@@ -545,15 +592,15 @@ function Rm({d:e,now:t,go:n,mapNode:r,mapGo:fly,mapOnly:only}){
             PJh("div",{className:"lv-tabs"},PJh("div",{className:"lv-tabsw"},tab("all","All",null),tab("crews","Crews",m.cc.total||null),tab("moving","Moving",m.moving.length),tab("idling","Idling",m.idling.length+m.running.length),tab("dark","Dark",m.dark.length)),
               PJh("button",{className:"lv-x",title:"Hide the board",onClick:function(){setBoard(null)}},"\u00D7")),
             board==="crews"?PJh("div",{className:"lv-bl"},
-              PJh("div",{className:"lv-bh"},m.cc.total?(m.planToday?"Today's crew email":m.planDay?"Crew email of "+m.planDay.slice(5).replace("-","/")+" \u00B7 today's not loaded yet":"No crew email loaded \u00B7 active foremen")+" \u00B7 "+m.cc.site+" on site":"No crews to show"),
-              m.crews.map(function(x){return PJh(LVrow,{key:x.n,c:x.c,name:z(x.n),tag:x.crew?"#"+x.crew:null,line:x.txt,line2:x.project||x.loc?[x.project,x.loc].filter(Boolean).join(" \u00B7 "):(x.planned?"":"not in the crew email"),
+              PJh("div",{className:"lv-bh",title:"The trucks of the Actsoft group Foreman that spent 2 h+ at a site on "+CRMIN+" of the last "+CRLOOK+" workdays, or are on site now"},m.cc.total?m.cc.total+" crew"+(m.cc.total===1?"":"s")+" \u00B7 "+m.cc.site+" on site":m.crewsReady?"No foreman truck at a site in the last "+CRLOOK+" workdays":"Reading the trucks…"),
+              m.crews.map(function(x){return PJh(LVrow,{key:x.u.actsoft_id,c:x.c,name:z(x.n),tag:x.id||null,line:x.txt,line2:x.main?CRwhere(x.main)+" \u00B7 "+x.main.days+" of the last "+x.of+" workdays":"no site in the last "+x.of+" workdays",
                 onClick:x.lat!=null?function(){flyTo(x.lat,x.lon,z(x.n))}:null,actions:[mapBtn(x,z(x.n))].concat(ph(x.phone,z(x.n))||[])})}),
               m.sups.length?PJh("div",{className:"lv-bh"},"Supervisors"):null,
               m.sups.map(function(x){return PJh(LVrow,{key:"s"+x.n,c:x.c,name:z(x.n),line:x.txt,onClick:x.lat!=null?function(){flyTo(x.lat,x.lon,z(x.n))}:null,actions:[mapBtn(x,z(x.n))].concat(ph(x.phone,z(x.n))||[])})}))
             :PJh("div",{className:"lv-bl"},
               PJh("div",{className:"lv-bh"},board==="all"?(m.units.length?m.units.length+" units \u00B7 moving first, then idling, parked and dark":"No units yet"):board==="moving"?(m.moving.length?m.moving.length+" moving right now \u00B7 fastest first":"Nothing is moving"):board==="idling"?(m.idling.length?m.idling.length+" idling \u00B7 longest first"+(m.running.length?" \u00B7 "+m.running.length+" equipment running":""):"No truck is idling"):(m.dark.length?m.dark.length+" not heard from in 24 h+":"Every tracker reported in the last 24 h")),
               boardList.map(function(x){if(x.hdr)return PJh("div",{key:"h"+x.hdr,className:"lv-bh"},x.hdr);var ph1=x.u.person||x.u.assigned_to?m.phoneOf(x.u.person||x.u.assigned_to):"";return PJh(LVrow,{key:x.u.actsoft_id||x.id||x.who,c:x.st.c,pulse:x.st.k==="moving",name:x.who,tag:x.id||null,
-                line:(x.st.k==="moving"?"Moving \u00B7 "+x.st.t:x.st.k==="dark"?"Dark \u00B7 "+x.st.t:x.st.w+" "+x.st.t)+(x.where?" \u00B7 "+x.where:""),line2:(function(){var cr=x.u.actsoft_id!=null?m.crewOfUnit[x.u.actsoft_id]:null;if(cr)return[cr.crew?"crew #"+cr.crew:"",cr.project||cr.loc?"planned "+[cr.project,cr.loc].filter(Boolean).join(" "):"",x.st.k==="moving"&&cr.dm!=null&&cr.dm<1e11?LVdist(cr.dm)+" from "+cr.ls.j:""].filter(Boolean).join(" \u00B7 ")||null;return SDisDump(x.u)?"small dump truck":LVequip(x.u)?"equipment \u00B7 engine hours, not waste":null})(),
+                line:(x.st.k==="moving"?"Moving \u00B7 "+x.st.t:x.st.k==="dark"?"Dark \u00B7 "+x.st.t:x.st.w+" "+x.st.t)+(x.where?" \u00B7 "+x.where:""),line2:(function(){var cr=x.u.actsoft_id!=null?m.crewOfUnit[x.u.actsoft_id]:null;if(cr)return !cr.main?"crew":x.st.k==="moving"&&cr.dm!=null?"crew \u00B7 "+LVdist(cr.dm)+" from "+CRplace(cr.main)+", where it works":"crew \u00B7 "+CRwhere(cr.main);return SDisDump(x.u)?"small dump truck":LVequip(x.u)?"equipment \u00B7 engine hours, not waste":null})(),
                 onClick:x.u.last_lat!=null?function(){flyTo(x.u.last_lat,x.u.last_lon,x.who)}:null,actions:[mapBtn({lat:x.u.last_lat,lon:x.u.last_lon},x.who)].concat(ph(ph1,x.who)||[])})}))):null,
           r)),
       PJh(G,{title:"SIGNAL FEED",flush:!0,right:PJh("span",{className:"legend"},PJh(ae,{c:_.green,pulse:!0})," live")},
@@ -822,7 +869,7 @@ async function __mzPoCodes(kind,tok){try{let at=tok&&tok.access_token||tok,first
 function __mzCodeNote(codes,miss){return codes?(miss?" · "+miss+" without a cost code":" · all with a cost code"):" · cost codes not available (run parche125)"}
 function __mzErr(x){var m=String(x&&x.message||x||"");try{var j=JSON.parse(m);m=j.message||j.hint||m}catch(e){}return m.slice(0,300)}
 function __mzToday(){return new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"})}
-function __mzCrewLast(e){var m=window.__MZCREWLAST||"";(e&&e.crewDay||[]).forEach(function(r){var d=String(r.day||"").slice(0,10);if(d>m)m=d});return m}
+function __mzCrewLast(e){var m=window.__MZCREWLAST||"",n={};(e&&e.crewDay||[]).forEach(function(r){var d=String(r.day||"").slice(0,10);n[d]=(n[d]||0)+1});for(var d in n)if(n[d]>=10&&d>m)m=d;return m}   /* v252 · the last WHOLE crew email (10+ lines, crew_email_load's bar), not a day a patch put a few crews' lines on */
 function __mzCrewLabel(e){var l=__mzCrewLast(e);return l===__mzToday()?"CREW EMAIL \u2713":"CREW EMAIL"+(l?" \u00b7 "+l.slice(5).replace("-","/"):"")}
 function __mzCrewTip(e){var l=__mzCrewLast(e);return "Paste this morning's Internal Crew Locations email: every PO takes its cost code from it."+(l?" Last loaded: "+l.slice(5).replace("-","/")+".":"")}
 function __mzCrewEmail(tok,onDone){
@@ -1125,7 +1172,7 @@ function MZstW(u,k){return k==="moving"?Math.round(Number(u.last_speed)||0)+" mp
 function MZmapCap(F){if(!F||!F.lab)return null;return PJh("div",{className:"mz-mapf",role:"status",title:F.tip||undefined},F.c?PJh(ae,{c:F.c}):null,
   PJh("span",{className:"mz-mapf-t"},PJh("b",null,F.lab),F.sub?" \u00B7 "+F.sub:""),
   F.all?PJh("button",{className:"btn sm lv-act",title:"Put every unit back on the map",onClick:F.all},"Show all"):null)}
-function zm(e,t){let n=(0,M.useRef)(null);if(!n.current){let y=document.createElement("div");y.className="map",n.current=y}let r=(0,M.useRef)(null),l=(0,M.useRef)(null),o=(0,M.useRef)(null),[i,u]=(0,M.useState)(null),[tk,stk]=(0,M.useState)(0),[mf,smf]=(0,M.useState)(null),c=()=>{try{r.current&&r.current.invalidateSize()}catch{}},p=y=>{y&&(n.current.parentNode!==y&&y.appendChild(n.current),!r.current&&!n.current._k&&(n.current._k=1,stk(x=>x+1)),setTimeout(c,60),setTimeout(c,400))};(0,M.useEffect)(()=>{let y=window.L;if(!y||!n.current.isConnected)return;if(!r.current){r.current=y.map(n.current,{zoomControl:!1,attributionControl:!1}).setView([30.27,-97.74],10),y.control.zoom({position:"bottomright"}).addTo(r.current);let LY=MZlayers(y,r.current,{tok:()=>(_e.cur||t).access_token,usage:u});window.__mzMapTheme=LY.theme;l.current=y.layerGroup().addTo(r.current),window.__mzMap=r.current,setTimeout(c,60),setTimeout(c,500),window.ResizeObserver&&new ResizeObserver(c).observe(n.current)}l.current.clearLayers();let F=mf,K=F?F.k:"all",R=r.current,chg=R._mzK!==void 0&&R._mzK!==K,grew=!!F&&!chg&&!R._mzN,fly=Date.now()-(R._mzFly||0)<2e3;try{F&&!F.jobs||LVdrawJobs(window.L,l.current,LVplaces(window.__mzSpots,window.__mzJobs,window.__mzCrew))}catch(x){}let E=[],T=Date.now();e.filter(h=>h.last_lat&&h.last_lon).forEach(h=>{if(F&&!F.ids[h.actsoft_id])return;let S=LVst(h,T).k,O=S==="dark",D=S==="moving",a=MZstC(S);window.L.circleMarker([h.last_lat,h.last_lon],{radius:D?6:5,color:"var(--mk-stroke)",weight:1.5,fillColor:a,fillOpacity:O?.5:.95}).addTo(l.current).bindTooltip(`<b>${z(h.person||h.assigned_to||(h.name||"").replace(/\s*VIN.*$/i,""))}</b><br>${h.last_geofence||""} ${MZstW(h,S)}<br>${Ze(h.secs_since_seen||0)} ago`,{className:"tip"}),E.push([h.last_lat,h.last_lon])}),R._mzPts=E,R._mzK=K,R._mzN=E.length,R._mzFitO=F?{paddingTopLeft:[24,64],paddingBottomRight:[24,24],maxZoom:12}:{padding:[24,24],maxZoom:12},chg&&!fly&&(o.current=null),o.current&&o.current.addTo(l.current),E.length&&(!R._fit||chg||grew)&&(R._fit=!0,setTimeout(()=>{try{if(Date.now()-(R._mzFly||0)<2e3)return;R.invalidateSize(),MZrefit(R,E,R._mzFitO,!0)}catch{}},120))},[e,tk,mf]);(0,M.useEffect)(()=>{let f=()=>stk(x=>x+1);window.addEventListener("mz-spots",f);return()=>window.removeEventListener("mz-spots",f)},[]);let w=(y,E,h)=>{r.current&&(r.current._mzFly=Date.now(),MZflyView(r.current,y,E),o.current&&l.current.removeLayer(o.current),o.current=window.L.circleMarker([y,E],{radius:12,color:_.red,weight:2,fillOpacity:.15}).bindTooltip(h,{permanent:!0,className:"tip",direction:"top",offset:[0,-14]}),o.current.addTo(l.current),n.current?.scrollIntoView({behavior:"smooth",block:"center"}))};return[(0,s.jsxs)("div",{className:"mapwrap",ref:p,children:[MZmapCap(mf),i?(0,s.jsxs)("div",{className:`nmu ${i.allowed?"":"red"}`,children:["NEARMAP ",i.mb," / ",i.cap_mb," MB THIS MONTH",i.allowed?"":" \xB7 CAP REACHED"]}):null]}),w,smf]}var Dd=[["situation","LIVE","\u25C9"],["tieout","TIE-OUT","\u2713"],["activity","ACTIVITY","\u223F"],["projects","PROJECTS","\u25ED"],["ledger","LEDGER","\u2261"],["orders","ORDERS","\u25A4"],["catalog","CATALOG","\u25A6"],["fuel","FUEL","\u25C8"],["fleet","FLEET","\u25EC"],["haul","HAUL","\u25C6"],["permits","PERMITS","\u25A3"],["people","PEOPLE","\u25ED"],["rules","RULES","\u25EB"]];/* ===== PROJECTS · the project manager's universe ===============================
+function zm(e,t){let n=(0,M.useRef)(null);if(!n.current){let y=document.createElement("div");y.className="map",n.current=y}let r=(0,M.useRef)(null),l=(0,M.useRef)(null),o=(0,M.useRef)(null),[i,u]=(0,M.useState)(null),[tk,stk]=(0,M.useState)(0),[mf,smf]=(0,M.useState)(null),c=()=>{try{r.current&&r.current.invalidateSize()}catch{}},p=y=>{y&&(n.current.parentNode!==y&&y.appendChild(n.current),!r.current&&!n.current._k&&(n.current._k=1,stk(x=>x+1)),setTimeout(c,60),setTimeout(c,400))};(0,M.useEffect)(()=>{let y=window.L;if(!y||!n.current.isConnected)return;if(!r.current){r.current=y.map(n.current,{zoomControl:!1,attributionControl:!1}).setView([30.27,-97.74],10),y.control.zoom({position:"bottomright"}).addTo(r.current);let LY=MZlayers(y,r.current,{tok:()=>(_e.cur||t).access_token,usage:u});window.__mzMapTheme=LY.theme;l.current=y.layerGroup().addTo(r.current),window.__mzMap=r.current,setTimeout(c,60),setTimeout(c,500),window.ResizeObserver&&new ResizeObserver(c).observe(n.current)}l.current.clearLayers();let F=mf,K=F?F.k:"all",R=r.current,chg=R._mzK!==void 0&&R._mzK!==K,grew=!!F&&!chg&&!R._mzN,fly=Date.now()-(R._mzFly||0)<2e3;try{F&&!F.jobs||LVdrawJobs(window.L,l.current,CRmapPlaces(LVplaces(window.__mzSpots,window.__mzJobs,window.__mzCrew),window.__mzPat))}catch(x){}let E=[],T=Date.now();e.filter(h=>h.last_lat&&h.last_lon).forEach(h=>{if(F&&!F.ids[h.actsoft_id])return;let S=LVst(h,T).k,O=S==="dark",D=S==="moving",a=MZstC(S);window.L.circleMarker([h.last_lat,h.last_lon],{radius:D?6:5,color:"var(--mk-stroke)",weight:1.5,fillColor:a,fillOpacity:O?.5:.95}).addTo(l.current).bindTooltip(`<b>${z(h.person||h.assigned_to||(h.name||"").replace(/\s*VIN.*$/i,""))}</b><br>${h.last_geofence||""} ${MZstW(h,S)}<br>${Ze(h.secs_since_seen||0)} ago`,{className:"tip"}),E.push([h.last_lat,h.last_lon])}),R._mzPts=E,R._mzK=K,R._mzN=E.length,R._mzFitO=F?{paddingTopLeft:[24,64],paddingBottomRight:[24,24],maxZoom:12}:{padding:[24,24],maxZoom:12},chg&&!fly&&(o.current=null),o.current&&o.current.addTo(l.current),E.length&&(!R._fit||chg||grew)&&(R._fit=!0,setTimeout(()=>{try{if(Date.now()-(R._mzFly||0)<2e3)return;R.invalidateSize(),MZrefit(R,E,R._mzFitO,!0)}catch{}},120))},[e,tk,mf]);(0,M.useEffect)(()=>{let f=()=>stk(x=>x+1);window.addEventListener("mz-spots",f);return()=>window.removeEventListener("mz-spots",f)},[]);let w=(y,E,h)=>{r.current&&(r.current._mzFly=Date.now(),MZflyView(r.current,y,E),o.current&&l.current.removeLayer(o.current),o.current=window.L.circleMarker([y,E],{radius:12,color:_.red,weight:2,fillOpacity:.15}).bindTooltip(h,{permanent:!0,className:"tip",direction:"top",offset:[0,-14]}),o.current.addTo(l.current),n.current?.scrollIntoView({behavior:"smooth",block:"center"}))};return[(0,s.jsxs)("div",{className:"mapwrap",ref:p,children:[MZmapCap(mf),i?(0,s.jsxs)("div",{className:`nmu ${i.allowed?"":"red"}`,children:["NEARMAP ",i.mb," / ",i.cap_mb," MB THIS MONTH",i.allowed?"":" \xB7 CAP REACHED"]}):null]}),w,smf]}var Dd=[["situation","LIVE","\u25C9"],["tieout","TIE-OUT","\u2713"],["activity","ACTIVITY","\u223F"],["projects","PROJECTS","\u25ED"],["ledger","LEDGER","\u2261"],["orders","ORDERS","\u25A4"],["catalog","CATALOG","\u25A6"],["fuel","FUEL","\u25C8"],["fleet","FLEET","\u25EC"],["haul","HAUL","\u25C6"],["permits","PERMITS","\u25A3"],["people","PEOPLE","\u25ED"],["rules","RULES","\u25EB"]];/* ===== PROJECTS · the project manager's universe ===============================
    Pick your name → a short cinematic briefing → your world: your crews (live, with
    days on site from GPS), your jobsites (days worked, contract, finish date and
    timeline, dollars ordered / billed / fuel), the last 8 weeks of spend, what needs
