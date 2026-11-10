@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v257
+/* MUÑIZ Pedidos - service worker  ·  v258
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -79,9 +79,11 @@
        a statement ticket, a person's card, not only the room (Tito, Nov 10). Phones: nothing changes.
      · v257: Pedidos: the cart has no COPIAR TEXTO button (foremen's and supervisors' carts): MANDAR sends the order.
        It was tapped once in 3,865 taps since Oct 22 (Tito, Nov 10: "I do not understand the purpose of that").
+     · v258: Pedidos: a short notice closes when the screen changes. "Pedido vaciado · DESHACER" stayed up
+       to 10 s on the next screens, the name list too (Tito, Nov 10: "that looks buggy").
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v257";
+const CACHE = "muniz-pedidos-v258";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
