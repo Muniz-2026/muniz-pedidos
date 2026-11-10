@@ -2310,7 +2310,7 @@ var ACSCR={inicio:"Name list",menu:"Menu",para:"Ordering for someone",prov:"Stor
   "fuel/est":"Fuel · station","fuel/fuel":"Fuel · fuel type","fuel/veh":"Fuel · plate & odometer","fuel/po":"Fuel · PO on screen",
   "fuel/bye":"Fuel · “Did they write it down?”","fuel/dup":"Fuel · already has a PO","fuel/nombre":"Fuel · name list","fuel/para":"Fuel · for whom",
   "fuel/oficina":"Fuel · office","fuel/inicio":"Fuel",mis:"My orders",bandeja:"Inbox"};
-var ACBTN={"NOMBRE":"a name on the list","ARTÍCULO":"an item card (adds one)","ARTÍCULO · −":"an item card's − (one less)","ARTÍCULO · 🔍":"an item card's photo",
+var ACBTN={"LATAS":"Paint: cans (fewer than a box)","CAJA DE ##":"Paint: a box of 12","NOMBRE":"a name on the list","ARTÍCULO":"an item card (adds one)","ARTÍCULO · −":"an item card's − (one less)","ARTÍCULO · 🔍":"an item card's photo",
   "Regresar":"Back","Atras":"Back","Atrás":"Back","←":"Back","Mis pedidos":"My orders","📋 MIS PEDIDOS":"My orders","MATERIALES":"Materials","COMBUSTIBLE":"Fuel",
   "¿NO ESTÁ TU NOMBRE? Tócame para agregarl":"Name not on the list? Add it","🚛 SOY CHOFER — recojo para un mayordomo":"I'm a driver, picking up for a foreman",
   "CAMBIAR":"Change the name","EN":"English names","ES":"Spanish names","TODO":"All categories","VER MI PEDIDO →":"See my order","🔊 ESCUCHAR MI PEDIDO":"Hear my order read out",
