@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v252
+/* MUÑIZ Pedidos - service worker  ·  v253
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -69,9 +69,11 @@
        when that vendor is opened, not for all of them on every open. Code files: exactly as before.
      · v252: the Command Center's CREWS ON SITE comes from the foremen's trucks — where each has been working (payroll's
        places) and where it is now — not from the crew email (Tito, Nov 10). Phones: nothing changes.
+     · v253: Pedidos' bottom bars end above the iPhone home indicator (index.html viewport-fit=cover: iOS answered
+       0 for the safe area, and the green PEDIR PARA / MANDAR button ran off the bottom of the screen, Nov 10).
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v252";
+const CACHE = "muniz-pedidos-v253";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"

@@ -1,5 +1,7 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.11
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.12
+   v2.12: en horizontal el menú y las listas PARA no quedan debajo de la muesca: index.html pide la pantalla completa
+          (viewport-fit=cover, v253) y estas capas fijas guardan el área segura a los lados. En vertical, igual que antes.
    v2.11: COMBUSTIBLE de la oficina: PARA MÍ va arriba, grande, con tu nombre (antes era un renglón gris al
           final de la lista y Tito no lo encontraba). La gente de oficina sale en la lista (Claudia, Lupe…):
           la oficina también carga gasolina (Tito, Oct 20).
@@ -124,7 +126,7 @@
         list.map(function (n) { return '<button data-para="' + n + '" style="min-height:56px;border-radius:12px;border:0;box-shadow:0 1px 2px rgba(0,0,0,.06),0 4px 12px -6px rgba(0,0,0,.18);background:#fff;font:800 15px/1.15 -apple-system,system-ui,sans-serif;color:#1C1C1E;padding:6px">' + n + '</button>'; }).join("") + '</div>';
     }
     overlay.innerHTML =
-      '<div style="position:fixed;inset:0;background:#F2F2F7;z-index:9997;overflow:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 24px)">' +
+      '<div style="position:fixed;inset:0;background:#F2F2F7;z-index:9997;overflow:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 16px) max(14px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(14px,env(safe-area-inset-left,0px))">' +
         '<div style="display:flex;align-items:center;gap:10px">' +
           '<button id="mz-para-back" aria-label="Regresar" style="width:52px;height:52px;border-radius:14px;background:#1C1C1E;color:#fff;border:0;font:900 26px/1 system-ui">\u2190</button>' +
           '<div><h1 tabindex="-1" style="margin:0;font:800 22px/1.1 -apple-system,system-ui,sans-serif;color:#1C1C1E;outline:none">\u00bfPARA QUI\u00c9N ES?</h1>' +
@@ -166,7 +168,7 @@
     }
     overlay = document.createElement("div");
     overlay.setAttribute("role", "dialog"); overlay.setAttribute("aria-modal", "true"); overlay.setAttribute("aria-label", "\u00bfQu\u00e9 vas a hacer?");
-    overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#F2F2F7;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:-apple-system,system-ui,'Segoe UI',sans-serif;color:#1C1C1E;";
+    overlay.style.cssText = "position:fixed;inset:0;z-index:9990;background:#F2F2F7;display:flex;flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;font-family:-apple-system,system-ui,'Segoe UI',sans-serif;color:#1C1C1E;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);";
     /* misma cabecera que el resto del app: franja, flecha negra de 48px, título Archivo Black 15px, nombre en gris */
     overlay.innerHTML =
       '<div style="height:8px;background:repeating-linear-gradient(45deg,#1C1C1E 0 14px,#FFB800 14px 28px)"></div>' +
@@ -254,7 +256,7 @@
   function showFuelPara(name) {
     if (!overlay) return;
     overlay.innerHTML =
-      '<div style="position:fixed;inset:0;background:#F2F2F7;z-index:9997;overflow:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 24px)">' +
+      '<div style="position:fixed;inset:0;background:#F2F2F7;z-index:9997;overflow:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 16px) max(14px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(14px,env(safe-area-inset-left,0px))">' +
         '<div style="display:flex;align-items:center;gap:10px">' +
           '<button id="mz-fpara-back" aria-label="Regresar" style="width:52px;height:52px;flex:none;border-radius:14px;background:#1C1C1E;color:#fff;border:0;font:900 26px/1 system-ui">\u2190</button>' +
           '<div><h1 tabindex="-1" style="margin:0;font:800 22px/1.1 -apple-system,system-ui,sans-serif;color:#1C1C1E;outline:none">\u00bfPARA QUI\u00c9N ES EL COMBUSTIBLE?</h1>' +

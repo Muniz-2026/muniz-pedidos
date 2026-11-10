@@ -2,7 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- v253: viewport-fit=cover = iOS gives env(safe-area-inset-*) its real size (without it: 0, and the bottom bars ran under
+       the home indicator). With status-bar-style default the page still starts below the clock. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>MUÑIZ Pedidos</title>
   <meta name="description" content="Pedidos de material y PO de combustible · Muñiz Concrete & Contracting">
   <meta property="og:site_name" content="Muñiz Pedidos">
@@ -37,8 +39,19 @@
     html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
     *{-webkit-user-select:none;user-select:none;}
     input,textarea,pre{-webkit-user-select:text;user-select:text;}
-    /* never let a fixed bottom bar hide under the iPhone home indicator */
-    .safe-bottom{padding-bottom:env(safe-area-inset-bottom,0px);}
+    /* never let a fixed bottom bar hide under the iPhone home indicator: it ends 12 px above it (12 + safe area, like the fuel
+       steps' bar). v253 (Tito, Nov 10: the green PEDIR PARA button ran off the bottom): env() was 0 until viewport-fit=cover */
+    .safe-bottom{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));}
+    /* the catalog's store-colored VER MI PEDIDO bar has no background: its button reaches the bottom edge, its label stays above */
+    .safe-bottom:not(.bg-white){padding:0;}
+    .safe-bottom:not(.bg-white)>button{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));}
+    /* the pages under those bars (cart pb-40, supervisor review pb-56, catalog pb-28) keep their end clear of the bar: each
+       reserve grows by what its bar grew */
+    #root .min-h-screen.pb-40{padding-bottom:calc(10rem + 12px + env(safe-area-inset-bottom,0px));}
+    #root .min-h-screen.pb-56{padding-bottom:calc(14rem + 12px + env(safe-area-inset-bottom,0px));}
+    #root .min-h-screen.pb-28{padding-bottom:calc(7rem + env(safe-area-inset-bottom,0px));}
+    /* landscape: the page reaches under the notch now; it keeps to the safe area sideways, as iOS's own side margins did */
+    body{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);}
     #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F2F2F7;color:#1C1C1E;font-family:-apple-system,system-ui,sans-serif;z-index:99;transition:opacity .35s ease,transform .45s cubic-bezier(.16,1,.3,1)}
     #boot.out{opacity:0;transform:scale(1.04);pointer-events:none}
     #boot .bm{width:76px;height:76px;border-radius:18px;display:block;box-shadow:0 10px 24px -12px rgba(0,0,0,.35)}

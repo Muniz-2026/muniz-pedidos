@@ -149,7 +149,9 @@ a.mz-sec{display:flex!important;align-items:center;justify-content:center}
 .mz-hint-stop{background:var(--stop)}.mz-hint-go{background:var(--go)}
 .mz-hint button{flex:none;min-height:44px;padding:0 14px;border:0;border-radius:10px;background:rgba(255,255,255,.2);color:#fff;font:800 15px/1 -apple-system,system-ui,sans-serif;letter-spacing:.02em}
 /* full-screen overlays scroll when they don't fit (Safari zoom, landscape) and never cut their top */
-.fixed.inset-0.z-\[60\],.fixed.inset-0.z-\[80\]{justify-content:flex-start!important;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:max(24px,env(safe-area-inset-top))!important;padding-bottom:max(24px,env(safe-area-inset-bottom))!important}
+.fixed.inset-0.z-\[60\],.fixed.inset-0.z-\[80\]{justify-content:flex-start!important;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:max(24px,env(safe-area-inset-top))!important;padding-bottom:max(24px,env(safe-area-inset-bottom))!important;padding-left:max(24px,env(safe-area-inset-left))!important;padding-right:max(24px,env(safe-area-inset-right))!important}
+/* the photo viewer: in landscape its sheet (name, AGREGAR AL PEDIDO, CERRAR) keeps to the safe area too (v253) */
+.fixed.inset-0.z-\[70\]{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
 .fixed.inset-0.z-\[60\]>:first-child,.fixed.inset-0.z-\[80\]>:first-child{margin-top:auto}
 .fixed.inset-0.z-\[60\]>:last-child,.fixed.inset-0.z-\[80\]>:last-child{margin-bottom:auto}
 .fixed.inset-0.z-\[80\] .w-20.h-20{width:min(80px,21vw)!important;height:min(80px,21vw)!important}
