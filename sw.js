@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v256
+/* MUÑIZ Pedidos - service worker  ·  v257
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -77,9 +77,11 @@
        a box goes in the order as 12 cans of the same code, the way ACE bills it (Tito, Nov 10). Everything else is unchanged.
      · v256: the Command Center's search opens the exact record: a fuel PO's window, an invoice's window (its lines),
        a statement ticket, a person's card, not only the room (Tito, Nov 10). Phones: nothing changes.
+     · v257: Pedidos: the cart has no COPIAR TEXTO button (foremen's and supervisors' carts): MANDAR sends the order.
+       It was tapped once in 3,865 taps since Oct 22 (Tito, Nov 10: "I do not understand the purpose of that").
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v256";
+const CACHE = "muniz-pedidos-v257";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
