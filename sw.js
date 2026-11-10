@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v259
+/* MUÑIZ Pedidos - service worker  ·  v260
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -83,9 +83,11 @@
        to 10 s on the next screens, the name list too (Tito, Nov 10: "that looks buggy").
      · v259: the Command Center's fuel PO window gets NOTES, the same as an order's window: a running log,
        office only, who and when on every note (Tito, Nov 10). Phones: nothing changes.
+     · v260: the Command Center's Fuel room has no STATION STATEMENTS tab or tile (Tito, Nov 10: "It is
+       irrelevant"). The station tickets still reconcile the fuel POs. Phones: nothing changes.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v259";
+const CACHE = "muniz-pedidos-v260";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
