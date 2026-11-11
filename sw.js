@@ -1,4 +1,5 @@
-/* MUÑIZ Pedidos - service worker  ·  v265
+/* MUÑIZ Pedidos - service worker  ·  v266
+     · v266: Command Center Haul: UNKNOWN PLACES · TEACH THE SYSTEM moved to the bottom of the page.
      · v265: Command Center Fleet / Live map: a click on empty map or the search box's ✕ clears a highlight and shows every unit again.
      · v264: Command Center Fleet / Live map: full screen (corner button, Esc to leave) + find any unit inside it.
      · v263: Command Center order window: the jobsite list = the scheduled jobs (jobsites table), not only past orders.
@@ -97,7 +98,7 @@
        an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v265";
+const CACHE = "muniz-pedidos-v266";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
