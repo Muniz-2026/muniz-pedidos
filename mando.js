@@ -158,6 +158,9 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   ["pyVotes",3600e3,3,()=>He(go("gps_job_votes?select=street,block,lat,lon,label,day&lat=not.is.null&label=not.is.null&order=day.desc",c,3))],
   ["costCodes",3600e3,3,()=>He($e("cost_codes?select=code,job,contract,tab,usable",c))],
   ["jobCodeMap",3600e3,3,()=>He($e("jobsite_code_map?select=jobsite,code",c))],
+  /* v267 · who drove a truck by date + the office's cost code for a truck-day (parche211) */
+  ["truckDrivers",3600e3,3,()=>He($e("truck_drivers?select=actsoft_id,person,from_day,to_day,note",c))],
+  ["dayCodes",3600e3,3,()=>He($e("payroll_day_codes?select=actsoft_id,day,code,set_by,note",c))],
   /* v263 · the order window's jobsite list: the scheduled jobs (6-week look-ahead / SSPD), not only past orders' names */
   ["jobList",3600e3,3,()=>He($e("jobsites?select=name,contract&active=is.true&contract=not.is.null&order=name",c))],
   ["geoKinds",3600e3,3,()=>He($e("geofences?select=name,actsoft_name,kind",c))],
@@ -175,7 +178,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||E0("rules")}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   (0,M.startTransition)(()=>n({loading:!1,fuel:MZmap(S,"fuel",d.fuel,A=>({...A,ts:new Date(A.created_at).getTime()})),orders:MZmap(S,"orders",d.orders,A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||E0("fuelTest"),ev:d.ev||E0("ev"),veh:d.veh||E0("veh"),ppl:d.ppl||E0("ppl"),tickets:d.tickets||E0("tickets"),fleet:d.fleet||E0("fleet"),fleetio:d.fleetio||E0("fleetio"),fleetioOdo:d.fleetioOdo||E0("fleetioOdo"),fleetioLog:d.fleetioLog||E0("fleetioLog"),fuelGps:d.fuelGps||E0("fuelGps"),lastPo:(d.lastPo||E0("lastPo"))[0]||null,unitDay:d.unitDay||E0("unitDay"),oev:d.oev||E0("oev"),
-   rules:d.rules||E0("rules"),pmProj:d.pmProj||E0("pmProj"),pmSched:d.pmSched||E0("pmSched"),crewDay:d.crewDay||E0("crewDay"),crewPat:(window.__mzPat!==d.crewPat&&d.crewPat&&(window.__mzPat=d.crewPat,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzPat||E0("crewPat")),nights:d.nights||E0("nights"),removedPeople:d.removedPeople||E0("removedPeople"),permits:d.permits||E0("permits"),dtix:d.dtix||E0("dtix"),pcosts:d.pcosts||E0("pcosts"),idleDay:d.idleDay||E0("idleDay"),idleSess:d.idleSess||E0("idleSess"),idleWho:d.idleWho||E0("idleWho"),stmts:d.stmts||E0("stmts"),stmtChk:d.stmtChk||E0("stmtChk"),siteDays:d.siteDays||E0("siteDays"),haulDays:d.haulDays||E0("haulDays"),haulStops:d.haulStops||E0("haulStops"),places:d.places||E0("places"),geofences:d.geofences||E0("geofences"),pyVotes:d.pyVotes,costCodes:d.costCodes,jobCodeMap:d.jobCodeMap||E0("jobCodeMap"),jobList:d.jobList||E0("jobList"),geoKinds:d.geoKinds||E0("geoKinds"),spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||E0("spots"),setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||E0("stationStops"),ledger:d.ledger||E0("ledger"),poLog:d.poLog||E0("poLog"),sdAlerts:d.sdAlerts||E0("sdAlerts"),fiAlerts:d.fiAlerts||E0("fiAlerts"),appLive:d.appLive||E0("appLive"),catalog:d.catalog,ctStats:d.ctStats||E0("ctStats"),ctUnlisted:d.ctUnlisted||E0("ctUnlisted"),ctDemand:d.ctDemand||E0("ctDemand"),ctHist:d.ctHist||E0("ctHist"),ctAlt:d.ctAlt||E0("ctAlt"),ctSugg:d.ctSugg||E0("ctSugg"),sync:S.sync||Date.now(),err:S.err||""}))};
+   rules:d.rules||E0("rules"),pmProj:d.pmProj||E0("pmProj"),pmSched:d.pmSched||E0("pmSched"),crewDay:d.crewDay||E0("crewDay"),crewPat:(window.__mzPat!==d.crewPat&&d.crewPat&&(window.__mzPat=d.crewPat,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzPat||E0("crewPat")),nights:d.nights||E0("nights"),removedPeople:d.removedPeople||E0("removedPeople"),permits:d.permits||E0("permits"),dtix:d.dtix||E0("dtix"),pcosts:d.pcosts||E0("pcosts"),idleDay:d.idleDay||E0("idleDay"),idleSess:d.idleSess||E0("idleSess"),idleWho:d.idleWho||E0("idleWho"),stmts:d.stmts||E0("stmts"),stmtChk:d.stmtChk||E0("stmtChk"),siteDays:d.siteDays||E0("siteDays"),haulDays:d.haulDays||E0("haulDays"),haulStops:d.haulStops||E0("haulStops"),places:d.places||E0("places"),geofences:d.geofences||E0("geofences"),pyVotes:d.pyVotes,costCodes:d.costCodes,jobCodeMap:d.jobCodeMap||E0("jobCodeMap"),truckDrivers:d.truckDrivers||E0("truckDrivers"),dayCodes:d.dayCodes||E0("dayCodes"),jobList:d.jobList||E0("jobList"),geoKinds:d.geoKinds||E0("geoKinds"),spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||E0("spots"),setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||E0("stationStops"),ledger:d.ledger||E0("ledger"),poLog:d.poLog||E0("poLog"),sdAlerts:d.sdAlerts||E0("sdAlerts"),fiAlerts:d.fiAlerts||E0("fiAlerts"),appLive:d.appLive||E0("appLive"),catalog:d.catalog,ctStats:d.ctStats||E0("ctStats"),ctUnlisted:d.ctUnlisted||E0("ctUnlisted"),ctDemand:d.ctDemand||E0("ctDemand"),ctHist:d.ctHist||E0("ctHist"),ctAlt:d.ctAlt||E0("ctAlt"),ctSugg:d.ctSugg||E0("ctSugg"),sync:S.sync||Date.now(),err:S.err||""}))};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
  let pp=!1;const emit=(type,detail)=>{try{window.dispatchEvent(new CustomEvent(type,{detail:detail}))}catch(x){}};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;const forPull=!!S.pullNow;S.pullNow=!1;
@@ -1972,11 +1975,25 @@ function PYdays(mon){var o=[];for(var i=0;i<7;i++)o.push(PYadd(mon,i));return o}
 function PYscroll(id){setTimeout(function(){try{var el=document.getElementById(id);el&&el.scrollIntoView({behavior:"smooth",block:"start"})}catch(x){}},60)}
 /* who: the foremen = every truck in Actsoft's group "Foreman" and its registered person (as the foreman idle alerts);
    the truckers = Rules · fuel_split_drivers and their tracker (as the Truckers side) */
-var PYMEN={f:null,p:null,out:[]};
-function PYmen(e){if(PYMEN.f===e.fleet&&PYMEN.p===e.ppl)return PYMEN.out;var ppl=e.ppl||[];
-  var out=(e.fleet||[]).filter(function(u){return u.group_name==="Foreman"&&u.person}).map(function(u){var p=ppl.find(function(x){return PJsame(x.name,u.person)})||{};
-    return{n:u.person,u:u,aid:u.actsoft_id,phone:p.phone||"",role:"Foreman"}}).sort(function(a,b){return z(a.n).localeCompare(z(b.n))});
-  out.forEach(function(x,i){x.color=PJCOL[i%PJCOL.length]});PYMEN={f:e.fleet,p:e.ppl,out:out};return out}
+/* v267 · who drove a truck, by date (truck_drivers, parche211): the dated row that overlaps the days d0..d1 (the latest one),
+   else null = the registered person (gps_units.person, no dates) */
+function PYdrv(aid,d0,d1,e){var R=e.truckDrivers||[],hit=null;for(var i=0;i<R.length;i++){var r=R[i];if(String(r.actsoft_id)!==String(aid))continue;
+  var a=String(r.from_day).slice(0,10),b=r.to_day?String(r.to_day).slice(0,10):"9999-12-31";if(a<=d1&&b>=d0&&(!hit||a>String(hit.from_day).slice(0,10)))hit=r}return hit}
+/* v267 · the office's cost code for a truck-day (payroll_day_codes, parche211): the day's main job carries it (sure), above the
+   crew-email votes — like po_code_set for a PO. Same answer object while the day's answer and the row stay the same */
+var PYOC=new WeakMap();
+function PYoffice(aid,day,s,e){if(!s||!s.main)return s;var C=e.dayCodes||[],r=null;
+  for(var i=0;i<C.length;i++){var c=C[i];if(String(c.actsoft_id)===String(aid)&&String(c.day).slice(0,10)===day){r=c;break}}if(!r||!r.code)return s;
+  var k=PYOC.get(s);if(k&&k.r===r)return k.o;var ev={label:r.code,code:r.code,contract:"",n:0,tot:0,ring:0,office:r,mix:[]};
+  var m=Object.assign({},s.main,{code:r.code,ev:ev,sure:!0}),o=Object.assign({},s,{main:m,sites:s.sites.map(function(q){return q===s.main?m:q})});PYOC.set(s,{r:r,o:o});return o}
+var PYMEN={f:null,p:null,d:null,w:"",out:[]};
+function PYmen(e,wk){wk=wk||PYmon(qt(Date.now()));if(PYMEN.f===e.fleet&&PYMEN.p===e.ppl&&PYMEN.d===e.truckDrivers&&PYMEN.w===wk)return PYMEN.out;var ppl=e.ppl||[],w1=PYadd(wk,6);
+  var us=(e.fleet||[]).filter(function(u){return u.group_name==="Foreman"&&u.person}),dr={};us.forEach(function(u){var r=PYdrv(u.actsoft_id,wk,w1,e);if(r)dr[String(u.actsoft_id)]=r});
+  var out=us.map(function(u){var r=dr[String(u.actsoft_id)],n=r?r.person:u.person;
+    if(!r&&Object.keys(dr).some(function(a){return a!==String(u.actsoft_id)&&PJsame(dr[a].person,u.person)}))n="NO DRIVER \u00B7 "+u.person;
+    var p=ppl.find(function(x){return PJsame(x.name,n)})||{};
+    return{n:n,u:u,aid:u.actsoft_id,phone:p.phone||"",role:"Foreman",reg:u.person,drv:r||null}}).sort(function(a,b){return z(a.n).localeCompare(z(b.n))});
+  out.forEach(function(x,i){x.color=PJCOL[i%PJCOL.length]});PYMEN={f:e.fleet,p:e.ppl,d:e.truckDrivers,w:wk,out:out};return out}
 function PYtruckers(e){var fleet=e.fleet||[],ppl=e.ppl||[];return HLdrivers(e).map(function(n,i){var u=fleet.find(function(x){return PJsame(x.person,n)})||null,p=ppl.find(function(x){return PJsame(x.name,n)})||{},
     hd=u?null:(e.haulDays||[]).find(function(r){return PJsame(r.person,n)});return{n:n,u:u,aid:u&&u.actsoft_id||hd&&hd.actsoft_id||null,phone:p.phone||"",role:"Trucker",color:PJCOL[i%PJCOL.length]}})}
 /* a known place that is no job: Actsoft's geofence tag, a geofence circle with coordinates (yard, office, stations) or a
@@ -2091,7 +2108,8 @@ async function PYload(aids,days,tok,step,o){o=o||{};var now=Date.now(),today=qt(
 function PYready(e){return Array.isArray(e.spots)&&Array.isArray(e.jobPlaces)&&Array.isArray(e.pyVotes)&&Array.isArray(e.costCodes)}
 /* one truck-day's answer (null until it is known): a past day from the nightly table when it has it (v242), else worked out
    here from its GPS; today is always worked out here, again each minute */
-function PYsum(aid,day,e,now){if(!aid)return null;var n=now||Date.now();if(day<qt(n)){var r=PYS.rows[aid+"|"+day];if(r)return r}return PYfull(aid,day,e,n)}
+function PYsum(aid,day,e,now){return PYoffice(aid,day,PYsum0(aid,day,e,now),e)}
+function PYsum0(aid,day,e,now){if(!aid)return null;var n=now||Date.now();if(day<qt(n)){var r=PYS.rows[aid+"|"+day];if(r)return r}return PYfull(aid,day,e,n)}
 /* ...worked out here from the truck's GPS: the only answer that has the day's stops and trail (the dossier's replay) */
 function PYfull(aid,day,e,now){if(!aid||!PYready(e))return null;var k=aid+"|"+day,pos=PYC.pos[k];if(!pos)return null;PYplaces(e);var n=now||Date.now(),td=day===qt(n),c=PYC.sum[k];
   if(c&&c.v===PYC.v&&(!td||n-c.at<6e4))return c.r;var r=PYcalc(pos,day,e,PYC.ws[k],td?n:0);PYC.sum[k]={v:PYC.v,at:n,r:r};return r}
@@ -2129,6 +2147,7 @@ function PYahead(aids,wk,today,tok,bump){var prev=PYdays(PYadd(wk,-7)).filter(fu
 function PYwait(e){return PYready(e)?"Reading GPS…":"Reading the job places and the crew emails' job numbers…"}
 /* how the cost code was found, in words (cell tooltips, the day's answer, the Excel's last column) */
 function PYhow(s,e){if(!s)return"";var ev=s.ev;
+  if(ev&&ev.office)return"Set by the office: "+ev.code+(ev.office.note?" \u00B7 "+ev.office.note:"")+(ev.office.set_by?" ("+ev.office.set_by+")":"");
   if(!ev)return s.typ==="U"?"No job site has been learned here yet (no crew email or learned spot within 400 m)":"No crew email has named this job site yet";
   if(ev.map)return"From the jobsite → cost code map ("+s.name+"); no crew email was ever at this spot"+(s.sure?"":" · check");
   var mix=ev.mix.map(function(m){return(/^NOCODE /.test(m.label)?m.label.slice(7)+" (no job #)":m.label)+" ×"+m.n}).join(", ");
@@ -2161,7 +2180,7 @@ function PYgrid(p){var today=p.today,wait=0,cols=p.days.filter(function(d,i){ret
           m?PJh("span",null,Math.round(m.share*100)+"% · "+PYhr(m.min)):s.ran?PJh("span",null,"yard, stations, home"):null,
           m?PJh("span",null,m.name):null))});
       var top=Object.keys(wsum).sort(function(a,b){return wsum[b]-wsum[a]})[0];
-      return PJh("tr",{key:(x.aid||"")+"|"+x.n},PJh("td",{className:"py-who"},PJh("b",null,z(x.n)),PJh("span",{className:"dim"},x.u&&x.u.vehicle_id?x.u.vehicle_id:x.aid?"tracker":"no tracker")),cells,
+      return PJh("tr",{key:(x.aid||"")+"|"+x.n},PJh("td",{className:"py-who",title:x.drv?z(x.n)+" drives "+(x.u&&x.u.vehicle_id||"this truck")+" since "+PJday(x.drv.from_day)+" (registered to "+z(x.reg)+")":""},PJh("b",null,z(x.n)),PJh("span",{className:"dim"},x.u&&x.u.vehicle_id?x.u.vehicle_id:x.aid?"tracker":"no tracker")),cells,
         PJh("td",{className:"py-wk"},top?PJh("b",null,top):PJh("span",{className:"dim"},"—"),wmin?PJh("span",{className:"dim"},wdays+" day"+(wdays===1?"":"s")+" · "+PYhr(wmin)):null))})));
   /* v242 · what the waiting cells wait for floats over the grid: nothing moves when it comes and goes */
   return PJh("div",{className:"py-wrap"},wait&&p.msg?PJh("div",{className:"py-float",role:"status"},p.msg):null,tb)}
@@ -2194,11 +2213,11 @@ var PYUD={a:null,m:{}};
 function PYmiles(e,aid,day){if(PYUD.a!==e.unitDay){var m={};(e.unitDay||[]).forEach(function(r){var k=r.actsoft_id+"|"+String(r.day).slice(0,10);m[k]=(m[k]||0)+(+r.miles||0)});PYUD={a:e.unitDay,m:m}}var v=PYUD.m[aid+"|"+day];return v==null?null:v}
 /* ---------- the Foremen side of Haul ---------- */
 function FMroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
-  var today=qt(t),minute=Math.floor(t/6e4),men=PYmen(e);
+  var today=qt(t),minute=Math.floor(t/6e4);
   var a1=(0,M.useState)(""),sel=a1[0],setSel=a1[1];
   var a2=(0,M.useState)(""),day=a2[0],setDay=a2[1];
   var a3=(0,M.useState)("day"),tab=a3[0],setTab=a3[1];
-  var a4=(0,M.useState)(function(){return PYmon(today)}),wk=a4[0],setWk=a4[1];
+  var a4=(0,M.useState)(function(){return PYmon(today)}),wk=a4[0],setWk=a4[1],men=PYmen(e,wk);
   var a5=(0,M.useState)(0),setTick=a5[1];
   var a6=(0,M.useState)(""),msg=a6[0],setMsg=a6[1];
   var a7=(0,M.useState)(""),xmsg=a7[0],setXmsg=a7[1];
@@ -2335,12 +2354,12 @@ function PYxlsx(sheets){var X=function(v){return String(v==null?"":v).replace(/[
   return PYzip(f)}
 function PYxday(day){var p=day.split("-");return(Date.UTC(+p[0],+p[1]-1,+p[2])-Date.UTC(1899,11,30))/864e5}
 function PYxtime(ts){if(!ts)return"";var d=new Date(ts);return(d.getHours()*60+d.getMinutes())/1440}
-function PYrows(e,wk,now){var today=qt(now),days=PYdays(wk).filter(function(d){return d<=today}),who=PYmen(e).concat(PYtruckers(e)).filter(function(x){return x.aid}),R=[],by={};
+function PYrows(e,wk,now){var today=qt(now),days=PYdays(wk).filter(function(d){return d<=today}),who=PYmen(e,wk).concat(PYtruckers(e)).filter(function(x){return x.aid}),R=[],by={};
   who.forEach(function(x){days.forEach(function(d){var s=PYsum(x.aid,d,e,now);if(!s||(!s.ran&&!s.sites.length))return;R.push({d:d,x:x,s:s});
     s.sites.forEach(function(q){var k=x.role+"|"+x.n+"|"+(q.code?"C|"+q.code:"N|"+q.name),g=by[k]||(by[k]={x:x,q:q,code:q.code,name:q.name,names:{},days:0,min:0});g.min+=q.min;q.names.forEach(function(n){g.names[n]=1});if(q===s.main)g.days++})})});
   R.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:a.x.role!==b.x.role?(a.x.role==="Foreman"?-1:1):z(a.x.n).localeCompare(z(b.x.n))});
   return{days:days,who:who,R:R,G:Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return a.x.role!==b.x.role?(a.x.role==="Foreman"?-1:1):z(a.x.n).localeCompare(z(b.x.n))||b.min-a.min})}}
-async function PYexport(e,tok,wk,say){var now=Date.now(),today=qt(now),days=PYdays(wk).filter(function(d){return d<=today}),who=PYmen(e).concat(PYtruckers(e)).filter(function(x){return x.aid});
+async function PYexport(e,tok,wk,say){var now=Date.now(),today=qt(now),days=PYdays(wk).filter(function(d){return d<=today}),who=PYmen(e,wk).concat(PYtruckers(e)).filter(function(x){return x.aid});
   if(!who.length||!days.length){MZtoast("Nothing to export: no foremen or truckers with a tracker this week.","info");return}
   if(!PYready(e)){MZtoast("Still reading the job places and the crew emails' job numbers — try again in a moment.","info");return}
   try{say("READING…");var ids=who.map(function(x){return x.aid}),past=days.filter(function(d){return d<today});if(past.length)await PYsrv(ids,past[0],past[past.length-1],tok);
