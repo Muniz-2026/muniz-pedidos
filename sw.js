@@ -1,4 +1,4 @@
-/* MUÑIZ Pedidos - service worker  ·  v261
+/* MUÑIZ Pedidos - service worker  ·  v262
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -7,10 +7,11 @@
        server to revalidate (no-cache), so unchanged files come back as a tiny
        304 and cost almost nothing.
      · When a new sw.js is published (this file changes), the new worker takes
-       over immediately (skipWaiting + clients.claim). index.html listens for
-       that hand-over and reloads the page - every open tab, every home-screen
-       app - so a push reaches all phones the next time they look at it.
-     · Product photos (remote) stay network-then-cache. Supabase REST, function
+       over immediately (skipWaiting + clients.claim). Since v212 updater.js reloads
+       each open page at a safe moment (never in the middle of an order or a PO); a page without it
+       is reloaded by the worker after 1.5 s. So a push reaches all phones the next time they look.
+     · Remote product photos go to the network: an <img> answer is opaque (status 0), so no copy is
+       kept (Nov 10 audit). Supabase REST, function
        and auth calls bypass the worker: nothing from the database is stored on the
        device, and the office machine stops filling Cache Storage with every poll (v213).
      · The phones pre-cache only the phone pages: the Command Center files are cached
@@ -87,9 +88,13 @@
        irrelevant"). The station tickets still reconcile the fuel POs. Phones: nothing changes.
      · v261: Pedidos: no screen flashes between a name and its menu. The menu showed for a frame before the office
        PIN pad, and the store list showed for a moment before the menu (after the PIN) (Tito, Nov 10: "glitchy").
+     · v262: fixes from the Nov 10 audit. Command Center: three reads that the database cut at 1,000 rows (ODOMETER
+       vs GPS, the Haul truckers' live trails, the events list) read every page; Spanish that still showed is English;
+       duplicate orders have a tag and are not counted twice. Phones: ACTIVITY sees the real screen after IR AL INICIO on
+       an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v261";
+const CACHE = "muniz-pedidos-v262";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"

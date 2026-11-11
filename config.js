@@ -57,7 +57,7 @@ window.MUNIZ_CONFIG = {
     "ULISES LARA",
     "HECTOR SEGURA",
     "ENRIQUE CHAPA",          /* coordinador de operaciones */
-    "JULIO MARTINEZ",         /* mayordomo · cubre a Ruben Cano mientras está incapacitado */
+    "JULIO MARTINEZ",         /* mayordomo · cubre a Ruben Cano */
     "JOSE DE LA CERDA",       /* choferes de camion (dump truck): ver CHOFERES_CAMION abajo */
     "ROGELIO LOPEZ",
     "FRANCIS ECHEVESTRE",

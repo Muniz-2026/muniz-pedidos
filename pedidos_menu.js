@@ -1,5 +1,6 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.13
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.14
+   v2.14: el renglón con tu nombre debajo de PARA MÍ (combustible de la oficina) en 13 px, no 12 (DESIGN.md: nada bajo 13 px). v262.
    v2.13: la tienda ya no se ve antes del menú, ni el menú antes de la CLAVE (Tito, Nov 10, video: "a different screen
           blinks quickly"). El menú salía en el toque del nombre y, si el app pedía la CLAVE (oficina), se quitaba un
           cuadro después; y después de la clave (o al abrir el app en la tienda guardada, al regresar del carrito
@@ -273,7 +274,7 @@
         '<button id="mz-fpara-me" style="margin-top:16px;width:100%;min-height:68px;border-radius:16px;border:0;background:#1E3A8A;color:#fff;padding:12px 16px;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer">' +
           '<span style="font-size:30px;line-height:1;flex:none">\u26FD</span>' +
           '<span style="flex:1;min-width:0"><span style="display:block;font:900 20px/1.05 \'Archivo Black\',system-ui,sans-serif;letter-spacing:-.01em">PARA M\u00cd</span>' +
-          '<span style="display:block;font:700 12px/1.25 system-ui,sans-serif;opacity:.85;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fEsc(name) + ' \u00b7 a mi nombre</span></span>' +
+          '<span style="display:block;font:700 13px/1.25 system-ui,sans-serif;opacity:.85;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + fEsc(name) + ' \u00b7 a mi nombre</span></span>' +
           '<span style="font:900 22px/1 system-ui;flex:none">\u2192</span>' +
         '</button>' +
         '<div style="font:800 13px/1 -apple-system,system-ui,sans-serif;letter-spacing:.06em;color:#636366;margin:24px 2px 0">O A NOMBRE DE OTRA PERSONA</div>' +

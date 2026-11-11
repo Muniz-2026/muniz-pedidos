@@ -1,5 +1,8 @@
 /* =====================================================================
-   MUÑIZ · ACTIVIDAD EN VIVO  ·  mz_track.js  ·  v1.2
+   MUÑIZ · ACTIVIDAD EN VIVO  ·  mz_track.js  ·  v1.3
+   v1.3 (10 nov 2026): al tocar IR AL INICIO en un link que no abrió (link_rescue borra el link sin recargar) la pantalla
+         seguía diciendo "revisar": ACTIVITY veía otra pantalla y updater.js nunca actualizaba ese teléfono. Ahora la
+         pantalla sale del link que hay ahora en la dirección; si el app no abrió con un link, igual que antes.
    v1.2 (6 nov 2026): los reintentos solos del PO de combustible (fuel.js "retry", v245) salen en ACTIVITY con su número y
          el error; el PO dice en qué intento salió (tries).
    v1.1 (22 oct 2026): MZT.screen() dice en qué pantalla está el app (solo lectura): updater.js 2.0 la usa para
@@ -28,7 +31,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: no hace nada
 
-  var VERSION = "1.1";
+  var VERSION = "1.3";
   var ME = document.currentScript, PAGE = (ME && ME.getAttribute("data-page")) || "pedidos";   // pedidos · fuel · bandeja
   var K_DEV = "muniz_device_id", K_PED = "muniz_pedido", K_Q = "muniz_mzt_q_" + PAGE, K_FIRST = "muniz_mzt_first", K_SEEN = "muniz_mzt_seen";
   var MAXQ = 400;
@@ -54,6 +57,7 @@
   /* ---------- quién y dónde ---------- */
   var SESS = rid(), LINK = "", fuelWho = "", fuelS = null, lastQ = "";
   try { var h0 = location.hash || ""; LINK = /^#r=/.test(h0) ? "revisar" : /^#p=/.test(h0) ? "recoger" : /^#t=/.test(h0) ? "final" : ""; } catch (e) { }
+  function hashLink() { try { var h = location.hash || ""; return /^#r=/.test(h) ? "revisar" : /^#p=/.test(h) ? "recoger" : /^#t=/.test(h) ? "final" : ""; } catch (e) { return LINK; } }   // v1.3: el link de AHORA
   var prevPed = jget(K_PED, null);
   function who() {
     if (PAGE === "fuel") return fuelWho || up(jget("muniz_fuel_me", ""));
@@ -98,7 +102,7 @@
       if (d.getElementById("mz-para-back")) return "para";
       if (d.getElementById("mz-mat")) return "menu";
       var foto = H.classList.contains("mz-photo") ? "/foto" : "";
-      if (LINK) return LINK + foto;
+      var lk = LINK ? hashLink() : ""; if (lk) return lk + foto;
       var st = prevPed || {}, s = st.name ? String(st.screen || "prov") : "inicio";
       if (foto) return s + foto;
       if (s === "lista" && confirmOpen()) return "lista/mandar";
