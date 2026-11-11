@@ -84,6 +84,10 @@ html[data-theme] .mz-fsctl a{width:44px!important;height:44px!important}
 .mz-fsq-ic{color:var(--dim);display:flex}.mz-fsq-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 .mz-fsq-in input{flex:1;min-width:0;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0!important;background:transparent!important;color:var(--ink);font:14px var(--sans);height:100%;padding:0!important;margin:0}
 .mz-fsq-in input::placeholder{color:var(--dim)}
+.mz-fsq-x{display:flex;align-items:center;justify-content:center;flex:0 0 auto;width:32px;height:32px;margin-right:-6px;padding:0;border:0;background:transparent;color:var(--dim);cursor:pointer;border-radius:999px}
+.mz-fsq-x:hover{color:var(--ink);background:var(--btn-hover)}
+.mz-fsq-x:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.mz-fsq-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
 .mz-fsq-l{margin-top:6px;background:var(--panel);border:1px solid var(--line2);max-height:min(420px,calc(100vh - 90px));overflow:auto}
 .mz-fsq-r{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--hair);padding:9px 12px;color:var(--ink);font:13px var(--sans);cursor:pointer}
 .mz-fsq-r:last-child{border-bottom:0}
