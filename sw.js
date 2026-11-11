@@ -1,4 +1,5 @@
-/* MUÑIZ Pedidos - service worker  ·  v262
+/* MUÑIZ Pedidos - service worker  ·  v263
+     · v263: Command Center order window: the jobsite list = the scheduled jobs (jobsites table), not only past orders.
    Two jobs: (1) load instantly and work offline in the field, (2) make sure
    nobody is stuck on an old version. Rules:
      · Same-origin app files (html/js/css/json) are NETWORK-FIRST with a short
@@ -94,7 +95,7 @@
        an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v262";
+const CACHE = "muniz-pedidos-v263";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
