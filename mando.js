@@ -66,7 +66,7 @@ try{window.MZguard=Object.assign(window.MZguard||{},{idleMin:MZidleMin,setIdle:f
    haul and project tables) refreshes every hour while you're elsewhere, and at its normal pace
    the moment you open the room that shows it. The first load always brings everything. */
 var MZNEED={unitDay:["fuel","fleet","projects","haul"],ledger:["ledger","projects"],tickets:["fuel","haul","projects"],poLog:["ledger","orders","projects"],stationStops:["situation"],fuelGps:["fuel","situation"],fuelTest:["fuel"],
-  haulStops:["haul","projects","situation"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],dtix:["projects","situation"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel","situation"],idleWho:["fuel"],fiAlerts:["fuel"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],pyVotes:["haul"],costCodes:["haul"],jobCodeMap:["haul"],geoKinds:["haul"],sdAlerts:["haul","situation"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],ctSugg:["catalog"]};
+  haulStops:["haul","projects","situation"],haulDays:["haul"],siteDays:["projects"],pmProj:["projects"],pmSched:["projects"],crewDay:["projects"],removedPeople:["people"],permits:["permits","projects"],locates:["permits"],dtix:["projects","situation"],pcosts:["projects"],idleDay:["fuel"],idleSess:["fuel","situation"],idleWho:["fuel"],fiAlerts:["fuel"],stmts:["ledger"],stmtChk:["ledger"],places:["haul"],pyVotes:["haul"],costCodes:["haul"],jobCodeMap:["haul"],geoKinds:["haul"],sdAlerts:["haul","situation"],catalog:["catalog","orders"],ctStats:["catalog"],ctUnlisted:["catalog"],ctDemand:["catalog"],ctHist:["catalog"],ctAlt:["catalog"],ctSugg:["catalog"]};
 function MZivl(name,ms){var need=MZNEED[name];if(!need)return ms;var r=window.MZroomNow||"";return need.indexOf(r)>=0?ms:Math.max(ms*6,3600e3)}
 try{window.MZguard=window.MZguard||{};window.MZguard.ivl=MZivl}catch(e){}
 function MZmul(S){var k=1;try{var r=(S.data.rules||[]).find(function(x){return x.key==="poll_multiplier"});var v=parseFloat(r&&r.value);if(v>=1&&v<=30)k=v}catch(e){}
@@ -144,6 +144,8 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
   /* v223 · who the evidence puts with each truck, per day (view idle_who, parche183) */
   ["idleWho",600e3,3,()=>He(go("idle_who?select=vehicle_id,day,registered,fleetio_driver,po_people,po_refs,crew_people,who,how,registered_had_it&day=gte."+new Date(Date.now()-60*864e5).toISOString().slice(0,10),c,5))],
   ["permits",600e3,3,()=>He($e("permits_status?select=*&order=crew_no.asc,kind.asc,created_at.desc",c))],
+   /* v268 · the 811 / ROW board (parche213); 404 before it runs = failed = the old Permits room */
+   ["locates",300e3,3,()=>He(Gi("locate_board",{},c).then(LCwrap,LCfail))],
   ["removedPeople",600e3,3,()=>He($e("people_removed?select=id,name,outcome,removed_by,removed_at,refs&restored_at=is.null&order=removed_at.desc&limit=30",c))],
   ["crewDay",600e3,2,()=>He(go("crew_day_office?select=day,crew_no,name_raw,person,project,location&day=gte."+new Date(Date.now()-120*864e5).toISOString().slice(0,10)+"&order=day.desc",c,4))],
   /* v252 · the crews board reads the trucks: where each Foreman truck worked (payroll_days, the FOREMEN grid's rule) and where every
@@ -178,7 +180,7 @@ function Cm(e){let[t,n]=(0,M.useState)({loading:!0}),[r,l]=(0,M.useState)(0),mem
  const commit=()=>{const d=S.data;try{window.MZrules=d.rules||E0("rules")}catch(x){}if(!alive||!d.orders||!d.fuel)return;
   (0,M.startTransition)(()=>n({loading:!1,fuel:MZmap(S,"fuel",d.fuel,A=>({...A,ts:new Date(A.created_at).getTime()})),orders:MZmap(S,"orders",d.orders,A=>({...A,ts:new Date(A.submitted_at||A.requested_at||A.created_at).getTime()})),
    fuelTest:d.fuelTest||E0("fuelTest"),ev:d.ev||E0("ev"),veh:d.veh||E0("veh"),ppl:d.ppl||E0("ppl"),tickets:d.tickets||E0("tickets"),fleet:d.fleet||E0("fleet"),fleetio:d.fleetio||E0("fleetio"),fleetioOdo:d.fleetioOdo||E0("fleetioOdo"),fleetioLog:d.fleetioLog||E0("fleetioLog"),fuelGps:d.fuelGps||E0("fuelGps"),lastPo:(d.lastPo||E0("lastPo"))[0]||null,unitDay:d.unitDay||E0("unitDay"),oev:d.oev||E0("oev"),
-   rules:d.rules||E0("rules"),pmProj:d.pmProj||E0("pmProj"),pmSched:d.pmSched||E0("pmSched"),crewDay:d.crewDay||E0("crewDay"),crewPat:(window.__mzPat!==d.crewPat&&d.crewPat&&(window.__mzPat=d.crewPat,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzPat||E0("crewPat")),nights:d.nights||E0("nights"),removedPeople:d.removedPeople||E0("removedPeople"),permits:d.permits||E0("permits"),dtix:d.dtix||E0("dtix"),pcosts:d.pcosts||E0("pcosts"),idleDay:d.idleDay||E0("idleDay"),idleSess:d.idleSess||E0("idleSess"),idleWho:d.idleWho||E0("idleWho"),stmts:d.stmts||E0("stmts"),stmtChk:d.stmtChk||E0("stmtChk"),siteDays:d.siteDays||E0("siteDays"),haulDays:d.haulDays||E0("haulDays"),haulStops:d.haulStops||E0("haulStops"),places:d.places||E0("places"),geofences:d.geofences||E0("geofences"),pyVotes:d.pyVotes,costCodes:d.costCodes,jobCodeMap:d.jobCodeMap||E0("jobCodeMap"),truckDrivers:d.truckDrivers||E0("truckDrivers"),dayCodes:d.dayCodes||E0("dayCodes"),jobList:d.jobList||E0("jobList"),geoKinds:d.geoKinds||E0("geoKinds"),spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||E0("spots"),setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||E0("stationStops"),ledger:d.ledger||E0("ledger"),poLog:d.poLog||E0("poLog"),sdAlerts:d.sdAlerts||E0("sdAlerts"),fiAlerts:d.fiAlerts||E0("fiAlerts"),appLive:d.appLive||E0("appLive"),catalog:d.catalog,ctStats:d.ctStats||E0("ctStats"),ctUnlisted:d.ctUnlisted||E0("ctUnlisted"),ctDemand:d.ctDemand||E0("ctDemand"),ctHist:d.ctHist||E0("ctHist"),ctAlt:d.ctAlt||E0("ctAlt"),ctSugg:d.ctSugg||E0("ctSugg"),sync:S.sync||Date.now(),err:S.err||""}))};
+   rules:d.rules||E0("rules"),pmProj:d.pmProj||E0("pmProj"),pmSched:d.pmSched||E0("pmSched"),crewDay:d.crewDay||E0("crewDay"),crewPat:(window.__mzPat!==d.crewPat&&d.crewPat&&(window.__mzPat=d.crewPat,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzPat||E0("crewPat")),nights:d.nights||E0("nights"),removedPeople:d.removedPeople||E0("removedPeople"),permits:d.permits||E0("permits"),locates:d.locates||E0("locates"),dtix:d.dtix||E0("dtix"),pcosts:d.pcosts||E0("pcosts"),idleDay:d.idleDay||E0("idleDay"),idleSess:d.idleSess||E0("idleSess"),idleWho:d.idleWho||E0("idleWho"),stmts:d.stmts||E0("stmts"),stmtChk:d.stmtChk||E0("stmtChk"),siteDays:d.siteDays||E0("siteDays"),haulDays:d.haulDays||E0("haulDays"),haulStops:d.haulStops||E0("haulStops"),places:d.places||E0("places"),geofences:d.geofences||E0("geofences"),pyVotes:d.pyVotes,costCodes:d.costCodes,jobCodeMap:d.jobCodeMap||E0("jobCodeMap"),truckDrivers:d.truckDrivers||E0("truckDrivers"),dayCodes:d.dayCodes||E0("dayCodes"),jobList:d.jobList||E0("jobList"),geoKinds:d.geoKinds||E0("geoKinds"),spots:(window.__mzSpots!==d.spots&&(window.__mzSpots=d.spots||E0("spots"),setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzSpots),jobPlaces:(window.__mzCrew!==d.crewDay&&(window.__mzCrew=d.crewDay,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs!==d.jobPlaces&&(window.__mzJobs=d.jobPlaces,setTimeout(()=>{try{window.dispatchEvent(new Event("mz-spots"))}catch(x){}},0)),window.__mzJobs),stationStops:d.stationStops||E0("stationStops"),ledger:d.ledger||E0("ledger"),poLog:d.poLog||E0("poLog"),sdAlerts:d.sdAlerts||E0("sdAlerts"),fiAlerts:d.fiAlerts||E0("fiAlerts"),appLive:d.appLive||E0("appLive"),catalog:d.catalog,ctStats:d.ctStats||E0("ctStats"),ctUnlisted:d.ctUnlisted||E0("ctUnlisted"),ctDemand:d.ctDemand||E0("ctDemand"),ctHist:d.ctHist||E0("ctHist"),ctAlt:d.ctAlt||E0("ctAlt"),ctSugg:d.ctSugg||E0("ctSugg"),sync:S.sync||Date.now(),err:S.err||""}))};
  const retry=d=>{S.at[d[0]]=Date.now()-Math.max(0,MZivl(d[0],d[1])*(d[0]==="rules"?1:MZmul(S))-6e4)};
  let pp=!1;const emit=(type,detail)=>{try{window.dispatchEvent(new CustomEvent(type,{detail:detail}))}catch(x){}};
  const round=async()=>{if(!alive||busy)return;if(document.hidden&&!S.first){timer=0;return}busy=!0;const forPull=!!S.pullNow;S.pullNow=!1;
@@ -1654,6 +1656,7 @@ function HLmap(p){var box=(0,M.useRef)(null),map=(0,M.useRef)(null),lay=(0,M.use
     var ro=window.ResizeObserver?new ResizeObserver(function(){try{map.current&&map.current.invalidateSize()}catch(x){}}):null;ro&&ro.observe(box.current);
     return function(){ro&&ro.disconnect();window.removeEventListener("mz-theme",th);ly.off();try{map.current.remove()}catch(x){}map.current=null}},[]);
   (0,M.useEffect)(function(){var L=window.L;if(!L||!map.current)return;var g=lay.current;g.clearLayers();var pts=[];
+    /* v268 · areas: polygons (an 811 work area) */(p.areas||[]).forEach(function(a){(a.rings||[]).forEach(function(r){if(!r||r.length<3)return;var pg=L.polygon(r,{color:a.color||"var(--accent)",weight:a.weight||2,fillColor:a.color||"var(--accent)",fillOpacity:a.fill!=null?a.fill:.12,dashArray:a.dash||null}).addTo(g);if(a.tip)pg.bindTooltip(a.tip,{className:"tip"});r.forEach(function(q){pts.push(q)})})});
     (p.places||[]).forEach(function(pl){if(!pl.lat)return;var c=HLcol(pl.kind);L.circleMarker([pl.lat,pl.lon],{radius:pl.kind==="jobsite"?4:5,color:c,weight:1.5,fillColor:c,fillOpacity:.35}).addTo(g).bindTooltip("<b>"+pl.name+"</b><br>"+HLlab(pl.kind),{className:"tip"})});
     (p.trails||[]).forEach(function(tr){if(tr.pts&&tr.pts.length>1){L.polyline(tr.pts,{color:tr.color,weight:tr.weight||3,opacity:tr.opacity||.85,lineJoin:"round"}).addTo(g);if(p.fitTrails)tr.pts.forEach(function(q){pts.push(q)})}});
     (p.route||[]).forEach(function(r,i,a){if(i>0)L.polyline([[a[i-1].lat,a[i-1].lon],[r.lat,r.lon]],{color:"#0A84FF",weight:3,dashArray:"6 6",opacity:.95}).addTo(g);
@@ -3835,6 +3838,463 @@ function PMroom(p){var e=p.d,t=p.now,tok=p.t,[f,setF]=(0,M.useState)("all"),[ope
       PJh("div",{className:"db"},PJh("div",{className:"dim",style:{marginBottom:12}},(sel.person?z(sel.person):"Subcontractor")+(sel.project?" · "+sel.project:"")),PJh(PMpair,{d:e,crewNo:sel.crew,person:sel.person,tok:tok,onChanged:p.onChanged})),
       PJh("footer",{className:"df"},PJh("button",{className:"btn",onClick:function(){setOpen(null)}},"CLOSE")))):null)}
 
+/* v268 · LOCATES board */
+
+/* ===== LOCATES · 811 tickets + ROW permits from locate_board() (parche213) ==========================================
+   The PERMITS room shows this board once rpc/locate_board answers; before parche213 (404) or on a failed first read the
+   old PMroom shows exactly as before (LCgate). Grey = normal, amber = a person has to look, red = act now. Every big
+   number opens the rows it counts. Pure parts (LCcalc and friends) are tested in tools/release/locates/calctest.js. */
+var LCdfW=new Intl.DateTimeFormat("en-US",{weekday:"short",month:"short",day:"numeric",timeZone:"UTC"}),
+  LCdfS=new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",timeZone:"UTC"}),
+  LCtf=new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"}),
+  LCdfC=new Intl.DateTimeFormat("en-CA",{year:"numeric",month:"2-digit",day:"2-digit",timeZone:"America/Chicago"});
+function LCms(d){var m=/^(\d{4})-(\d\d)-(\d\d)/.exec(String(d||""));return m?Date.UTC(+m[1],+m[2]-1,+m[3]):NaN}
+function LCadd(d,n){var t=LCms(d);return isNaN(t)?null:new Date(t+n*864e5).toISOString().slice(0,10)}
+function LCdiff(a,b){return Math.round((LCms(b)-LCms(a))/864e5)}
+function LCday(d){var t=LCms(d);return isNaN(t)?"—":LCdfW.format(t)}
+function LCdayS(d){var t=LCms(d);return isNaN(t)?"—":LCdfS.format(t)}
+function LCclock(iso){if(!iso)return"—";var t=Date.parse(iso);return isNaN(t)?"—":LCtf.format(t)}
+function LCwhen(iso,today){if(!iso)return"never";var t=Date.parse(iso);if(isNaN(t))return"—";var d=LCdfC.format(t);return(d===today?"":LCdayS(d)+" ")+LCtf.format(t)}
+/* "2026-10-23T16:46:51.253" is Texas811's Central time without a zone: shown as written */
+function LClocal(s){var m=/^(\d{4}-\d\d-\d\d)T(\d\d):(\d\d)/.exec(String(s||""));if(!m)return s?LCday(s):"—";var h=+m[2],ap=h<12?"AM":"PM";h=h%12||12;return LCday(m[1])+" · "+h+":"+m[3]+" "+ap}
+function LCplural(n,w,ws){return n+" "+(n===1?w:(ws||w+"s"))}
+function LCtx(n){return"https://txgc.texas811.org/ui/ticket/"+encodeURIComponent(n)}
+/* the board is an object, the sync list keeps arrays: [board], without the values that change on every read (now,
+   age_min), so an unchanged board is the same list again (MZkeep) and nothing redraws */
+/* how the last read went (spec 6c N8): "missing" = not installed (404 / PGRST202: the old room, silently), "failed" = any other
+   failure (one plain line above the room; the last good board stays), null = read fine */
+var LCrd={err:null};
+function LCfail(x){var q=String(x&&x.message||x);LCrd.err=(x&&x.status===404)||/PGRST202|Could not find the function/i.test(q)?"missing":"failed";
+  /* plain words for the top bar too, never the raw JSON */
+  var e=new Error(LCrd.err==="missing"?"811 / ROW board not installed yet":"811 / ROW board not read just now");e.status=x&&x.status;throw e}
+function LCwrap(b){if(!b||typeof b!=="object"||Array.isArray(b)||!Array.isArray(b.tickets)){LCrd.err="failed";return b}
+  LCrd.err=null;var c=Object.assign({},b);delete c.now;c.sources=(b.sources||[]).map(function(s){var o=Object.assign({},s);delete o.age_min;return o});return[c]}
+function LCboard(e){var a=e&&e.locates;return Array.isArray(a)&&a[0]&&a[0].v&&Array.isArray(a[0].tickets)?a[0]:null}
+function LCerr(x){var q=String(x&&x.message||x);try{q=JSON.parse(q).message||q}catch(y){}
+  if(/PGRST202|schema cache|locate_|row_permit|row_extension/i.test(q)&&/could not find|does not exist|schema cache/i.test(q))return"Run parche213 first: it turns on the 811 / ROW board.";return q.slice(0,200)}
+/* R8 place gap: the board's own flag when it sends one, else the rule (kind crew or equipment, 60+ min, no live ticket
+   or a lapsed one, not home, not acknowledged) */
+function LCgap(c,pl){if(pl&&typeof pl.gap==="boolean")return pl.gap;return(c.kind==="crew"||c.kind==="equipment")&&(pl.min||0)>=60&&(pl.tstate==="NONE"||pl.tstate==="LAPSED")&&!pl.home&&!pl.ack}
+var LCFAC=[/water|sewer/i,/gas/i,/electric/i];
+function LCfacRank(f){for(var i=0;i<LCFAC.length;i++)if(LCFAC[i].test(f||""))return i;return 9}
+function LCbyFac(a,b){return LCfacRank(a.fac)-LCfacRank(b.fac)||String(a.name).localeCompare(String(b.name))}
+function LCunusual(t){return(t.silent||[]).filter(function(s){return s.usual!=="NEVER"}).sort(LCbyFac)}
+function LCcrew3(x,today){return!!(x&&x.last_seen&&x.last_seen>=LCadd(today,-2))}
+var LCKIND={NORMAL:"Normal",UPDATE:"Update (renewal)",DIGUP:"Dig-up (damage)",CANCELLATION:"Cancellation",NONCOMPLIANT:"Non-compliant",EMERGENCY:"Emergency"};
+function LCkind(k){return LCKIND[k]||(k?String(k).replace(/^OTHER:/,""):"—")}
+var LCTS={LIVE:"live ticket",WORKLIFE:"past 14 days, inside 14 working days",LAPSED:"ticket lapsed",LATER:"ticket taken later",NONE:"no ticket known",NOPOS:"no position yet"};
+/* a place's ticket state in words: [main, grey line or null]. A lapse reads as one only when the ticket is on the board and its
+   calendar expiry is within 45 days of that day; an older lapse is "no ticket known" (the count and the gap flag don't change) */
+function LCtsText(pl,day,byN){var st=pl.tstate,n=pl.ticket;
+  if(st==="LAPSED"){var t=n&&byN[n],ex=t&&t.expires_cal;
+    if(ex&&ex>=LCadd(day,-45))return["ticket lapsed "+LCday(ex)+" · "+n,null];
+    return[LCTS.NONE,n?"an older ticket once covered this spot: "+n:null]}
+  return[(LCTS[st]||st||"—")+(n&&st!=="NONE"?" "+n:""),null]}
+var LCPS={ACTIVE:"permit active",ENDED:"permit ended",FUTURE:"permit starts later",NONE:"no permit"};
+/* status chip of a ticket: [words, tone] tone = "" grey · "amber" · "red" */
+function LCtStat(t,today){if(!t)return["—",""];
+  if(t.ours===!1&&t.status!=="STUB")return["OTHER COMPANY'S TICKET","amber"];
+  if(t.status==="STUB")return[t.not_found?"Not found on Texas811":"Being read from Texas811…",t.not_found?"amber":""];
+  if(t.status==="LIVE"){if(t.level==="DUE")return[t.renew_by<today?"Renew now · was due "+LCdayS(t.renew_by):"Renew today","red"];
+    if(t.level==="SOON")return["Renew by "+LCday(t.renew_by),"amber"];if(t.level==="LAPSE")return["Letting it lapse · ends "+LCdayS(t.expires_cal),""];
+    var d=LCdiff(today,t.expires_cal);return["Live · "+LCplural(d,"day")+" left",""]}
+  if(t.level==="EXPIRED")return["Expired "+LCdayS(t.expires_cal)+" · crew there","red"];
+  if(t.status==="SUPERSEDED")return["Renewed"+(t.superseded_by?" by "+t.superseded_by:""),""];
+  if(t.status==="CANCELLED")return["Cancelled",""];if(t.status==="FUTURE")return["Starts "+LCdayS(t.created_day),""];
+  return["Expired "+LCdayS(t.expires_cal),""]}
+function LCpStat(p,today){if(!p)return["—",""];var c3=LCcrew3(p,today);
+  if(p.requested&&p.level!=="ENDED")return["Extension requested "+LCdayS(p.ext_requested_on),""];
+  if(p.requested&&p.level==="ENDED")return["Ended "+LCdayS(p.end)+" · extension requested "+LCdayS(p.ext_requested_on),c3?"amber":""];
+  if(p.level==="ENDED")return["Ended "+LCdayS(p.end)+(c3?" · crew there":""),c3?"red":""];
+  if(p.level==="SOON")return[p.days_left===0?"Ends today":"Ends in "+LCplural(p.days_left,"day"),"amber"];
+  if(p.level==="NODATE")return["No end date on file","amber"];
+  return[LCplural(p.days_left,"day")+" left",""]}
+/* the City feed and our end date disagree: a person has to look (spec 6b.14) */
+function LCfeedOff(p){return!!(p&&p.feed_end&&p.end&&String(p.feed_end).slice(0,10)!==String(p.end).slice(0,10))}
+function LCblocks(p){if(!p)return"";var a=p.from,b=p.to;if(!a&&!b)return"";if(!b||a===b)return a+" block";if(!a)return b+" block";return a+"–"+b+" blocks"}
+function LCpermitWhere(p){return[p.street?z(p.street):p.project||"Permit "+(p.permit||p.id),LCblocks(p)].filter(Boolean).join(" · ")}
+function LCsite(t){var s=t.site||[t.street,t.intersection].filter(Boolean).join(" @ ");return s?z(s):"Ticket "+t.number}
+function LCplace(pl){return(pl.street?z(pl.street):"Unknown street")+(pl.block?" · "+pl.block+" block":"")}
+/* "Skid VIN # 6379" → "Skid #6379": the VIN's last digits tell two skids apart */
+function LCuname(s){return String(s||"").replace(/\s*VIN\s*#?\s*(\d+)\s*$/i," #$1").trim()}
+function LCunit(c){return LCuname(c.unit)||"Unit "+c.actsoft_id}
+/* the unit and its person, once when the tracker is named after the person */
+function LCwho(c){var u=LCunit(c),p=c.person?z(c.person):"";return p&&u.toLowerCase().indexOf(p.toLowerCase())<0?u+" \u00B7 "+p:u}
+function LCtkSort(a,b){var r=function(t){return t.status==="STUB"?1:t.status==="LIVE"?0:2};return r(a)-r(b)||
+  (r(a)===0?String(a.renew_by).localeCompare(String(b.renew_by)):String(b.created_day||"").localeCompare(String(a.created_day||"")))||String(b.number).localeCompare(String(a.number))}
+
+/* the whole room's numbers and lists from one board (pure) */
+function LCcalc(b){var today=b.today,T=b.tickets||[],P=b.permits||[],C=b.crews||[],byN={};T.forEach(function(t){byN[t.number]=t});
+  var live=T.filter(function(t){return t.status==="LIVE"});
+  /* another company's ticket (ours false, 6c S7) is never ours to renew and never cover */
+  var mine=function(t){return t.ours!==!1};
+  var renew=live.filter(function(t){return t.level==="DUE"&&mine(t)}).sort(function(a,c){return String(a.renew_by).localeCompare(String(c.renew_by))||String(a.number).localeCompare(String(c.number))});
+  var soon=live.filter(function(t){return t.level==="SOON"&&mine(t)}).sort(function(a,c){return String(a.renew_by).localeCompare(String(c.renew_by))});
+  var expired=T.filter(function(t){return t.level==="EXPIRED"&&mine(t)}).sort(function(a,c){return String(c.last_seen||"").localeCompare(String(a.last_seen||""))||String(c.expires_cal).localeCompare(String(a.expires_cal))});
+  var gaps=[];C.forEach(function(c){if(c.day!==today)return;(c.places||[]).forEach(function(pl,i){if(LCgap(c,pl))gaps.push({c:c,pl:pl,i:i,t:pl.ticket?byN[pl.ticket]||null:null})})});
+  gaps.sort(function(a,c){return(c.pl.min||0)-(a.pl.min||0)});
+  var pAct=P.filter(function(p){return p.active!==!1});
+  var pSoon=pAct.filter(function(p){return p.level==="SOON"}).sort(function(a,c){return String(a.end).localeCompare(String(c.end))});
+  var pEnded=P.filter(function(p){return p.level==="ENDED"&&LCcrew3(p,today)}).sort(function(a,c){return String(c.last_seen).localeCompare(String(a.last_seen))});
+  var quiet=live.filter(function(t){return mine(t)&&LCcrew3(t,today)&&LCunusual(t).length>0});
+  var stubs=T.filter(function(t){return t.status==="STUB"});
+  var todo=[].concat(
+    renew.map(function(t){return{k:"renew",tone:"red",t:t}}),
+    expired.map(function(t){return{k:"expired",tone:"red",t:t}}),
+    gaps.map(function(g){return{k:"gap",tone:"red",g:g}}),
+    pEnded.map(function(p){return{k:"pended",tone:"red",p:p}}),
+    soon.map(function(t){return{k:"soon",tone:"amber",t:t}}),
+    pSoon.map(function(p){return{k:"psoon",tone:"amber",p:p}}),
+    quiet.map(function(t){return{k:"quiet",tone:"amber",t:t}}));
+  var days=[];C.forEach(function(c){if(days.indexOf(c.day)<0)days.push(c.day)});days.sort().reverse();
+  return{today:today,byN:byN,live:live,renew:renew,soon:soon,expired:expired,gaps:gaps,pSoon:pSoon,pEnded:pEnded,quiet:quiet,stubs:stubs,todo:todo,days:days,
+    nums:{renew_today:renew.length,crews_no_ticket:gaps.length,permits_soon:pSoon.length,not_marked_sites:quiet.length,expired_with_crew:expired.length,renew_soon:soon.length,permits_ended_with_crew:pEnded.length},
+    tickets:T.filter(function(t){return t.kind!=="DIGUP"}).slice().sort(LCtkSort),
+    permits:P.slice().sort(function(a,c){var r=function(p){return p.level==="ENDED"?(LCcrew3(p,today)?0:3):p.level==="SOON"?1:p.level==="NODATE"?2:2};return r(a)-r(c)||String(a.end||"9").localeCompare(String(c.end||"9"))})}}
+/* crews of one day, gaps first, then the most minutes */
+function LCcrewsOf(b,day){return(b.crews||[]).filter(function(c){return c.day===day}).map(function(c){var g=(c.places||[]).filter(function(pl){return LCgap(c,pl)}).length,
+  w=(c.places||[]).some(function(pl){return pl.tstate==="WORKLIFE"&&!pl.home});return{c:c,gaps:g,wl:w}}).sort(function(a,x){return(x.gaps>0)-(a.gaps>0)||(x.c.ticket_gap?1:0)-(a.c.ticket_gap?1:0)||x.wl-a.wl||(x.c.minutes||0)-(a.c.minutes||0)})}
+/* DigUp: what the utilities of the damaged kind had answered on the ticket the crew worked under */
+function LCdmgAns(d){var hit=String(d.hit||"").toLowerCase().split(/[^a-z]+/).filter(Boolean),a=d.parent_answers||[];
+  var m=hit.length?a.filter(function(x){var f=String(x.fac||"").toLowerCase();return hit.some(function(h){return f.indexOf(h)>=0})}):[];return m}
+/* search (v256): tickets by number / street / PM, permits by number / street */
+function LCsearch(e,u){var b=LCboard(e);if(!b)return{t:[],p:[]};
+  return{t:(b.tickets||[]).filter(function(t){return t.kind!=="DIGUP"&&[t.number,t.site,t.street,t.intersection,t.contact,t.caller].some(u)}).slice(0,8),
+    p:(b.permits||[]).filter(function(p){return[p.permit,p.street,p.project].some(u)}).slice(0,8),b:b}}
+/* the extension request: a short e-mail body with a table, "extend to" left blank */
+function LCextText(ps){var rows=ps.map(function(p){return[LCpermitWhere(p),p.permit||"(no number)",p.end?LCday(p.end)+", "+String(p.end).slice(0,4):"(no date)",""]});
+  var head=["Street and blocks","Permit","Current end date","Extend to"],w=head.map(function(h,i){return Math.max(h.length,rows.reduce(function(a,r){return Math.max(a,r[i].length)},0))});
+  var line=function(r){return r.map(function(c,i){return i<3?(c+new Array(w[i]-c.length+1).join(" ")):c}).join(" | ").replace(/\s+$/,"")};
+  return"Hello,\n\nPlease extend the right-of-way permit"+(ps.length===1?"":"s")+" below. The work is not finished yet.\n\n"+line(head)+"\n"+w.map(function(n){return new Array(n+1).join("-")}).join("-|-")+"\n"+rows.map(line).join("\n")+"\n\nThank you,\nMuñiz Concrete & Contracting"}
+
+/* PERMITS room: the board when it answers, else the old room exactly as before */
+var LCmemoC=null;function LCmemo(){return LCmemoC||(LCmemoC=M.memo(LCroom))}
+function LCgate(p){var b=LCboard(p.d);
+  return PJh(s.Fragment,null,LCrd.err==="failed"?PJh("div",{className:"lc-line amber lc-rderr"},"The 811 / ROW board could not be read just now. Trying again."):null,
+    b?PJh(LCmemo(),{b:b,t:p.t}):PJh(PMroom,p))}
+/* an unread ticket number the office pasted can be taken back (6c S4) */
+async function LCremove(n,tok){try{await Gi("locate_ticket_set",{p_number:n,p:{remove:!0}},tok);MZtoast("Removed "+n,"ok");MZforce(["locates"])}catch(x){MZtoast(LCerr(x),"err",8000)}}
+function LCchip(st){return PJh("span",{className:"lc-chip"+(st[1]?" "+st[1]:"")},st[0])}
+function LCbtnA(href,label,cls){return PJh("a",{key:"a"+label,className:"btn sm"+(cls?" "+cls:""),href:href,target:"_blank",rel:"noopener",onClick:function(ev){ev.stopPropagation()}},label)}
+function LCstop(f){return function(ev){ev.stopPropagation();f()}}
+var LCSRC={texas811:"Texas811 tickets",city_feed:"City permit feed",gps:"Truck GPS"};
+function LCnever(b){var seen={},out=[];(b.never_answer||[]).slice().sort(LCbyFac).forEach(function(x){if(seen[x.name])return;seen[x.name]=1;
+  var other=(b.tickets||[]).some(function(t){return(t.answers||[]).some(function(a){return a.code===x.code&&a.grp!==x.grp&&!(b.never_answer||[]).some(function(y){return y.code===a.code&&y.grp===a.grp})})});
+  out.push(x.name+" ("+x.fac+(other?"; one of its groups":"")+")")});return out}
+
+function LCroom(p){var b=p.b,tok=p.t,c=(0,M.useMemo)(function(){return LCcalc(b)},[b]),today=b.today;
+  var[tab,setTab]=(0,M.useState)("today"),[focus,setFocus]=(0,M.useState)(null),[win,setWin]=(0,M.useState)(null),pasteRef=(0,M.useRef)(null);
+  (0,M.useEffect)(function(){var w=MZseekGet("permits");if(!w)return;
+    if(w.ticket&&c.byN[w.ticket]){MZseekW=null;setWin({k:"t",id:w.ticket})}
+    else if(w.permit!=null&&(b.permits||[]).some(function(x){return x.id===w.permit})){MZseekW=null;setWin({k:"p",id:w.permit})}},[b]);
+  var open=function(k,id,x){setWin(Object.assign({k:k,id:id},x||{}))},close=function(){setWin(null)};
+  var show=function(k){setTab("today");setFocus(focus===k?null:k)};
+  var toPaste=function(){var el=pasteRef.current;if(!el)return;try{el.scrollIntoView({block:"center",behavior:"smooth"})}catch(x){}el.focus()};
+  var num=function(k,n,label,sub,tone){return PJh("button",{key:k,className:"lc-num"+(n?" "+tone:"")+(focus===k&&tab==="today"?" on":""),onClick:function(){show(k)},title:"Show the rows behind this number"},
+    PJh("b",null,n),PJh("span",null,label),sub?PJh("i",null,sub):null)};
+  var nv=LCnever(b),src=b.sources||[],stubN=Math.max(0,((b.counts&&b.counts.stubs)||0)-c.stubs.filter(function(t){return(!t.src||t.src==="office")&&!t.not_found}).length);/* the ones listed under the paste box are not "earlier" numbers */
+  var ctx={b:b,c:c,t:tok,open:open,toPaste:toPaste};
+  var tabs=[["today","TODAY",c.todo.length],["tickets","TICKETS",c.tickets.length],["permits","PERMITS",c.permits.length],["crews","CREWS",null],["damages","DAMAGES",(b.damages||[]).length],["next","NEXT WEEK",(b.next_week||[]).length]];
+  return PJh("div",{className:"lc-room"},
+    PJh("section",{className:"panel lc-head"},
+      PJh("div",{className:"lc-eyebrow"},"811 TICKETS + ROW PERMITS · "+LCday(today).toUpperCase()),
+      PJh("div",{className:"lc-nums"},
+        num("renew",c.nums.renew_today,"RENEW TODAY",c.expired.length?"+ "+c.expired.length+" past expiry with a crew":"tickets due on Texas811","red"),
+        num("gap",c.nums.crews_no_ticket,"CREWS WITHOUT A TICKET","places today, 60+ min, no live ticket","red"),
+        num("psoon",c.nums.permits_soon,"PERMITS ENDING","within "+((b.rules&&b.rules.row_soon_days)||14)+" days"+(c.pEnded.length?" · "+c.pEnded.length+" ended, crew there":""),"amber"),
+        num("quiet",c.nums.not_marked_sites,"NOT MARKED","a utility that usually answers has not","amber")),
+      PJh("div",{className:"lc-src"},src.map(function(s){var lv=s.level==="DOWN"?"red":s.level==="LATE"?"amber":"";
+        return PJh("span",{key:s.source,className:lv,title:s.note||""},PJh("b",null,LCSRC[s.source]||s.source),"read "+LCwhen(s.last_ok,today)+(lv?" · "+(s.level==="DOWN"?"not reading":"late"):""))})),
+      stubN?PJh("div",{className:"lc-line"},LCplural(stubN,"earlier ticket number is","earlier ticket numbers are")+" still being read from Texas811."):null,
+      nv.length?PJh("div",{className:"lc-line dim"},"These utilities do not post answers to Texas811, so their lines are never confirmed marked: "+nv.join(", ")+"."):null),
+    PJh(LCpaste,{t:tok,inRef:pasteRef,stubs:c.stubs,armed:b.armed!==!1}),
+    PJh("div",{className:"lc-tabs"},tabs.map(function(x){return PJh("button",{key:x[0],className:"pj-chip"+(tab===x[0]?" on":""),onClick:function(){setTab(x[0]);setFocus(null)}},x[1]+(x[2]!=null?" "+x[2]:""))})),
+    tab==="today"?LCtoday(ctx,focus,function(){setFocus(null)}):null,
+    tab==="tickets"?PJh(LCtickets,{ctx:ctx}):null,
+    tab==="permits"?PJh(LCpermits,{ctx:ctx}):null,
+    tab==="crews"?PJh(LCcrews,{ctx:ctx}):null,
+    tab==="damages"?LCdamages(ctx):null,
+    tab==="next"?LCnext(ctx):null,
+    win&&win.k==="t"&&c.byN[win.id]?PJh(LCtWin,{key:"t"+win.id,tk:c.byN[win.id],ctx:ctx,onClose:close}):null,
+    win&&win.k==="p"?PJh(LCpWin,{key:"p"+win.id,pm:(b.permits||[]).find(function(x){return x.id===win.id})||null,ctx:ctx,onClose:close,isNew:win.id==="new"}):null,
+    win&&win.k==="pl"?PJh(LCplWin,{key:"pl"+win.id,id:win.id,ctx:ctx,onClose:close}):null)}
+
+/* the always-visible box: a ticket number, or the whole Texas811 confirmation */
+function LCpaste(p){var[txt,setTxt]=(0,M.useState)(""),[busy,setBusy]=(0,M.useState)(!1),office=(p.stubs||[]).filter(function(t){return!t.src||t.src==="office"});
+  var go=async function(){var s=txt.trim();if(!s||busy)return;var ns=s.match(/\b\d{10}\b/g);if(!ns){MZtoast("No 10-digit ticket number in that text","err",5000);return}
+    setBusy(!0);try{var r=await Gi("locate_add_tickets",{p_text:s},p.t);
+      /* a refusal in plain words (more than 60 numbers, too long): say it, keep the text */
+      if(r&&r.error){MZtoast(String(r.error).slice(0,200),"err",8000);return}
+      var a=(r&&r.added||[]).length,k=(r&&r.known||[]).length;
+      if(!a&&!k){MZtoast("No ticket number found in that text","err",6000);return}
+      MZtoast((a?"Added "+a:"Nothing new")+(k?" · already known "+k:"")+(a?" · read from Texas811 within a minute":""),"ok",6000);setTxt("");MZforce(["locates"])}
+    catch(x){MZtoast(LCerr(x),"err",8000)}finally{setBusy(!1)}};
+  return PJh("section",{className:"panel lc-paste"},
+    PJh("label",{htmlFor:"lc-paste-in"},"Paste a ticket number, or the whole confirmation"),
+    PJh("div",{className:"lc-prow"},
+      PJh("textarea",{id:"lc-paste-in",ref:p.inRef,className:"inp",rows:2,value:txt,placeholder:"10-digit ticket number — or the Texas811 e-mail text",onChange:function(ev){setTxt(ev.target.value)},
+        onKeyDown:function(ev){if(ev.key==="Enter"&&(ev.ctrlKey||ev.metaKey)){ev.preventDefault();go()}}}),
+      PJh("button",{className:"btn sm primary",disabled:busy||!txt.trim(),onClick:go},busy?"ADDING…":"ADD")),
+    p.armed?null:PJh("div",{className:"lc-line amber"},"Alerts start once you paste your current ticket numbers."),
+    office.length?PJh("div",{className:"lc-stubs"},PJh("span",{className:"lc-line dim"},"Being read from Texas811:"),office.map(function(t){
+      return PJh("span",{key:t.number,className:"lc-stub"},PJh("span",{className:"mono"},t.number),t.not_found?PJh("i",null,"not found on Texas811"):null,
+        !t.pulled?PJh("button",{className:"btn sm",title:"Take this number back (it was never read)",onClick:function(){LCremove(t.number,p.t)}},"REMOVE"):null)})):null)}
+
+/* TODAY: what to do, most urgent first; a big number above narrows it to its own rows */
+var LCSEC={renew:["RENEW TODAY","Renew on Texas811, then paste the new number in the box above."],
+  expired:["PAST EXPIRY, CREW STILL THERE","Renewed already? Paste the new ticket number in the box above and this clears. Not renewed: renew it on Texas811 now."],
+  gap:["CREWS WITHOUT A LIVE TICKET TODAY","60+ minutes where no live ticket covers the place. A yard, private property, no digging? Acknowledge the place."],
+  pended:["PERMIT ENDED, CREW STILL THERE","The crew was on the permit's street in the last 3 days."],
+  soon:["RENEW NEXT WORKING DAY",""],
+  psoon:["PERMITS ENDING",""],
+  quiet:["NOT MARKED","A utility that usually answers has not, on a ticket where a crew is working."]};
+var LCFOCUS={renew:["renew"],gap:["gap"],psoon:["psoon"],quiet:["quiet"]};
+function LCtoday(ctx,focus,clear){var c=ctx.c,ks=focus?LCFOCUS[focus]:null,rows=c.todo.filter(function(x){return!ks||ks.indexOf(x.k)>=0}),secs=[];
+  rows.forEach(function(x){var s=secs[secs.length-1];if(!s||s.k!==x.k)secs.push(s={k:x.k,rows:[]});s.rows.push(x)});
+  return PJh("div",{className:"lc-today"},
+    focus?PJh("div",{className:"lc-focus"},PJh("span",null,"Showing "+LCSEC[LCFOCUS[focus][0]][0].toLowerCase()+" only"),PJh("button",{className:"btn sm",onClick:clear},"SHOW EVERYTHING")):null,
+    secs.length?secs.map(function(s){return PJh("section",{key:s.k,className:"panel lc-sec"},
+      PJh("header",{className:"ph"},PJh("span",{className:"pt"},LCSEC[s.k][0]+" · "+s.rows.length),
+        s.k==="expired"||s.k==="renew"?PJh("span",{className:"pr"},PJh("button",{className:"btn sm",onClick:ctx.toPaste},"PASTE NEW NUMBERS")):null),
+      LCSEC[s.k][1]?PJh("div",{className:"lc-note"},LCSEC[s.k][1]):null,
+      PJh("div",{className:"lc-acts"},s.rows.map(function(x,i){return LCact(ctx,x,i)})))})
+    :PJh("section",{className:"panel lc-sec"},PJh("div",{className:"empty ok"},"Nothing to do on 811 tickets or ROW permits right now.")))}
+function LCseen(x,today){if(!x.last_seen)return"no crew seen";var d=x.last_seen===today?"today":LCday(x.last_seen);return"crew seen "+d+(x.seen7?" · "+LCplural(x.seen7,"day")+" this week":"")}
+function LCact(ctx,x,i){var today=ctx.c.today,t=x.t,p=x.p,g=x.g,tone=x.tone,key=x.k+(t?t.number:p?p.id:i),main,sub,btns=[],onOpen;
+  if(t){onOpen=function(){ctx.open("t",t.number)};main=[PJh("b",{key:"n",className:"mono"},t.number),PJh("span",{key:"s"},LCsite(t)),t.ours===!1?PJh("span",{key:"o",className:"lc-chip amber"},"OTHER COMPANY\u0027S TICKET"):null];
+    if(x.k==="renew"||x.k==="soon"){sub=["Renew by "+LCday(t.renew_by),"expires "+LCday(t.expires_cal),t.contact?"PM "+z(t.contact):"",(t.units_today||[]).length?"today: "+t.units_today.map(LCuname).join(", "):LCseen(t,today)];
+      if(t.ours!==!1)btns.push(LCbtnA(LCtx(t.number),"RENEW",x.k==="renew"?"primary":""))}
+    else if(x.k==="expired"){sub=["Expired "+LCday(t.expires_cal),LCseen(t,today),t.contact?"PM "+z(t.contact):""];
+      if(t.ours!==!1)btns.push(LCbtnA(LCtx(t.number),"RENEW","primary"));btns.push(PJh("button",{key:"pz",className:"btn sm",onClick:LCstop(ctx.toPaste)},"I RENEWED IT"))}
+    else{var q=LCunusual(t);sub=["Not answered: "+q.map(function(s){return s.name+" ("+s.fac+")"}).join(", "),LCseen(t,today)];btns.push(PJh("button",{key:"o",className:"btn sm",onClick:LCstop(onOpen)},"OPEN"))}}
+  else if(p){onOpen=function(){ctx.open("p",p.id)};main=[PJh("b",{key:"n"},LCpermitWhere(p)),PJh("span",{key:"s",className:"mono"},p.permit||"no number")];
+    sub=[x.k==="pended"?"Ended "+LCday(p.end):"Ends "+LCday(p.end)+" · "+LCplural(p.days_left,"day"),p.request_by&&x.k==="psoon"?"ask by "+LCday(p.request_by):"",LCseen(p,today)];
+    btns.push(p.requested?PJh("span",{key:"r",className:"lc-chip"},"Requested "+LCdayS(p.ext_requested_on)):PJh("button",{key:"x",className:"btn sm"+(x.k==="pended"?" primary":""),onClick:LCstop(onOpen)},"REQUEST EXTENSION"))}
+  else{var cr=g.c,pl=g.pl,gt=g.t;onOpen=function(){ctx.open("pl",cr.day+"|"+cr.actsoft_id+"|"+g.i)};main=[PJh("b",{key:"n"},LCplace(pl)),PJh("span",{key:"s"},LCwho(cr))];
+    sub=[LCplural(pl.min||0,"min")+" today",LCtsText(pl,cr.day,ctx.c.byN).filter(Boolean).join(" · "),pl.pstate&&pl.pstate!=="NONE"?LCPS[pl.pstate]:""];
+    if(gt&&gt.ours!==!1)btns.push(LCbtnA(LCtx(gt.number),"RENEW",""));btns.push(PJh("button",{key:"a",className:"btn sm",onClick:LCstop(onOpen)},"ACKNOWLEDGE"))}
+  return PJh("div",{key:key,className:"lc-act "+tone,role:"button",tabIndex:0,onClick:onOpen,onKeyDown:function(ev){if(ev.key==="Enter")onOpen()}},
+    PJh("div",{className:"lc-am"},PJh("div",{className:"lc-a1"},main),PJh("div",{className:"lc-a2"},sub.filter(Boolean).join(" · "))),
+    PJh("div",{className:"lc-ab"},btns))}
+
+/* TICKETS: every ticket the board lists (live, being read, closed within 45 days) */
+function LCtickets(p){var ctx=p.ctx,c=ctx.c,today=c.today,[f,setF]=(0,M.useState)("all"),[q,setQ]=(0,M.useState)("");
+  var isLive=function(t){return t.status==="LIVE"||t.status==="STUB"},ql=q.trim().toLowerCase();
+  var rows=c.tickets.filter(function(t){return(f==="all"||(f==="live"?isLive(t):!isLive(t)))&&(!ql||[t.number,t.site,t.contact,t.caller,t.place].join(" ").toLowerCase().indexOf(ql)>=0)});
+  var nL=c.tickets.filter(isLive).length;
+  return PJh(G,{title:"TICKETS · "+rows.length,flush:!0,right:PJh("div",{className:"lc-tools"},
+      PJh("input",{className:"inp",placeholder:"Search ticket #, street, PM…",value:q,onChange:function(ev){setQ(ev.target.value)}}),
+      [["all","All "+c.tickets.length],["live","Live "+nL],["closed","Closed "+(c.tickets.length-nL)]].map(function(x){return PJh("button",{key:x[0],className:"pj-chip"+(f===x[0]?" on":""),onClick:function(){setF(x[0])}},x[1])}))},
+    PJh("div",{className:"tblwrap lc-scroll"},PJh("table",{className:"tbl lc-tbl"},
+      PJh("thead",null,PJh("tr",null,["SITE","TICKET","TAKEN","EXPIRES","RENEW BY","UTILITIES","CREW SEEN","STATUS"].map(function(h){return PJh("th",{key:h},h)}))),
+      PJh("tbody",null,rows.map(function(t){var st=LCtStat(t,today),r=t.resp||{};return PJh("tr",{key:t.number,className:st[1]?"lc-"+st[1]:"",onClick:function(){ctx.open("t",t.number)}},
+        PJh("td",null,PJh("b",null,t.status==="STUB"?"Not read yet":LCsite(t)),PJh("div",{className:"dim xs"},t.contact?"PM "+z(t.contact):t.note||"")),
+        PJh("td",null,PJh("span",{className:"mono"},t.number),PJh("div",{className:"dim xs"},t.kind?LCkind(t.kind)+(t.chain_no>1?" · renewal "+(t.chain_no-1):""):"")),
+        PJh("td",{className:"nowrap"},t.created_day?LCday(t.created_day):"—"),
+        PJh("td",{className:"nowrap"},t.expires_cal?LCday(t.expires_cal):"—",t.expires_work?PJh("div",{className:"dim xs"},"14 work days: "+LCdayS(t.expires_work)):null),
+        PJh("td",{className:"nowrap"},t.renew_by&&t.status==="LIVE"?LCday(t.renew_by):"—"),
+        PJh("td",{className:"nowrap"},t.status==="STUB"?"—":PJh("span",null,(r.located||0)+" located · "+(r.clear||0)+" clear",PJh("div",{className:"dim xs"+(LCunusual(t).length&&t.status==="LIVE"?" amber":"")},(r.overdue||0)+" not answered"+(r.other?" · "+r.other+" other":"")))),
+        PJh("td",{className:"nowrap"},t.last_seen?LCdayS(t.last_seen):"—",t.seen7?PJh("div",{className:"dim xs"},LCplural(t.seen7,"day")+" this week"):null),
+        PJh("td",null,LCchip(st)))})))))}
+
+/* PERMITS: every active permit and the ones that ended within 30 days */
+function LCpermits(p){var ctx=p.ctx,c=ctx.c,today=c.today,[f,setF]=(0,M.useState)("all"),[q,setQ]=(0,M.useState)("");
+  var ql=q.trim().toLowerCase(),fl={all:function(){return!0},soon:function(x){return x.level==="SOON"},ended:function(x){return x.level==="ENDED"},nodate:function(x){return x.level==="NODATE"}};
+  var rows=c.permits.filter(function(x){return fl[f](x)&&(!ql||[x.permit,x.street,x.project,x.note].join(" ").toLowerCase().indexOf(ql)>=0)});
+  var n=function(k){return c.permits.filter(fl[k]).length};
+  return PJh(G,{title:"ROW PERMITS · "+rows.length,flush:!0,right:PJh("div",{className:"lc-tools"},
+      PJh("input",{className:"inp",placeholder:"Search permit #, street, project…",value:q,onChange:function(ev){setQ(ev.target.value)}}),
+      [["all","All "+c.permits.length],["soon","Ending "+n("soon")],["ended","Ended "+n("ended")],["nodate","No date "+n("nodate")]].map(function(x){return PJh("button",{key:x[0],className:"pj-chip"+(f===x[0]?" on":""),onClick:function(){setF(x[0])}},x[1])}),
+      PJh("button",{className:"btn sm",onClick:function(){ctx.open("p","new")}},"NEW PERMIT"))},
+    PJh("div",{className:"tblwrap lc-scroll"},PJh("table",{className:"tbl lc-tbl"},
+      PJh("thead",null,PJh("tr",null,["STREET + BLOCKS","PERMIT","ENDS","DAYS LEFT","DATE FROM","CREW SEEN","EXTENSION","STATUS"].map(function(h){return PJh("th",{key:h},h)}))),
+      PJh("tbody",null,rows.map(function(x){var st=LCpStat(x,today);return PJh("tr",{key:x.id,className:st[1]?"lc-"+st[1]:"",onClick:function(){ctx.open("p",x.id)}},
+        PJh("td",null,PJh("b",null,x.street?z(x.street):"—"),PJh("div",{className:"dim xs"},LCblocks(x))),
+        PJh("td",null,PJh("span",{className:"mono"},x.permit||"no number"),PJh("div",{className:"dim xs lc-clip"},x.project||"")),
+        PJh("td",{className:"nowrap"},x.end?LCday(x.end):"—",LCfeedOff(x)?PJh("div",{className:"xs amber"},"City feed: "+LCdayS(x.feed_end)):null),
+        PJh("td",{className:"nowrap"},x.days_left==null?"—":x.days_left===0?"today":x.days_left<0?LCplural(-x.days_left,"day")+" ago":LCplural(x.days_left,"day")),
+        PJh("td",{className:"nowrap dim"},x.end_source||"—"),
+        PJh("td",{className:"nowrap"},x.last_seen?LCdayS(x.last_seen):"—",(x.units_today||[]).length?PJh("div",{className:"dim xs"},"today: "+x.units_today.length):null),
+        PJh("td",{className:"nowrap"},x.ext_requested_on?"Asked "+LCdayS(x.ext_requested_on):"—"),
+        PJh("td",null,LCchip(st)))})))))}
+
+/* CREWS: today and the two days before, gaps first */
+function LCcrews(p){var ctx=p.ctx,b=ctx.b,c=ctx.c,[day,setDay]=(0,M.useState)(c.days[0]||c.today),rows=(0,M.useMemo)(function(){return LCcrewsOf(b,day)},[b,day]);
+  var acks=(b.acks||[]).filter(function(a){return!a.until||a.until>=c.today});
+  var unack=async function(a){if(!(await MZconfirm("Undo this acknowledgement?\n"+a.reason+"\nCrews there count again as without a ticket.")))return;
+    try{await Gi("locate_place_unack",{p_id:a.id},ctx.t);MZtoast("Acknowledgement removed","ok");MZforce(["locates"])}catch(x){MZtoast(LCerr(x),"err",8000)}};
+  return PJh("div",{className:"lc-crews"},
+    PJh(G,{title:"WHERE THE CREWS WORKED · "+LCday(day).toUpperCase(),flush:!0,right:PJh("div",{className:"lc-tools"},c.days.slice(0,3).map(function(d){var n=(b.crews||[]).filter(function(x){return x.day===d}).reduce(function(a,x){return a+(x.places||[]).filter(function(pl){return LCgap(x,pl)}).length},0);
+        return PJh("button",{key:d,className:"pj-chip"+(d===day?" on":""),onClick:function(){setDay(d)}},(d===c.today?"Today":LCday(d))+(n?" · "+n+" without a ticket":""))}))},
+      PJh("div",{className:"lc-note"},"Places of 20+ minutes from truck GPS. Red = 60+ min with no live ticket. Amber = past 14 days, inside 14 working days (Texas811's count). Grey = home or acknowledged."),
+      PJh("div",{className:"lc-crewlist"},rows.length?rows.map(function(r){var cr=r.c;return PJh("div",{key:cr.actsoft_id,className:"lc-crew"+(r.gaps?" red":r.wl?" amber":"")},
+        PJh("div",{className:"lc-ch"},PJh("b",null,LCwho(cr)),PJh("span",null,[cr.kind,HLmin(cr.minutes)].filter(Boolean).join(" · ")),
+          r.gaps?PJh("span",{className:"lc-chip red"},LCplural(r.gaps,"place")+" without a ticket"):cr.ticket_gap?PJh("span",{className:"lc-chip amber"},"mostly off a live ticket"):null,
+          cr.permit_gap?PJh("span",{className:"lc-chip"},"mostly off a permit"):null),
+        PJh("div",{className:"lc-places"},(cr.places||[]).map(function(pl,i){var gp=LCgap(cr,pl),tx=LCtsText(pl,cr.day,c.byN),grey=pl.home||pl.ack,tone=gp?"red":pl.tstate==="WORKLIFE"&&!grey?"amber":"";
+          return PJh("button",{key:i,className:"lc-pl"+(tone?" "+tone:"")+(grey?" grey":""),onClick:function(){ctx.open("pl",cr.day+"|"+cr.actsoft_id+"|"+i)}},
+            PJh("b",null,LCplace(pl)),PJh("span",null,HLmin(pl.min)),
+            PJh("span",null,pl.home?"home (2–4 AM spot)":pl.ack?"acknowledged · "+(pl.ack_reason||""):tx[0]),
+            tx[1]&&!pl.home&&!pl.ack?PJh("i",{className:"lc-old"},tx[1]):null,
+            PJh("span",null,LCPS[pl.pstate]||""))})))}):PJh("div",{className:"empty"},"No crew stops of 20+ minutes on this day."))),
+    acks.length?PJh(G,{title:"ACKNOWLEDGED PLACES · "+acks.length},PJh("div",{className:"lc-acklist"},acks.map(function(a){return PJh("div",{key:a.id,className:"lc-ack"},
+      PJh("span",null,PJh("b",null,a.reason),PJh("i",null,"within "+(a.radius_m||200)+" m · "+(a.until?"until "+LCday(a.until):"no end date")+(a.by?" · "+String(a.by).split("@")[0]:""))),
+      PJh("button",{className:"btn sm",onClick:function(){unack(a)}},"UNDO"))}))):null)}
+
+/* DAMAGES: DigUp tickets of the year */
+function LCdamages(ctx){var ds=ctx.b.damages||[];
+  return PJh(G,{title:"DAMAGES · DIG-UP TICKETS THIS YEAR · "+ds.length,flush:!0},
+    PJh("div",{className:"lc-note"},"What the utilities of the damaged kind had answered on the ticket the crew worked under."),
+    PJh("div",{className:"tblwrap lc-scroll"},PJh("table",{className:"tbl lc-tbl"},
+      PJh("thead",null,PJh("tr",null,["DATE","WHERE","WHAT WAS HIT","PM","THEIR ANSWER ON THE TICKET"].map(function(h){return PJh("th",{key:h},h)}))),
+      PJh("tbody",null,ds.map(function(d){var a=LCdmgAns(d),pt=d.parent&&ctx.c.byN[d.parent];return PJh("tr",{key:d.number,onClick:pt?function(){ctx.open("t",d.parent)}:void 0,className:pt?"":"lc-nolink"},
+        PJh("td",{className:"nowrap"},LCday(d.day),PJh("div",{className:"dim xs mono"},d.number)),
+        PJh("td",null,PJh("b",null,z(d.street||"")),PJh("div",{className:"dim xs"},d.intersection?"@ "+z(d.intersection):"")),
+        PJh("td",null,[d.hit,d.what].filter(Boolean).join(" · ")||"—"),
+        PJh("td",null,d.contact?z(d.contact):"—"),
+        PJh("td",null,!d.parent?PJh("span",{className:"dim"},"no earlier ticket named"):a.length?a.map(function(x,i){return PJh("div",{key:i},PJh("b",null,x.name),": "+(x.action||"no answer")+(x.at?" · "+LCdayS(x.at):""))}):
+          PJh("span",{className:"dim"},"ticket "+d.parent+(d.parent_answers&&d.parent_answers.length?": no "+String(d.hit||"").toLowerCase()+" utility on it":": not read"))))})))))}
+
+/* NEXT WEEK: the roster's jobsites, matched by street name only */
+function LCnext(ctx){var nw=ctx.b.next_week||[],c=ctx.c,P=ctx.b.permits||[];
+  return PJh(G,{title:"NEXT WEEK · "+(nw[0]?"WEEK OF "+LCday(nw[0].week).toUpperCase():"")+" · NAME MATCH ONLY",flush:!0},
+    PJh("div",{className:"lc-note"},"Each roster jobsite next to a ticket or permit whose street name matches. A name match only: check the address before the crew goes."),
+    PJh("div",{className:"tblwrap lc-scroll"},PJh("table",{className:"tbl lc-tbl"},
+      PJh("thead",null,PJh("tr",null,["JOBSITE","CREW","811 TICKET","ROW PERMIT"].map(function(h){return PJh("th",{key:h},h)}))),
+      PJh("tbody",null,nw.map(function(r,i){var t=r.ticket&&c.byN[r.ticket],pm=r.permit_id!=null&&P.find(function(x){return x.id===r.permit_id});
+        return PJh("tr",{key:i,className:"lc-nolink"},
+          PJh("td",null,PJh("b",null,r.jobsite)),
+          PJh("td",null,(r.people||[]).map(z).join(", ")||"—"),
+          PJh("td",null,t?PJh("button",{className:"lc-link",onClick:function(){ctx.open("t",t.number)}},PJh("span",{className:"mono"},t.number)," ",LCchip(LCtStat(t,c.today))):PJh("span",{className:"lc-chip amber"},"no live ticket found by name")),
+          PJh("td",null,pm?PJh("button",{className:"lc-link",onClick:function(){ctx.open("p",pm.id)}},PJh("span",{className:"mono"},pm.permit||"permit")," ",LCchip(LCpStat(pm,c.today))):PJh("span",{className:"dim"},"none found by name")))})))))}
+
+HLK.lcon=["Crew stop on this ticket","var(--accent)"];HLK.lcoff=["Crew stop near it, not on it","var(--amber)"];
+function LCkv(rows){return PJh("div",{key:"kv",className:"lc-kv"},rows.filter(function(r){return r&&r[1]!=null&&r[1]!==""}).map(function(r){return PJh("div",{key:r[0],className:r[2]||""},PJh("span",null,r[0]),PJh("b",null,r[1]))}))}
+function LCdrawer(o){return PJh("div",{className:"drawer-bg",onClick:o.onClose},PJh("aside",{className:"drawer pm-dr lc-dr",onClick:function(ev){ev.stopPropagation()}},
+  PJh("header",{className:"dh"},PJh("div",null,PJh("div",{className:"ml"},o.ml),PJh("h2",null,o.title)),o.chip||null),
+  PJh("div",{className:"db"},o.body),PJh("footer",{className:"df"},PJh("button",{className:"btn",onClick:o.onClose},"CLOSE"),o.foot)))}
+function LCcopy(txt,msg){try{navigator.clipboard.writeText(txt).then(function(){MZtoast(msg||"Copied","ok")},function(){MZtoast("Couldn't copy: select the text and copy it","err")})}catch(x){MZtoast("Couldn't copy: select the text and copy it","err")}}
+var LCUSUAL={NEVER:"never posts answers",ANSWERS:"usually answers",MIXED:"answers sometimes"};
+
+/* TICKET window */
+function LCtWin(p){var t=p.tk,ctx=p.ctx,b=ctx.b,c=ctx.c,today=c.today,[busy,setBusy]=(0,M.useState)("");
+  var chain=t.head?(b.tickets||[]).filter(function(x){return x.head===t.head}).sort(function(a,x){return(a.chain_no||0)-(x.chain_no||0)}):[t];
+  var ans=(t.answers||[]).slice().sort(LCbyFac),sil={};(t.silent||[]).forEach(function(s){sil[s.code]=s});
+  var d3=LCadd(today,-2),bb=t.bbox,stops=[],ring=t.ring&&t.ring.length>2?t.ring:bb?[[bb[0],bb[1]],[bb[0],bb[3]],[bb[2],bb[3]],[bb[2],bb[1]]]:null;
+  (b.crews||[]).forEach(function(cr){if(cr.day<d3)return;(cr.places||[]).forEach(function(pl){if(pl.lat==null)return;
+    var on=pl.ticket===t.number,near=bb&&pl.lat>=bb[0]-.0015&&pl.lat<=bb[2]+.0015&&pl.lon>=bb[1]-.0018&&pl.lon<=bb[3]+.0018;
+    if(on||near)stops.push({lat:pl.lat,lon:pl.lon,name:LCunit(cr)+" · "+LCday(cr.day)+" · "+HLmin(pl.min)+" · "+LCplace(pl),kind:on?"lcon":"lcoff"})})});
+  var set=async function(obj,msg){setBusy("s");try{await Gi("locate_ticket_set",{p_number:t.number,p:obj},ctx.t);MZtoast(msg,"ok");MZforce(["locates"])}catch(x){MZtoast(LCerr(x),"err",8000)}finally{setBusy("")}};
+  var lapse=async function(){if(t.lapse_ok){set({lapse_ok:!1},"Ticket "+t.number+" is back on the renew list");return}
+    if(!(await MZconfirm("Let ticket "+t.number+" lapse?\nIt leaves the renew list. If a crew works there after it ends, the place shows again as without a ticket.",{ok:"Let it lapse",danger:!1})))return;
+    set({lapse_ok:!0},"Ticket "+t.number+" will lapse "+LCday(t.expires_cal))};
+  var note=async function(){var v=await MZprompt("Note on ticket "+t.number,t.note||"");if(typeof v!=="string")return;set({note:v.trim()||null},"Note saved")};
+  var st=LCtStat(t,today),stub=t.status==="STUB";
+  return LCdrawer({onClose:p.onClose,ml:"811 TICKET · "+t.number+(t.kind?" · "+LCkind(t.kind).toUpperCase():""),title:stub?"Not read from Texas811 yet":LCsite(t),chip:LCchip(st),
+    body:[
+      t.ours===!1?PJh("div",{key:"other",className:"lc-note lc-amber"},"Texas811 lists another company as the excavator on this ticket. It does not count as cover for our crews."):null,
+      stub?PJh("div",{key:"stub",className:"lc-note"},t.not_found?"Texas811 does not know this number. Check it for a typo.":"The number is saved. Texas811's page is read within a minute; this window fills in then."):null,
+      !stub?LCkv([["Taken",LClocal(t.created)],["Work may start",LClocal(t.work_on)],
+        ["Expires (14 days)",t.expires_cal?LCday(t.expires_cal)+(t.status==="LIVE"?" · "+LCplural(LCdiff(today,t.expires_cal),"day")+" left":""):null],
+        ["Expires (14 working days)",t.expires_work?LCday(t.expires_work):null],
+        ["Renew by",t.status==="LIVE"&&t.renew_by?LCday(t.renew_by):null,t.level==="DUE"?"red":t.level==="SOON"?"amber":""],
+        ["Renewed by",t.superseded_by],["PM / contact",t.contact?z(t.contact):null],["Called in by",t.caller?z(t.caller):null],
+        ["Crew seen",LCseen(t,today).replace(/^crew seen /,"")+((t.units_today||[]).length?" · today: "+t.units_today.map(LCuname).join(", "):"")],
+        ["Kind",LCkind(t.kind)],["Note",t.note]]):null,
+      !stub&&t.status==="LIVE"?PJh("div",{key:"why",className:"lc-note"},"Texas811's page shows no expiry date. The renew list runs on 14 calendar days; Texas811's own rule may be 14 working days, so both are shown."):null,
+      chain.length>1?PJh("div",{key:"chain",className:"lc-blk"},PJh("div",{className:"lc-bh"},"THIS SITE'S TICKETS · "+chain.length),
+        chain.map(function(x){return PJh("button",{key:x.number,className:"lc-crow"+(x.number===t.number?" on":""),disabled:x.number===t.number,onClick:function(){ctx.open("t",x.number)}},
+          PJh("span",{className:"mono"},x.number),PJh("span",null,x.created_day?"taken "+LCday(x.created_day):""),LCchip(LCtStat(x,today)))})):null,
+      ans.length?PJh("div",{key:"ans",className:"lc-blk"},PJh("div",{className:"lc-bh"},"THE UTILITIES' ANSWERS · "+(t.resp?(t.resp.located||0)+" located · "+(t.resp.clear||0)+" clear · "+(t.resp.overdue||0)+" not answered":"")),
+        ans.map(function(a,i){var s=sil[a.code],ok=/^(Located|Clear)$/i.test(a.action||""),un=!ok&&!!s&&a.usual!=="NEVER";
+          return PJh("div",{key:i,className:"lc-ans"+(un?" amber":ok?"":" grey")},PJh("b",null,a.name),PJh("span",null,a.fac||""),PJh("span",{className:"lc-aa"},(a.action||"no answer yet")+(a.at?" · "+LCdayS(a.at):"")),
+            PJh("i",null,a.usual?LCUSUAL[a.usual]||"":""))})):null,
+      ring?PJh("div",{key:"map",className:"lc-blk"},PJh("div",{className:"lc-bh"},"WORK AREA + CREW STOPS OF THE LAST 3 DAYS · "+stops.length),
+        PJh(HLmap,{className:"lc-map",areas:[{rings:[ring],tip:"Work area · "+t.number}],places:stops,sig:t.number+"|"+stops.length+"|"+ring.length,view:t.number,maxZoom:18})):null],
+    foot:[LCbtnA(LCtx(t.number),"OPEN IN TEXAS811","primary"),
+      PJh("button",{key:"cp",className:"btn sm",onClick:function(){LCcopy(LCtx(t.number),"Link copied")}},"COPY LINK"),
+      t.status==="LIVE"&&t.ours!==!1?PJh("button",{key:"lp",className:"btn sm",disabled:!!busy,onClick:lapse},t.lapse_ok?"KEEP IT":"LET IT LAPSE"):null,
+      stub&&!t.pulled&&(!t.src||t.src==="office")?PJh("button",{key:"rm",className:"btn sm",onClick:function(){LCremove(t.number,ctx.t);p.onClose()}},"REMOVE"):null,
+      PJh("button",{key:"nt",className:"btn sm",disabled:!!busy,onClick:note},"NOTE")]})}
+
+/* PERMIT window (also NEW PERMIT) */
+function LCpWin(p){var pm=p.pm,ctx=p.ctx,c=ctx.c,today=c.today,isNew=p.isNew||!pm,fileRef=(0,M.useRef)(null),[busy,setBusy]=(0,M.useState)(""),[scope,setScope]=(0,M.useState)("one");
+  var blank=function(x){x=x||{};return{permit:x.permit||"",project:x.project||"",street:x.street||"",from:x.from!=null?String(x.from):"",to:x.to!=null?String(x.to):"",start:x.start||"",end:x.end||"",note:x.note||"",active:x.active!==!1}};
+  var[ed,setEd]=(0,M.useState)(isNew?blank():null),set=function(k,v){setEd(Object.assign({},ed,(function(){var o={};o[k]=v;return o})()))};
+  var soonAll=c.pSoon.concat(c.pEnded),list=scope==="all"&&soonAll.length?soonAll:pm?[pm]:[],txt=list.length?LCextText(list):"";
+  var save=async function(){if(!ed.street.trim()&&!ed.permit.trim()){MZtoast("A permit number or a street, please","err");return}
+    var o={permit:ed.permit.trim()||null,project_name:ed.project.trim()||null,street:ed.street.trim()||null,from_block:ed.from?+ed.from:null,to_block:ed.to?+ed.to:null,start_date:ed.start||null,end_date:ed.end||null,note:ed.note.trim()||null,active:!!ed.active};
+    if(!isNew)o.id=pm.id;setBusy("save");try{await Gi("row_permit_save",{p:o},ctx.t);MZtoast(isNew?"Permit added":"Permit saved","ok");setEd(null);MZforce(["locates"]);if(isNew)p.onClose()}catch(x){MZtoast(LCerr(x),"err",8000)}finally{setBusy("")}};
+  var mark=async function(){var ids=list.map(function(x){return x.id});if(!ids.length)return;
+    if(!(await MZconfirm("Mark "+LCplural(ids.length,"permit")+" as extension requested today?\nThe permit"+(ids.length===1?"":"s")+" show “Extension requested” until the end date moves.",{ok:"Mark requested",danger:!1})))return;
+    setBusy("mark");try{await Gi("row_extension_mark",{p_ids:ids,p_on:today,p_note:"requested from the Command Center"},ctx.t);MZtoast("Marked requested · "+LCplural(ids.length,"permit"),"ok");MZforce(["locates"])}catch(x){MZtoast(LCerr(x),"err",8000)}finally{setBusy("")}};
+  var openPdf=async function(){var w=window.open("","_blank");setBusy("file");try{var u=await PMsign(pm.file_path,ctx.t,300);if(w)w.location=u;else location.href=u}catch(x){w&&w.close();MZtoast("Couldn't open the file · "+PMerr(x),"err")}finally{setBusy("")}};
+  var dl=async function(){setBusy("file");try{var bl=await PMblob(pm.file_path,ctx.t),u=URL.createObjectURL(bl),a=document.createElement("a");a.href=u;a.download=pm.file_name||("ROW "+(pm.permit||pm.id)+".pdf");document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},6e4)}catch(x){MZtoast(PMerr(x),"err")}finally{setBusy("")}};
+  var share=async function(){setBusy("share");try{var u=await PMsign(pm.file_path,ctx.t,604800);await navigator.clipboard.writeText(u);MZtoast("Link copied · works for 7 days, no sign-in needed","ok",6000)}catch(x){MZtoast("Couldn't make the link · "+PMerr(x),"err")}finally{setBusy("")}};
+  var upload=async function(file){if(!file)return;if(file.size>20*1048576){MZtoast("That file is over 20 MB","err");return}
+    var ext=(String(file.name).match(/\.[A-Za-z0-9]+$/)||[".pdf"])[0].toLowerCase(),path="row/"+pm.id+"-"+Date.now()+ext;
+    setBusy("up");try{await PMupload(file,path,ctx.t);await Gi("row_permit_save",{p:{id:pm.id,file_path:path,file_name:file.name,file_size:file.size}},ctx.t);MZtoast("Permit PDF saved","ok");MZforce(["locates"])}
+    catch(x){MZtoast("Upload failed · "+LCerr(x),"err",8000)}finally{setBusy("");if(fileRef.current)fileRef.current.value=""}};
+  var inp=function(k,lab,type,ph){return PJh("label",{key:k},PJh("span",null,lab),PJh("input",{className:"inp",type:type||"text",value:ed[k],placeholder:ph||"",onChange:function(ev){set(k,ev.target.value)}}))};
+  var form=ed?PJh("div",{key:"form",className:"pm-form"},PJh("div",{className:"pm-fh"},isNew?"New ROW permit":"Edit this permit · an end date saved here counts as the office's date"),
+    inp("permit","Permit #","text","2026-123456"),inp("project","Project","text","SUTD/MUNIZ – …"),inp("street","Street","text","Angelina St"),inp("from","From block","number","1200"),inp("to","To block","number","1300"),
+    inp("start","Starts","date"),inp("end","Ends","date"),inp("note","Note"),
+    PJh("label",{key:"act"},PJh("span",null,"Active"),PJh("input",{type:"checkbox",checked:!!ed.active,onChange:function(ev){set("active",ev.target.checked)}})),
+    PJh("div",{className:"pm-acts"},isNew?null:PJh("button",{className:"btn sm",onClick:function(){setEd(null)}},"CANCEL"),PJh("button",{className:"btn sm primary",disabled:!!busy,onClick:save},busy==="save"?"SAVING…":"SAVE"))):null;
+  if(isNew)return LCdrawer({onClose:p.onClose,ml:"ROW PERMIT",title:"New permit",body:[form]});
+  var st=LCpStat(pm,today);
+  return LCdrawer({onClose:p.onClose,ml:"ROW PERMIT · "+(pm.permit||"NO NUMBER"),title:LCpermitWhere(pm),chip:LCchip(st),
+    body:[
+      LCkv([["Project",pm.project],["Starts",pm.start?LCday(pm.start):null],
+        ["Ends",pm.end?LCday(pm.end)+(pm.days_left!=null?" · "+(pm.days_left===0?"ends today":pm.days_left<0?LCplural(-pm.days_left,"day")+" ago":LCplural(pm.days_left,"day")+" left"):""):"not on file",pm.level==="SOON"||pm.level==="NODATE"?"amber":pm.level==="ENDED"&&LCcrew3(pm,today)?"red":""],
+        ["End date from",(pm.end_source||"—")+(pm.verified_at?" · checked "+LCdayS(String(pm.verified_at).slice(0,10)):"")],
+        ["City feed says",pm.feed_end?"ends "+LCday(pm.feed_end)+(pm.feed_seen?" · read "+LCdayS(String(pm.feed_seen).slice(0,10)):"")+(LCfeedOff(pm)?" · not the same as our date: check it":""):null,LCfeedOff(pm)?"amber":""],
+        ["Ask for an extension by",pm.request_by&&pm.level!=="ENDED"?LCday(pm.request_by):null],
+        ["Extension requested",pm.ext_requested_on?LCday(pm.ext_requested_on)+(pm.requested?"":" · the end date moved since"):null],
+        ["City status",pm.status],["Crews seen",LCseen(pm,today).replace(/^crew seen /,"")+((pm.units_today||[]).length?" · today: "+pm.units_today.map(LCuname).join(", "):"")],["Note",pm.note]]),
+      form,
+      pm.level!=="OK"||pm.requested?PJh("div",{key:"ext",className:"lc-blk"},PJh("div",{className:"lc-bh"},"EXTENSION REQUEST · READY TO COPY"),
+        soonAll.length>1?PJh("div",{className:"lc-tools"},PJh("button",{className:"pj-chip"+(scope==="one"?" on":""),onClick:function(){setScope("one")}},"This permit"),
+          PJh("button",{className:"pj-chip"+(scope==="all"?" on":""),onClick:function(){setScope("all")}},"All ending or ended with a crew · "+soonAll.length)):null,
+        PJh("textarea",{className:"inp lc-ext",readOnly:!0,rows:Math.min(14,7+list.length),value:txt,onFocus:function(ev){ev.target.select()}}),
+        PJh("div",{className:"pm-acts"},PJh("button",{className:"btn sm primary",onClick:function(){LCcopy(txt,"Request copied · paste it into the e-mail")}},"COPY"),
+          PJh("button",{className:"btn sm",disabled:!!busy,onClick:mark},busy==="mark"?"MARKING…":"MARK REQUESTED"+(list.length>1?" · "+list.length:"")))):null,
+      PJh("div",{key:"pdf",className:"lc-blk"},PJh("div",{className:"lc-bh"},"PERMIT PDF"),
+        PJh("input",{ref:fileRef,type:"file",accept:"application/pdf,image/*",style:{display:"none"},onChange:function(ev){upload(ev.target.files&&ev.target.files[0])}}),
+        PJh("div",{className:"pm-acts"},pm.file_path?[PJh("button",{key:"o",className:"btn sm primary",disabled:!!busy,onClick:openPdf},busy==="file"?"OPENING…":"OPEN PDF"),
+          PJh("button",{key:"d",className:"btn sm",disabled:!!busy,onClick:dl},"DOWNLOAD"),PJh("button",{key:"s",className:"btn sm",disabled:!!busy,onClick:share},"SHARE LINK")]:PJh("span",{className:"dim"},"No PDF attached yet."),
+          PJh("button",{className:"btn sm",disabled:!!busy,onClick:function(){fileRef.current&&fileRef.current.click()}},busy==="up"?"UPLOADING…":pm.file_path?"REPLACE PDF":"ATTACH PDF")))],
+    foot:[ed?null:PJh("button",{key:"e",className:"btn sm",onClick:function(){setEd(blank(pm))}},"EDIT")]})}
+
+/* CREW PLACE window: acknowledge a place (yard, private property, no digging) */
+function LCplWin(p){var ctx=p.ctx,c=ctx.c,b=ctx.b,k=String(p.id).split("|"),cr=(b.crews||[]).find(function(x){return x.day===k[0]&&String(x.actsoft_id)===k[1]}),pl=cr&&(cr.places||[])[+k[2]];
+  var[reason,setReason]=(0,M.useState)(""),[until,setUntil]=(0,M.useState)(""),[busy,setBusy]=(0,M.useState)(!1);
+  if(!pl)return LCdrawer({onClose:p.onClose,ml:"CREW PLACE",title:"This place is no longer on the board",body:[]});
+  var gp=LCgap(cr,pl),tk=pl.ticket&&c.byN[pl.ticket],ack=pl.ack&&(b.acks||[]).find(function(a){return a.id===pl.ack});
+  var doAck=async function(){if(!reason.trim()){MZtoast("Say why, please (e.g. our yard, private property, no digging)","err");return}setBusy(!0);
+    try{await Gi("locate_place_ack",{p:{lat:pl.lat,lon:pl.lon,radius_m:200,reason:reason.trim(),until_day:until||null}},ctx.t);MZtoast("Place acknowledged · it no longer counts as without a ticket","ok");MZforce(["locates"]);p.onClose()}
+    catch(x){MZtoast(LCerr(x),"err",8000)}finally{setBusy(!1)}};
+  var undo=async function(){setBusy(!0);try{await Gi("locate_place_unack",{p_id:pl.ack},ctx.t);MZtoast("Acknowledgement removed","ok");MZforce(["locates"]);p.onClose()}catch(x){MZtoast(LCerr(x),"err",8000)}finally{setBusy(!1)}};
+  return LCdrawer({onClose:p.onClose,ml:"CREW PLACE · "+LCday(cr.day).toUpperCase(),title:LCplace(pl),chip:gp?LCchip(["No live ticket","red"]):pl.tstate==="WORKLIFE"?LCchip(["Past 14 days","amber"]):null,
+    body:[LCkv([["Unit",LCwho(cr)],["Kind",cr.kind],["Time there",HLmin(pl.min)],
+        ["811 ticket",LCtsText(pl,cr.day,c.byN).filter(Boolean).join(" · ")+(pl.gap_m&&pl.tstate!=="NONE"&&LCtsText(pl,cr.day,c.byN)[1]==null?" · "+pl.gap_m+" m from its area":""),gp?"red":pl.tstate==="WORKLIFE"?"amber":""],
+        ["ROW permit",(LCPS[pl.pstate]||"—")+(pl.permit?" · "+pl.permit:"")],
+        ["Home",pl.home?"its truck's 2–4 AM spot: not counted":null],["Position",pl.lat!=null?Number(pl.lat).toFixed(5)+", "+Number(pl.lon).toFixed(5):"no position yet"]]),
+      tk?PJh("div",{key:"tk",className:"pm-acts"},PJh("button",{className:"btn sm",onClick:function(){ctx.open("t",tk.number)}},"OPEN TICKET "+tk.number)):null,
+      pl.ack?PJh("div",{key:"ak",className:"lc-blk"},PJh("div",{className:"lc-bh"},"ACKNOWLEDGED"),PJh("div",null,(ack?ack.reason:pl.ack_reason||"")+(ack&&ack.until?" · until "+LCday(ack.until):"")+(ack&&ack.by?" · "+String(ack.by).split("@")[0]:"")),
+        PJh("div",{className:"pm-acts"},PJh("button",{className:"btn sm",disabled:busy,onClick:undo},"UNDO")))
+      :pl.lat==null?PJh("div",{key:"np",className:"lc-note"},"No position for this stop yet, so it can't be acknowledged."):
+      PJh("div",{key:"form",className:"pm-form"},PJh("div",{className:"pm-fh"},"Acknowledge this place · everything within 200 m stops counting as without a ticket"),
+        PJh("label",null,PJh("span",null,"Why"),PJh("input",{className:"inp",value:reason,placeholder:"Our yard · private property · no digging",onChange:function(ev){setReason(ev.target.value)}})),
+        PJh("label",null,PJh("span",null,"Until (optional)"),PJh("input",{className:"inp",type:"date",value:until,onChange:function(ev){setUntil(ev.target.value)}})),
+        PJh("div",{className:"pm-acts"},PJh("button",{className:"btn sm primary",disabled:busy,onClick:doAck},busy?"SAVING…":"ACKNOWLEDGE")))]})}
+
+/* search (v256): an 811 ticket or a ROW permit opens its own window in the PERMITS room */
+function LCsrchT(p){return PJh(UmSec,{go:p.go,label:"811 TICKETS",n:p.rows.length,room:"permits"},p.rows.map(function(t){return PJh(UmRow,{key:t.number,onClick:function(){MZseekW={k:"permits",ticket:t.number,at:Date.now()};p.go("permits")}},
+  PJh("span",{className:"mono"},t.number),PJh("span",{className:"rf"},LCsite(t)),PJh("span",{className:"dim"},t.contact?"PM "+z(t.contact):""),LCchip(LCtStat(t,p.today)))}))}
+function LCsrchP(p){return PJh(UmSec,{go:p.go,label:"ROW PERMITS",n:p.rows.length,room:"permits"},p.rows.map(function(x){return PJh(UmRow,{key:x.id,onClick:function(){MZseekW={k:"permits",permit:x.id,at:Date.now()};p.go("permits")}},
+  PJh("span",{className:"mono"},x.permit||"no number"),PJh("span",{className:"rf"},LCpermitWhere(x)),PJh("span",{className:"dim"},x.end?"ends "+LCday(x.end):""),LCchip(LCpStat(x,p.today)))}))}
+
 /* the only thing that changes every second is the clock: it re-renders itself, nothing else */
 function MZClock(){var a=(0,M.useState)(new Date),y=a[0],E=a[1];(0,M.useEffect)(function(){var N=setInterval(function(){E(new Date)},1e3);return function(){clearInterval(N)}},[]);
   return(0,s.jsxs)(s.Fragment,{children:[(0,s.jsx)("div",{className:"mono clock",children:y.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",second:"2-digit"})}),(0,s.jsx)("div",{className:"dim xs",children:y.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})})]})}
@@ -3854,7 +4314,7 @@ function MZVersion(){let[run,sRun]=(0,M.useState)(null),[pub,sPub]=(0,M.useState
     (0,s.jsx)("button",{className:"vr-x",title:"This tab runs v"+run+". Reload to get v"+pub+".",onClick:()=>location.reload(),children:"Reload"})]});
   return(0,s.jsxs)("div",{className:"mz-ver",title:"This tab runs v"+run+", the newest published version"+(at?" \xB7 checked "+new Date(at).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}):""),
     children:["v",run," \xB7 up to date"]})}
-function Fm({t:e,onOut:t}){let[,mzS]=(0,M.useState)(0);(0,M.useEffect)(()=>{let f=()=>mzS(x=>x+1);window.addEventListener("mz-theme",f);return()=>window.removeEventListener("mz-theme",f)},[]);let[n,r]=Cm(e),[l,o]=(0,M.useState)(()=>localStorage.getItem(Ld)||"situation"),[i,u]=(0,M.useState)(""),[c,p]=(0,M.useState)(null),[w,S]=(0,M.useState)(Date.now()),[y,E]=(0,M.useState)(new Date),[jmpK,jmpS]=(0,M.useState)(0);(0,M.useEffect)(()=>{let d=setInterval(()=>{(0,M.startTransition)(()=>S(Date.now()))},15e3);return()=>{clearInterval(d)}},[]),(0,M.useEffect)(()=>{localStorage.setItem(Ld,l)},[l]),(0,M.useEffect)(()=>{let f=ev=>{let v=ev&&ev.detail;if(typeof v=="string"&&Dd.some(x=>x[0]===v))o(v)};return window.addEventListener("mz-go",f),()=>window.removeEventListener("mz-go",f)},[]),/* v249 · a notification's wish: its room, not the search; the order's drawer once the list has the order */(0,M.useEffect)(()=>{let f=()=>{u(""),jmpS(x=>x+1)};return window.addEventListener("mz-jump",f),()=>window.removeEventListener("mz-jump",f)},[]),(0,M.useEffect)(()=>{let W=MZwant("order");if(!W||!n.orders)return;let g=n.orders.find(x=>String(x.id)===W.id);if(g){MZjump=null,u(""),o("orders"),p(g.id)}else if(n.orders.length&&Date.now()-W.at>1e4){MZjump=null,MZtoast("That order isn't in the list any more","info",6500)}},[n.orders,w,jmpK]),(0,M.useEffect)(()=>{let d=N=>{(N.metaKey||N.ctrlKey)&&N.key.toLowerCase()==="k"&&(N.preventDefault(),document.getElementById("q")?.focus()),N.key==="Escape"&&u("")};return window.addEventListener("keydown",d),()=>window.removeEventListener("keydown",d)},[]);let[h,O,MF]=zm(n.fleet||[],e),D=(d,N)=>{o(d),p(N)},a=(n.orders||[]).filter(d=>!d.is_practice&&d.status==="SOLICITADO").length,f=(n.fuelGps||[]).filter(d=>d.gps_check==="NO_ESTABA").length,mzL=(n.appLive||[]).filter(d=>!d.hid&&Date.now()-Date.parse(d.updated_at)<12e4).length;return(0,s.jsxs)("div",{className:n.sync?"ops":"ops mz-boot",children:[(0,s.jsxs)("nav",{className:"rail",children:[(0,s.jsxs)("div",{className:"brand",children:[(0,s.jsx)("div",{className:"bm",children:"M"}),(0,s.jsxs)("div",{children:[(0,s.jsx)("div",{className:"bn",children:"MU\xD1IZ"}),(0,s.jsx)("div",{className:"bs",children:"OPS \xB7 COMMAND"})]})]}),Dd.map(([d,N,g])=>(0,s.jsxs)("button",{className:`rb rb-${d} ${l===d?"on":""}`,onClick:()=>{MZjump=null;MZseekW=null;try{window.__mzFuelFocus=null}catch(x){}u(""),o(d)},children:[(0,s.jsx)("span",{className:"ri",children:g}),MZtc(N),d==="activity"&&mzL?(0,s.jsx)("span",{className:"badge green",title:"phones with the app open right now",children:mzL}):null,d==="orders"&&a?(0,s.jsx)("span",{className:"badge amber",children:a}):null,d==="fuel"&&f?(0,s.jsx)("span",{className:"badge red",children:f}):null]},d)),(0,s.jsx)("div",{className:"grow"}),(0,s.jsxs)("div",{className:"rf",children:[(0,s.jsx)(MZClock,{}),(0,s.jsx)(MZVersion,{})]})]}),(0,s.jsxs)("main",{className:"stage",children:[(0,s.jsxs)("header",{className:"cmd",children:[(0,s.jsxs)("div",{className:"crumb",children:[(0,s.jsx)("span",{className:"dim",children:"Mu\xF1iz Concrete & Contracting"}),(0,s.jsx)("span",{className:"sep",children:"/"}),(0,s.jsx)("b",{children:MZtc(i.trim().length>=2?"SEARCH":Dd.find(d=>d[0]===l)[1])})]}),(0,s.jsxs)("div",{className:"search",children:[(0,s.jsx)("span",{className:"dim",children:"\u2315"}),(0,s.jsx)("input",{id:"q",value:i,onChange:d=>u(d.target.value),placeholder:"Search \u2014 req, PO, name, plate, jobsite, item\u2026   \u2318K"})]}),(0,s.jsx)("div",{className:"stat",children:n.err?(0,s.jsx)("span",{className:"red",children:n.err}):n.loading?(0,s.jsx)("span",{className:"dim",children:MZtc("CONNECTING\u2026")}):(0,s.jsxs)(s.Fragment,{children:[(0,s.jsx)(ae,{c:_.green,pulse:!0}),(0,s.jsxs)("span",{className:"mono",children:["Live \xB7 ",n.sync?Fd(n.sync):""]})]})}),(0,s.jsx)("div",{className:"who mono dim",children:e.email}),(0,s.jsx)(MzTheme,{}),(0,s.jsx)(MzBell,{t:e}),(0,s.jsx)(MzPw,{t:e}),(0,s.jsx)("button",{className:"btn sm",onClick:t,children:"Sign out"})]}),i.trim().length>=2?(0,s.jsx)(Um,{d:n,q:i,now:w,mapGo:O,onGo:d=>{u(""),o(d)},onFocusOrder:d=>{u(""),o("orders"),p(d)}}):null,i.trim().length>=2?null:(0,s.jsxs)(s.Fragment,{children:[(window.MZroomNow!==l&&(window.MZroomNow=l,setTimeout(function(){try{window.dispatchEvent(new Event("mz-wake"))}catch(x){}},0)),l==="situation")?(0,s.jsx)(Rm,{d:n,now:w,go:D,mapNode:h,mapGo:O,mapOnly:MF}):null,l==="tieout"?(0,s.jsx)(TOroom,{d:n,now:w,t:e}):null,l==="activity"?(0,s.jsx)(ACroom,{d:n,now:w,t:e}):null,l==="projects"?(0,s.jsx)(Pj,{d:n,now:w,t:e,onChanged:r,onOrder:d=>{o("orders"),p(d)},onMap:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="ledger"?(0,s.jsx)(Im,{d:n,q:i,t:e}):null,l==="orders"?(0,s.jsx)(Am,{d:n,now:w,t:e,q:i,focus:c,clearFocus:()=>p(null),onChanged:r}):null,l==="catalog"?(0,s.jsx)(CTroom,{d:n,now:w,t:e,onChanged:r}):null,l==="fuel"?(0,s.jsx)(Dm,{d:n,now:w,q:i,t:e,onChanged:r,mapGo:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="fleet"?(0,s.jsx)($m,{d:n,now:w,q:i,mapNode:h,mapGo:O}):null,l==="haul"?(0,s.jsx)(HlRoot,{d:n,now:w,t:e,onChanged:r,onMap:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="permits"?(0,s.jsx)(PMroom,{d:n,now:w,t:e,onChanged:r}):null,l==="people"?(0,s.jsx)(Mm,{d:n,t:e,onChanged:r}):null,l==="rules"?(0,s.jsx)(xm,{d:n,t:e,onChanged:r}):null]})]})]})}/* v203 · search results: the section and the row are real components, defined once. They used to be created inside Um,
+function Fm({t:e,onOut:t}){let[,mzS]=(0,M.useState)(0);(0,M.useEffect)(()=>{let f=()=>mzS(x=>x+1);window.addEventListener("mz-theme",f);return()=>window.removeEventListener("mz-theme",f)},[]);let[n,r]=Cm(e),[l,o]=(0,M.useState)(()=>localStorage.getItem(Ld)||"situation"),[i,u]=(0,M.useState)(""),[c,p]=(0,M.useState)(null),[w,S]=(0,M.useState)(Date.now()),[y,E]=(0,M.useState)(new Date),[jmpK,jmpS]=(0,M.useState)(0);(0,M.useEffect)(()=>{let d=setInterval(()=>{(0,M.startTransition)(()=>S(Date.now()))},15e3);return()=>{clearInterval(d)}},[]),(0,M.useEffect)(()=>{localStorage.setItem(Ld,l)},[l]),(0,M.useEffect)(()=>{let f=ev=>{let v=ev&&ev.detail;if(typeof v=="string"&&Dd.some(x=>x[0]===v))o(v)};return window.addEventListener("mz-go",f),()=>window.removeEventListener("mz-go",f)},[]),/* v249 · a notification's wish: its room, not the search; the order's drawer once the list has the order */(0,M.useEffect)(()=>{let f=()=>{u(""),jmpS(x=>x+1)};return window.addEventListener("mz-jump",f),()=>window.removeEventListener("mz-jump",f)},[]),(0,M.useEffect)(()=>{let W=MZwant("order");if(!W||!n.orders)return;let g=n.orders.find(x=>String(x.id)===W.id);if(g){MZjump=null,u(""),o("orders"),p(g.id)}else if(n.orders.length&&Date.now()-W.at>1e4){MZjump=null,MZtoast("That order isn't in the list any more","info",6500)}},[n.orders,w,jmpK]),(0,M.useEffect)(()=>{let d=N=>{(N.metaKey||N.ctrlKey)&&N.key.toLowerCase()==="k"&&(N.preventDefault(),document.getElementById("q")?.focus()),N.key==="Escape"&&u("")};return window.addEventListener("keydown",d),()=>window.removeEventListener("keydown",d)},[]);let[h,O,MF]=zm(n.fleet||[],e),D=(d,N)=>{o(d),p(N)},a=(n.orders||[]).filter(d=>!d.is_practice&&d.status==="SOLICITADO").length,f=(n.fuelGps||[]).filter(d=>d.gps_check==="NO_ESTABA").length,mzL=(n.appLive||[]).filter(d=>!d.hid&&Date.now()-Date.parse(d.updated_at)<12e4).length;return(0,s.jsxs)("div",{className:n.sync?"ops":"ops mz-boot",children:[(0,s.jsxs)("nav",{className:"rail",children:[(0,s.jsxs)("div",{className:"brand",children:[(0,s.jsx)("div",{className:"bm",children:"M"}),(0,s.jsxs)("div",{children:[(0,s.jsx)("div",{className:"bn",children:"MU\xD1IZ"}),(0,s.jsx)("div",{className:"bs",children:"OPS \xB7 COMMAND"})]})]}),Dd.map(([d,N,g])=>(0,s.jsxs)("button",{className:`rb rb-${d} ${l===d?"on":""}`,onClick:()=>{MZjump=null;MZseekW=null;try{window.__mzFuelFocus=null}catch(x){}u(""),o(d)},children:[(0,s.jsx)("span",{className:"ri",children:g}),MZtc(N),d==="activity"&&mzL?(0,s.jsx)("span",{className:"badge green",title:"phones with the app open right now",children:mzL}):null,d==="orders"&&a?(0,s.jsx)("span",{className:"badge amber",children:a}):null,d==="fuel"&&f?(0,s.jsx)("span",{className:"badge red",children:f}):null]},d)),(0,s.jsx)("div",{className:"grow"}),(0,s.jsxs)("div",{className:"rf",children:[(0,s.jsx)(MZClock,{}),(0,s.jsx)(MZVersion,{})]})]}),(0,s.jsxs)("main",{className:"stage",children:[(0,s.jsxs)("header",{className:"cmd",children:[(0,s.jsxs)("div",{className:"crumb",children:[(0,s.jsx)("span",{className:"dim",children:"Mu\xF1iz Concrete & Contracting"}),(0,s.jsx)("span",{className:"sep",children:"/"}),(0,s.jsx)("b",{children:MZtc(i.trim().length>=2?"SEARCH":Dd.find(d=>d[0]===l)[1])})]}),(0,s.jsxs)("div",{className:"search",children:[(0,s.jsx)("span",{className:"dim",children:"\u2315"}),(0,s.jsx)("input",{id:"q",value:i,onChange:d=>u(d.target.value),placeholder:"Search \u2014 req, PO, name, plate, jobsite, item\u2026   \u2318K"})]}),(0,s.jsx)("div",{className:"stat",children:n.err?(0,s.jsx)("span",{className:"red",children:n.err}):n.loading?(0,s.jsx)("span",{className:"dim",children:MZtc("CONNECTING\u2026")}):(0,s.jsxs)(s.Fragment,{children:[(0,s.jsx)(ae,{c:_.green,pulse:!0}),(0,s.jsxs)("span",{className:"mono",children:["Live \xB7 ",n.sync?Fd(n.sync):""]})]})}),(0,s.jsx)("div",{className:"who mono dim",children:e.email}),(0,s.jsx)(MzTheme,{}),(0,s.jsx)(MzBell,{t:e}),(0,s.jsx)(MzPw,{t:e}),(0,s.jsx)("button",{className:"btn sm",onClick:t,children:"Sign out"})]}),i.trim().length>=2?(0,s.jsx)(Um,{d:n,q:i,now:w,mapGo:O,onGo:d=>{u(""),o(d)},onFocusOrder:d=>{u(""),o("orders"),p(d)}}):null,i.trim().length>=2?null:(0,s.jsxs)(s.Fragment,{children:[(window.MZroomNow!==l&&(window.MZroomNow=l,setTimeout(function(){try{window.dispatchEvent(new Event("mz-wake"))}catch(x){}},0)),l==="situation")?(0,s.jsx)(Rm,{d:n,now:w,go:D,mapNode:h,mapGo:O,mapOnly:MF}):null,l==="tieout"?(0,s.jsx)(TOroom,{d:n,now:w,t:e}):null,l==="activity"?(0,s.jsx)(ACroom,{d:n,now:w,t:e}):null,l==="projects"?(0,s.jsx)(Pj,{d:n,now:w,t:e,onChanged:r,onOrder:d=>{o("orders"),p(d)},onMap:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="ledger"?(0,s.jsx)(Im,{d:n,q:i,t:e}):null,l==="orders"?(0,s.jsx)(Am,{d:n,now:w,t:e,q:i,focus:c,clearFocus:()=>p(null),onChanged:r}):null,l==="catalog"?(0,s.jsx)(CTroom,{d:n,now:w,t:e,onChanged:r}):null,l==="fuel"?(0,s.jsx)(Dm,{d:n,now:w,q:i,t:e,onChanged:r,mapGo:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="fleet"?(0,s.jsx)($m,{d:n,now:w,q:i,mapNode:h,mapGo:O}):null,l==="haul"?(0,s.jsx)(HlRoot,{d:n,now:w,t:e,onChanged:r,onMap:(d,N,g)=>{o("fleet"),setTimeout(()=>O(d,N,g),250)}}):null,l==="permits"?(0,s.jsx)(LCgate,{d:n,now:w,t:e,onChanged:r}):null,l==="people"?(0,s.jsx)(Mm,{d:n,t:e,onChanged:r}):null,l==="rules"?(0,s.jsx)(xm,{d:n,t:e,onChanged:r}):null]})]})]})}/* v203 · search results: the section and the row are real components, defined once. They used to be created inside Um,
    so every redraw (the 15 s clock tick, each background refresh) handed React brand-new components: it threw all the
    results away and rebuilt them, the rise-in animation replayed, and the screen flashed while a search was open. */
 /* v256 · a search result opens the exact record it shows (Tito, Nov 10: "Whenever I search something I want it take me to that
@@ -3869,7 +4329,7 @@ function MZseekGet(k){var w=MZseekW;if(!w||w.k!==k)return null;if(Date.now()-w.a
 function MZtkInto(F,T){F.gallons=(Number(F.gallons)||0)+(Number(T.gallons)||0)||F.gallons;F.amount=(Number(F.amount)||0)+(Number(T.amount)||0)||F.amount;F.plate=F.plate||T.plate;F.reconciled=!0;T.fuel_type&&F.comb&&/DIESEL/.test(T.fuel_type||"")!==(F.comb==="DIESEL")&&(T.gallons||0)>12&&(F.flags=[...F.flags||[],`Statement says ${T.fuel_type}, PO says ${F.comb}`])}
 function UmSec({label:a,n:f,room:d,go:r,children:N}){return f?(0,s.jsx)(G,{title:`${a} \xB7 ${f}`,right:(0,s.jsxs)("button",{className:"btn sm",onClick:()=>r(d),children:["open ",a.toLowerCase()," \u2192"]}),children:N}):null}
 function UmRow({onClick:a,children:f}){return(0,s.jsx)("div",{className:"recent srch",onClick:a,style:{cursor:"pointer"},children:f})}
-function Um({d:e,q:t,now:n,onGo:r,onFocusOrder:l,mapGo:o}){let i=t.trim().toLowerCase(),u=a=>String(a||"").toLowerCase().includes(i),c=(e.orders||[]).filter(a=>!a.is_practice&&[a.req_no,a.po,a.foreman,hn(a),a.supervisor,a.provider,...(a.lines||[]).map(f=>(f.code||"")+" "+(f.descr||""))].some(u)).slice(0,12),p=(e.fuel||[]).filter(a=>[a.po,a.who,a.plate,a.vehicle_id,a.vehicle_desc,a.jobsite,a.station].some(u)).slice(0,12),w=(e.fleet||[]).filter(a=>{let fx=a.vehicle_id&&(e.fleetio||[]).find(v=>v.vehicle_id===a.vehicle_id)||{};return[a.name,a.person,a.assigned_to,a.vehicle_id,a.plate,a.vin,a.last_geofence,fx.plate,fx.vin,fx.name].some(u)}).slice(0,12),S=(e.ledger||[]).filter(a=>[a.invoice,a.po,a.foreman,a.project,a.vendor,a.po_descr].some(u)).slice(0,12),y=(e.ppl||[]).filter(a=>[a.name,a.role,a.supervisor,a.pm,a.same_as,a.notes].some(u)).slice(0,12),E=(e.tickets||[]).filter(a=>[a.po_raw,a.creator,a.plate,a.station,a.project].some(u)).slice(0,8),h=c.length+p.length+w.length+S.length+y.length+E.length,O=UmSec,D=UmRow;return h?(0,s.jsxs)("div",{className:"room",children:[(0,s.jsxs)("div",{className:"dim xs",style:{margin:"0 0 10px 2px"},children:[h," result",h===1?"":"s"," for ",(0,s.jsxs)("b",{className:"ink",children:["\u201C",t,"\u201D"]})," \xB7 Esc clears"]}),(0,s.jsx)(O,{go:r,label:"ORDERS",n:c.length,room:"orders",children:c.map(a=>(0,s.jsxs)(D,{onClick:()=>l(a.id),children:[(0,s.jsx)("span",{className:"mono",children:a.req_no}),(0,s.jsx)("span",{className:"rf",children:z(a.foreman)}),(0,s.jsx)(V,{c:Me[a.provider]||_.dim,children:a.provider}),(0,s.jsx)("span",{className:"dim",children:hn(a)||"\u2014"}),(0,s.jsx)("span",{className:"mono dim",children:H(a.est_total)}),(0,s.jsx)(V,{c:(yo[a.status]||["",_.dim])[1],dim:!0,children:(yo[a.status]||[a.status])[0]}),a.po?(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po]}):null]},a.id))}),(0,s.jsx)(O,{go:r,label:"FUEL POs",n:p.length,room:"fuel",children:p.map(a=>(0,s.jsxs)(D,{onClick:()=>{try{window.__mzFuelFocus={id:a.id,view:"pos",at:Date.now()}}catch(x){}r("fuel")},children:[(0,s.jsx)("span",{className:"mono",children:a.po}),(0,s.jsx)("span",{className:"rf",children:z(a.who)}),(0,s.jsx)("span",{className:"mono",children:a.vehicle_id||a.plate||"\u2014"}),(0,s.jsx)("span",{className:"dim",children:a.jobsite}),(0,s.jsx)(V,{c:Me[a.station]||_.dim,children:a.station}),(0,s.jsx)("span",{className:"dim mono",children:Br(a.ts)})]},a.id))}),(0,s.jsx)(O,{go:r,label:"FLEET",n:w.length,room:"fleet",children:w.map(a=>(0,s.jsxs)(D,{onClick:()=>{r("fleet"),a.last_lat&&setTimeout(()=>o(a.last_lat,a.last_lon,z(a.person||a.assigned_to||a.name)),250)},children:[(0,s.jsx)("span",{className:"rf",children:z(a.person||a.assigned_to||(a.name||"").replace(/\s*VIN.*$/i,""))}),(0,s.jsx)("span",{className:"mono",children:a.vehicle_id||"unlinked"}),(0,s.jsx)("span",{className:"mono dim",children:a.plate||(/^(CAMIONETA|CAMION)$/i.test(a.tipo||"")&&a.vehicle_id&&((e.fleetio||[]).find(v=>v.vehicle_id===a.vehicle_id)||{}).plate)||""}),(0,s.jsx)("span",{className:"dim",children:a.last_geofence||(a.last_lat?`${(+a.last_lat).toFixed(4)}, ${(+a.last_lon).toFixed(4)}`:"\u2014")}),(0,s.jsx)("span",{className:"dim mono",children:a.secs_since_seen!=null?Ze(a.secs_since_seen)+" ago":""})]},a.actsoft_id))}),(0,s.jsx)(O,{go:r,label:"INVOICES",n:S.length,room:"ledger",children:S.map(a=>(0,s.jsxs)(D,{onClick:()=>{MZseekW={k:"ledger",vendor:a.vendor,invoice:a.invoice,at:Date.now()};r("ledger")},children:[(0,s.jsx)(V,{c:Me[a.vendor]||_.dim,children:a.vendor}),(0,s.jsx)("span",{className:"mono",children:a.invoice}),(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po||"\u2014"]}),(0,s.jsx)("span",{className:"rf",children:z(a.foreman)}),(0,s.jsx)("span",{className:"dim",children:a.project||""}),(0,s.jsx)("span",{className:"mono dim",children:H(a.total)}),(0,s.jsx)("span",{className:a.po_check==="OK"?"dim":"red",children:MZen(a.po_check)})]},a.vendor+a.invoice))}),(0,s.jsx)(O,{go:r,label:"STATEMENT TICKETS",n:E.length,room:"fuel",children:E.map(a=>(0,s.jsxs)(D,{onClick:()=>{try{window.__mzFuelFocus={tk:a.id,view:"pos",at:Date.now()}}catch(x){}r("fuel")},children:[(0,s.jsx)(V,{c:Me[a.station]||_.dim,children:a.station}),(0,s.jsx)("span",{className:"mono",children:a.ticket_date}),(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po_raw||"\u2014"]}),(0,s.jsx)("span",{className:"rf",children:z(a.creator)}),(0,s.jsxs)("span",{className:"dim",children:[a.fuel_type," \xB7 ",a.gallons?Math.round(a.gallons)+" gal":""]}),(0,s.jsx)("span",{className:"mono dim",children:H(a.amount)})]},a.id))}),(0,s.jsx)(O,{go:r,label:"PEOPLE",n:y.length,room:"people",children:y.map(a=>(0,s.jsxs)(D,{onClick:()=>{MZseekW={k:"people",name:a.name,at:Date.now()};r("people")},children:[(0,s.jsx)("span",{className:"rf",children:z(a.name)}),(0,s.jsx)(V,{c:_.dim,dim:!0,children:a.role}),(0,s.jsx)("span",{className:"dim",children:a.supervisor?"\u2192 "+z(a.supervisor):""}),(0,s.jsx)("span",{className:"dim",children:a.pm?"PM "+z(a.pm):""}),a.same_as?(0,s.jsxs)("span",{className:"dim",children:["= ",z(a.same_as)]}):null]},a.name))})]}):(0,s.jsx)("div",{className:"room",children:(0,s.jsxs)(ve,{children:["Nothing matches \u201C",t,"\u201D across orders, fuel POs, trucks, invoices, people or statement tickets."]})})}function jm({onIn:e}){let[t,n]=(0,M.useState)(""),[r,l]=(0,M.useState)(""),[o,i]=(0,M.useState)(""),[u,c]=(0,M.useState)(!1),p=async()=>{c(!0),i("");try{e(await wm(t.trim(),r))}catch(v){let k=String(v&&v.message||v);i(k==="BADPASS"?"Wrong email or password.":k==="NOTOFFICE"?"That account exists but isn't in office_users.":k.startsWith("NET:")?"No se pudo conectar ("+k.slice(4)+")":"Sign-in failed.")}finally{c(!1)}};return(0,s.jsx)("div",{className:"gate",children:(0,s.jsxs)("div",{className:"gcard",children:[(0,s.jsx)("div",{className:"bm big",children:"M"}),(0,s.jsx)("div",{className:"bn",children:"MU\xD1IZ OPS"}),(0,s.jsx)("div",{className:"bs",children:"COMMAND CENTER \xB7 OFFICE ACCESS"}),(0,s.jsx)("input",{className:"inp",placeholder:"email",value:t,onChange:w=>n(w.target.value),autoFocus:!0}),(0,s.jsx)("input",{className:"inp",type:"password",placeholder:"password",value:r,onChange:w=>l(w.target.value),onKeyDown:w=>w.key==="Enter"&&p()}),o?(0,s.jsx)("div",{className:"err",children:o}):null,(0,s.jsx)("button",{className:"btn green big",disabled:u||!t||!r,onClick:p,children:"ENTER"}),(0,s.jsx)("div",{className:"dim xs",children:"Every order, fuel PO and truck movement in one place."})]})})}function MzLink(){try{
+function Um({d:e,q:t,now:n,onGo:r,onFocusOrder:l,mapGo:o}){let i=t.trim().toLowerCase(),u=a=>String(a||"").toLowerCase().includes(i),c=(e.orders||[]).filter(a=>!a.is_practice&&[a.req_no,a.po,a.foreman,hn(a),a.supervisor,a.provider,...(a.lines||[]).map(f=>(f.code||"")+" "+(f.descr||""))].some(u)).slice(0,12),p=(e.fuel||[]).filter(a=>[a.po,a.who,a.plate,a.vehicle_id,a.vehicle_desc,a.jobsite,a.station].some(u)).slice(0,12),w=(e.fleet||[]).filter(a=>{let fx=a.vehicle_id&&(e.fleetio||[]).find(v=>v.vehicle_id===a.vehicle_id)||{};return[a.name,a.person,a.assigned_to,a.vehicle_id,a.plate,a.vin,a.last_geofence,fx.plate,fx.vin,fx.name].some(u)}).slice(0,12),S=(e.ledger||[]).filter(a=>[a.invoice,a.po,a.foreman,a.project,a.vendor,a.po_descr].some(u)).slice(0,12),y=(e.ppl||[]).filter(a=>[a.name,a.role,a.supervisor,a.pm,a.same_as,a.notes].some(u)).slice(0,12),E=(e.tickets||[]).filter(a=>[a.po_raw,a.creator,a.plate,a.station,a.project].some(u)).slice(0,8),LCs=LCsearch(e,u),h=c.length+p.length+w.length+S.length+y.length+E.length+LCs.t.length+LCs.p.length,O=UmSec,D=UmRow;return h?(0,s.jsxs)("div",{className:"room",children:[(0,s.jsxs)("div",{className:"dim xs",style:{margin:"0 0 10px 2px"},children:[h," result",h===1?"":"s"," for ",(0,s.jsxs)("b",{className:"ink",children:["\u201C",t,"\u201D"]})," \xB7 Esc clears"]}),(0,s.jsx)(O,{go:r,label:"ORDERS",n:c.length,room:"orders",children:c.map(a=>(0,s.jsxs)(D,{onClick:()=>l(a.id),children:[(0,s.jsx)("span",{className:"mono",children:a.req_no}),(0,s.jsx)("span",{className:"rf",children:z(a.foreman)}),(0,s.jsx)(V,{c:Me[a.provider]||_.dim,children:a.provider}),(0,s.jsx)("span",{className:"dim",children:hn(a)||"\u2014"}),(0,s.jsx)("span",{className:"mono dim",children:H(a.est_total)}),(0,s.jsx)(V,{c:(yo[a.status]||["",_.dim])[1],dim:!0,children:(yo[a.status]||[a.status])[0]}),a.po?(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po]}):null]},a.id))}),(0,s.jsx)(O,{go:r,label:"FUEL POs",n:p.length,room:"fuel",children:p.map(a=>(0,s.jsxs)(D,{onClick:()=>{try{window.__mzFuelFocus={id:a.id,view:"pos",at:Date.now()}}catch(x){}r("fuel")},children:[(0,s.jsx)("span",{className:"mono",children:a.po}),(0,s.jsx)("span",{className:"rf",children:z(a.who)}),(0,s.jsx)("span",{className:"mono",children:a.vehicle_id||a.plate||"\u2014"}),(0,s.jsx)("span",{className:"dim",children:a.jobsite}),(0,s.jsx)(V,{c:Me[a.station]||_.dim,children:a.station}),(0,s.jsx)("span",{className:"dim mono",children:Br(a.ts)})]},a.id))}),(0,s.jsx)(O,{go:r,label:"FLEET",n:w.length,room:"fleet",children:w.map(a=>(0,s.jsxs)(D,{onClick:()=>{r("fleet"),a.last_lat&&setTimeout(()=>o(a.last_lat,a.last_lon,z(a.person||a.assigned_to||a.name)),250)},children:[(0,s.jsx)("span",{className:"rf",children:z(a.person||a.assigned_to||(a.name||"").replace(/\s*VIN.*$/i,""))}),(0,s.jsx)("span",{className:"mono",children:a.vehicle_id||"unlinked"}),(0,s.jsx)("span",{className:"mono dim",children:a.plate||(/^(CAMIONETA|CAMION)$/i.test(a.tipo||"")&&a.vehicle_id&&((e.fleetio||[]).find(v=>v.vehicle_id===a.vehicle_id)||{}).plate)||""}),(0,s.jsx)("span",{className:"dim",children:a.last_geofence||(a.last_lat?`${(+a.last_lat).toFixed(4)}, ${(+a.last_lon).toFixed(4)}`:"\u2014")}),(0,s.jsx)("span",{className:"dim mono",children:a.secs_since_seen!=null?Ze(a.secs_since_seen)+" ago":""})]},a.actsoft_id))}),(0,s.jsx)(O,{go:r,label:"INVOICES",n:S.length,room:"ledger",children:S.map(a=>(0,s.jsxs)(D,{onClick:()=>{MZseekW={k:"ledger",vendor:a.vendor,invoice:a.invoice,at:Date.now()};r("ledger")},children:[(0,s.jsx)(V,{c:Me[a.vendor]||_.dim,children:a.vendor}),(0,s.jsx)("span",{className:"mono",children:a.invoice}),(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po||"\u2014"]}),(0,s.jsx)("span",{className:"rf",children:z(a.foreman)}),(0,s.jsx)("span",{className:"dim",children:a.project||""}),(0,s.jsx)("span",{className:"mono dim",children:H(a.total)}),(0,s.jsx)("span",{className:a.po_check==="OK"?"dim":"red",children:MZen(a.po_check)})]},a.vendor+a.invoice))}),(0,s.jsx)(O,{go:r,label:"STATEMENT TICKETS",n:E.length,room:"fuel",children:E.map(a=>(0,s.jsxs)(D,{onClick:()=>{try{window.__mzFuelFocus={tk:a.id,view:"pos",at:Date.now()}}catch(x){}r("fuel")},children:[(0,s.jsx)(V,{c:Me[a.station]||_.dim,children:a.station}),(0,s.jsx)("span",{className:"mono",children:a.ticket_date}),(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po_raw||"\u2014"]}),(0,s.jsx)("span",{className:"rf",children:z(a.creator)}),(0,s.jsxs)("span",{className:"dim",children:[a.fuel_type," \xB7 ",a.gallons?Math.round(a.gallons)+" gal":""]}),(0,s.jsx)("span",{className:"mono dim",children:H(a.amount)})]},a.id))}),LCs.t.length?(0,s.jsx)(LCsrchT,{rows:LCs.t,go:r,today:LCs.b.today}):null,LCs.p.length?(0,s.jsx)(LCsrchP,{rows:LCs.p,go:r,today:LCs.b.today}):null,(0,s.jsx)(O,{go:r,label:"PEOPLE",n:y.length,room:"people",children:y.map(a=>(0,s.jsxs)(D,{onClick:()=>{MZseekW={k:"people",name:a.name,at:Date.now()};r("people")},children:[(0,s.jsx)("span",{className:"rf",children:z(a.name)}),(0,s.jsx)(V,{c:_.dim,dim:!0,children:a.role}),(0,s.jsx)("span",{className:"dim",children:a.supervisor?"\u2192 "+z(a.supervisor):""}),(0,s.jsx)("span",{className:"dim",children:a.pm?"PM "+z(a.pm):""}),a.same_as?(0,s.jsxs)("span",{className:"dim",children:["= ",z(a.same_as)]}):null]},a.name))})]}):(0,s.jsx)("div",{className:"room",children:(0,s.jsxs)(ve,{children:["Nothing matches \u201C",t,"\u201D across orders, fuel POs, trucks, invoices, people, statement tickets, 811 tickets or ROW permits."]})})}function jm({onIn:e}){let[t,n]=(0,M.useState)(""),[r,l]=(0,M.useState)(""),[o,i]=(0,M.useState)(""),[u,c]=(0,M.useState)(!1),p=async()=>{c(!0),i("");try{e(await wm(t.trim(),r))}catch(v){let k=String(v&&v.message||v);i(k==="BADPASS"?"Wrong email or password.":k==="NOTOFFICE"?"That account exists but isn't in office_users.":k.startsWith("NET:")?"No se pudo conectar ("+k.slice(4)+")":"Sign-in failed.")}finally{c(!1)}};return(0,s.jsx)("div",{className:"gate",children:(0,s.jsxs)("div",{className:"gcard",children:[(0,s.jsx)("div",{className:"bm big",children:"M"}),(0,s.jsx)("div",{className:"bn",children:"MU\xD1IZ OPS"}),(0,s.jsx)("div",{className:"bs",children:"COMMAND CENTER \xB7 OFFICE ACCESS"}),(0,s.jsx)("input",{className:"inp",placeholder:"email",value:t,onChange:w=>n(w.target.value),autoFocus:!0}),(0,s.jsx)("input",{className:"inp",type:"password",placeholder:"password",value:r,onChange:w=>l(w.target.value),onKeyDown:w=>w.key==="Enter"&&p()}),o?(0,s.jsx)("div",{className:"err",children:o}):null,(0,s.jsx)("button",{className:"btn green big",disabled:u||!t||!r,onClick:p,children:"ENTER"}),(0,s.jsx)("div",{className:"dim xs",children:"Every order, fuel PO and truck movement in one place."})]})})}function MzLink(){try{
   let q=new URLSearchParams(location.search),h=new URLSearchParams((location.hash||"").replace(/^#/,""));
   let th=q.get("token_hash"),at=h.get("access_token"),er=h.get("error_code")||h.get("error")||q.get("error_code")||q.get("error");
   if(!th&&!at&&!er)return null;
