@@ -1894,6 +1894,7 @@ html[data-theme] .lc-room a.btn{text-decoration:none;display:inline-flex;align-i
 html[data-theme] .lc-chip{--c:var(--dim);display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font:600 12px/1.25 var(--sans);color:var(--c);background:color-mix(in srgb,var(--c) 10%,transparent);border:1px solid color-mix(in srgb,var(--c) 26%,transparent);white-space:nowrap}
 html[data-theme] .lc-chip.red{--c:var(--red)}
 html[data-theme] .lc-chip.amber{--c:var(--amber)}
+html[data-theme] .lc-chip.green{--c:var(--green)}
 html[data-theme] .lc-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 html[data-theme] .lc-tbl td{vertical-align:top;cursor:pointer}
 html[data-theme] .lc-tbl tr.lc-nolink td{cursor:default}

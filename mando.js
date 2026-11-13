@@ -3897,7 +3897,7 @@ function LCtStat(t,today){if(!t)return["—",""];
   if(t.status==="STUB")return[t.not_found?"Not found on Texas811":"Being read from Texas811…",t.not_found?"amber":""];
   if(t.status==="LIVE"){if(t.level==="DUE")return[t.renew_by<today?"Renew now · was due "+LCdayS(t.renew_by):"Renew today","red"];
     if(t.level==="SOON")return["Renew by "+LCday(t.renew_by),"amber"];if(t.level==="LAPSE")return["Letting it lapse · ends "+LCdayS(t.expires_cal),""];
-    var d=LCdiff(today,t.expires_cal);return["Live · "+LCplural(d,"day")+" left",""]}
+    var d=LCdiff(today,t.expires_cal);return["Live · "+LCplural(d,"day")+" left","green"]}
   if(t.level==="EXPIRED")return["Expired "+LCdayS(t.expires_cal)+" · crew there","red"];
   if(t.status==="SUPERSEDED")return["Renewed"+(t.superseded_by?" by "+t.superseded_by:""),""];
   if(t.status==="CANCELLED")return["Cancelled",""];if(t.status==="FUTURE")return["Starts "+LCdayS(t.created_day),""];
