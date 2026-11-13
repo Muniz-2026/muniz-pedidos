@@ -2085,7 +2085,8 @@ function PYmerge(k,P,A,e){var c=PYPM[k];if(c&&c.P.length===P.length&&c.P.every(f
   sites.forEach(function(g){delete g.big;g.names=[g.name].concat(g.names.filter(function(n){return n!==g.name}))});
   sites.sort(function(a,b){return b.min-a.min||(a.typ<b.typ?-1:a.typ>b.typ?1:0)||a.name.localeCompare(b.name)});
   var total=sites.reduce(function(s,q){return s+q.min},0);sites.forEach(function(q){q.share=total?q.min/total:0});
-  var r={day:P[0].day,ran:ran,sites:sites,total:total,main:sites[0]||null,home:home,trucks:A.map(function(a){return PYvid(a,e)})};
+  var ord=P.map(function(s,i){var t=1/0;s.sites.forEach(function(q){if(q.first<t)t=q.first});if(t===1/0&&s.hd&&s.hd.first_on!=null)t=s.hd.first_on;return{i:i,t:t}}).sort(function(a,b){return a.t-b.t||a.i-b.i});
+  var r={day:P[0].day,ran:ran,sites:sites,total:total,main:sites[0]||null,home:home,trucks:ord.map(function(o){return PYvid(A[o.i],e)})};
   if(full){stops.sort(function(a,b){return a.arrive-b.arrive});r.stops=stops.map(function(s,i){return Object.assign({},s,{seq:i+1})});r.trails=trails;r.trail=[].concat.apply([],trails);r.hd={first_on:on,last_off:off}}
   PYPM[k]={P:P,r:r};return r}
 function PYtruckers(e){var fleet=e.fleet||[],ppl=e.ppl||[];return HLdrivers(e).map(function(n,i){var u=fleet.find(function(x){return PJsame(x.person,n)})||null,p=ppl.find(function(x){return PJsame(x.name,n)})||{},
