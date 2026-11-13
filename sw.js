@@ -1,4 +1,5 @@
-/* MUÑIZ Pedidos - service worker  ·  v270
+/* MUÑIZ Pedidos - service worker  ·  v271
+     · v271: Command Center maps: a moving unit is a triangle (Fleet / Live, Haul, Projects) + legends.
      · v270: Command Center PERMITS: a live ticket's chip ("Live · N days left") is green.
      · v269: Command Center PERMITS: "no live ticket" counted and listed by place (a truck and its machines at one spot = one line), the past-expiry list reads the days with no live ticket there, utilities that rarely answer are not flagged (parche216).
      · v268: Command Center PERMITS: the 811 / ROW board (parche213's locate_board): renew today, crews without a ticket, permits ending, not marked; paste ticket numbers; ticket, permit and crew-place windows; search. Before parche213 the old room shows.
@@ -102,7 +103,7 @@
        an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v270";
+const CACHE = "muniz-pedidos-v271";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
