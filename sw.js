@@ -1,4 +1,5 @@
-/* MUÑIZ Pedidos - service worker  ·  v272
+/* MUÑIZ Pedidos - service worker  ·  v273
+     · v273: Command Center maps: the moving triangle points the way the truck is driving (GPS heading).
      · v272: Command Center maps: the moving triangle is the same size as the circles.
      · v271: Command Center maps: a moving unit is a triangle (Fleet / Live, Haul, Projects) + legends.
      · v270: Command Center PERMITS: a live ticket's chip ("Live · N days left") is green.
@@ -104,7 +105,7 @@
        an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v272";
+const CACHE = "muniz-pedidos-v273";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
