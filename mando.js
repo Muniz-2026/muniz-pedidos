@@ -1667,20 +1667,34 @@ function HLmap(p){var box=(0,M.useRef)(null),map=(0,M.useRef)(null),lay=(0,M.use
     L.control.zoom({position:"bottomright"}).addTo(map.current);lay.current=L.layerGroup().addTo(map.current);
     setTimeout(function(){try{map.current.invalidateSize()}catch(x){}},90);
     var ro=window.ResizeObserver?new ResizeObserver(function(){try{map.current&&map.current.invalidateSize()}catch(x){}}):null;ro&&ro.observe(box.current);
-    return function(){ro&&ro.disconnect();window.removeEventListener("mz-theme",th);ly.off();try{map.current.remove()}catch(x){}map.current=null}},[]);
-  (0,M.useEffect)(function(){var L=window.L;if(!L||!map.current)return;var g=lay.current;g.clearLayers();var pts=[];
+    return function(){ro&&ro.disconnect();window.removeEventListener("mz-theme",th);ly.off();Object.keys(HLREG).forEach(function(k){if(HLREG[k]===map.current)delete HLREG[k]});try{map.current.remove()}catch(x){}map.current=null}},[]);
+  (0,M.useEffect)(function(){var L=window.L;if(!L||!map.current)return;var g=lay.current;g.clearLayers();var pts=[],mk={};map.current._mzStops=mk;if(p.view!==void 0)HLREG[p.view]=map.current;
     /* v268 · areas: polygons (an 811 work area) */(p.areas||[]).forEach(function(a){(a.rings||[]).forEach(function(r){if(!r||r.length<3)return;var pg=L.polygon(r,{color:a.color||"var(--accent)",weight:a.weight||2,fillColor:a.color||"var(--accent)",fillOpacity:a.fill!=null?a.fill:.12,dashArray:a.dash||null}).addTo(g);if(a.tip)pg.bindTooltip(a.tip,{className:"tip"});r.forEach(function(q){pts.push(q)})})});
     (p.places||[]).forEach(function(pl){if(!pl.lat)return;var c=HLcol(pl.kind);L.circleMarker([pl.lat,pl.lon],{radius:pl.kind==="jobsite"?4:5,color:c,weight:1.5,fillColor:c,fillOpacity:.35}).addTo(g).bindTooltip("<b>"+pl.name+"</b><br>"+HLlab(pl.kind),{className:"tip"})});
     (p.trails||[]).forEach(function(tr){if(tr.pts&&tr.pts.length>1){L.polyline(tr.pts,{color:tr.color,weight:tr.weight||3,opacity:tr.opacity||.85,lineJoin:"round"}).addTo(g);if(p.fitTrails)tr.pts.forEach(function(q){pts.push(q)})}});
     (p.route||[]).forEach(function(r,i,a){if(i>0)L.polyline([[a[i-1].lat,a[i-1].lon],[r.lat,r.lon]],{color:"#0A84FF",weight:3,dashArray:"6 6",opacity:.95}).addTo(g);
       L.marker([r.lat,r.lon],{icon:L.divIcon({className:"hl-num route",html:"<span>"+(i===0?"S":i)+"</span>",iconSize:[26,26],iconAnchor:[13,13]})}).addTo(g).bindTooltip(r.label||"",{className:"tip"});pts.push([r.lat,r.lon])});
-    (p.stops||[]).forEach(function(s,i){if(!s.lat)return;L.marker([s.lat,s.lon],{icon:L.divIcon({className:"hl-num",html:"<span style='background:"+HLcol(s.kind)+"'>"+s.seq+"</span>",iconSize:[24,24],iconAnchor:[12,12]})}).addTo(g)
+    (p.stops||[]).forEach(function(s,i){if(!s.lat)return;mk[s.seq]=L.marker([s.lat,s.lon],{icon:L.divIcon({className:"hl-num"+(map.current._mzOn===s.seq?" on":""),html:"<span style='background:"+HLcol(s.kind)+"'>"+s.seq+"</span>",iconSize:[24,24],iconAnchor:[12,12]}),zIndexOffset:map.current._mzOn===s.seq?1e3:0}).addTo(g)
       .bindTooltip("<b>"+s.seq+". "+HLplace(s)+"</b><br>"+HLlab(s.kind)+" · "+HLt(s.arrive)+"–"+HLt(s.depart)+" · "+HLmin(s.minutes),{className:"tip"});pts.push([s.lat,s.lon])});
     (p.trucks||[]).forEach(function(tk){if(!tk.lat)return;L.marker([tk.lat,tk.lon],{icon:L.divIcon({className:"hl-truck"+(tk.live?" live":""),html:(tk.live?MZtri(tk.color,14,"#fff",tk.hd):"<i style='background:"+tk.color+"'></i>")+"<b>"+tk.label+"</b>",iconSize:[120,26],iconAnchor:[10,13]})}).addTo(g)
       .bindTooltip(tk.tip||tk.label,{className:"tip"});pts.push([tk.lat,tk.lon])});
-    var mc=map.current,fresh=p.view!==void 0&&p.view!==mc._mzView;
+    var mc=map.current,fresh=p.view!==void 0&&p.view!==mc._mzView;if(fresh)mc._mzOn=null;
     if(pts.length)try{MZrefit(mc,pts,{padding:[40,40],maxZoom:p.maxZoom||14},fresh);mc._mzView=p.view}catch(x){}},[p.sig]);
   return PJh("div",{className:"hl-map "+(p.className||""),ref:box})}
+/* v274 · a click on a stop in a day's list takes its map there (Tito, Nov 13: "click on any number of the stops in the feed and it
+   take me to that point in the map"): HLREG = each HLmap by its view key; HLgo zooms to the stop, rings its number, opens its tip,
+   marks the row and holds a live refresh's refit off like a hand on the map (MZrefit) */
+var HLREG={};
+function HLgo(view,s,el){var mp=HLREG[view];if(!mp||s.lat==null)return;try{
+  var ly=mp._mzLy;ly&&(ly.touched=Date.now());
+  var mk=mp._mzStops||{},old=mk[mp._mzOn];if(old&&old.getElement())old.getElement().classList.remove("on"),old.setZIndexOffset(0);
+  mp._mzOn=s.seq;var m=mk[s.seq];mp.setView([s.lat,s.lon],Math.max(mp.getZoom(),17),{animate:!0});
+  if(m){m.getElement()&&m.getElement().classList.add("on");m.setZIndexOffset(1e3);m.openTooltip()}
+  if(el&&el.parentNode){Array.prototype.forEach.call(el.parentNode.children,function(c){c.classList.remove("on")});el.classList.add("on")}
+  var r=mp.getContainer().getBoundingClientRect();if(r.top<0||r.bottom>window.innerHeight)mp.getContainer().scrollIntoView({block:"nearest",behavior:"smooth"})}catch(x){}}
+/* the row's own props: a click or Enter / Space goes to the stop */
+function HLgoP(view,s){if(s.lat==null)return{};var f=function(ev){HLgo(view,s,ev.currentTarget)};
+  return{role:"button",tabIndex:0,title:"Show stop "+s.seq+" on the map",onClick:f,onKeyDown:function(ev){if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();f(ev)}}}}
 
 /* the day as a strip: 5 AM → 8 PM */
 function HLtimeline(p){var d=p.day,a=HLdayMs(d,5),b=HLdayMs(d,20),W=b-a,pct=function(ts){return Math.max(0,Math.min(100,(new Date(ts).getTime()-a)/W*100))};
@@ -1843,7 +1857,7 @@ function Hl({d:e,now:t,t:tok,onMap:om,onChanged:rf,onSide:onSide}){
           PYdayLine(tk&&tk.aid?PYsum(tk.aid,dday,e,t):null,e),PJh(HLtimeline,{day:dday,stops:dstops,hd:dhd,today:today,now:t}),
           PJh("div",{className:"hl-day-b"},
             PJh(HLmap,{className:"hl-fmap",stops:dstops,trails:[{pts:dtrail,color:tk.color,weight:3.5}],fitTrails:!0,sig:tk.n+dday+dstops.length+"|"+dtrail.length,view:tk.n+"|"+dday,maxZoom:15,wheel:!0}),
-            PJh("div",{className:"hl-stops"},dstops.length?dstops.map(function(s){return PJh("div",{key:s.arrive,className:"hl-srow"},PJh("span",{className:"hl-sn",style:{background:HLcol(s.kind)}},s.seq),
+            PJh("div",{className:"hl-stops"},dstops.length?dstops.map(function(s){return PJh("div",Object.assign({key:s.arrive,className:"hl-srow"+(s.lat!=null?" go":"")},HLgoP(tk.n+"|"+dday,s)),PJh("span",{className:"hl-sn",style:{background:HLcol(s.kind)}},s.seq),
               PJh("div",{className:"grow"},PJh("b",null,HLplace(s)),PJh("span",{className:"dim"},HLlab(s.kind)+" · "+HLt(s.arrive)+" – "+HLt(s.depart))),/^(jobsite|unknown|other)$/.test(s.kind)?PYchipAt(s.lat,s.lon,e):null,PJh("span",{className:"mono"},HLmin(s.minutes)))}):PJh(ve,null,"No stops recorded for this day.")))):null,
         tab==="month"?PJh("div",{className:"hl-cal"},
           PJh("div",{className:"hl-cal-g"},["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w){return PJh("span",{key:w,className:"hl-cal-w"},w)}),cells.map(function(c,i){if(!c)return PJh("i",{key:"e"+i,className:"hl-cell empty"});var r=byDay[c],v=r?r.trips||0:0;
@@ -2214,7 +2228,7 @@ function PYdayLine(s,e){if(!s||!s.main)return null;var m=s.main;return PJh("div"
   PJh("b",null,m.name),PYchip(m.ev,m.sure,PYhow(m,e))||PJh("span",{className:"py-chip no"},m.typ==="U"?"unknown site":"no job #"),
   PJh("span",{className:"dim"},Math.round(m.share*100)+"% of "+PYhr(s.total)+" on job sites"+(s.sites.length>1?" · also "+s.sites.slice(1).map(function(q){return(q.code||q.name)+" "+Math.round(q.share*100)+"%"}).join(", "):"")))}
 /* the stops list of a foreman's day */
-function PYstopRow(s,e){return PJh("div",{key:s.arrive,className:"hl-srow"},PJh("span",{className:"hl-sn",style:{background:HLcol(s.kind)}},s.seq),
+function PYstopRow(s,e,v){return PJh("div",Object.assign({key:s.arrive,className:"hl-srow"+(v&&s.lat!=null?" go":"")},v?HLgoP(v,s):{}),PJh("span",{className:"hl-sn",style:{background:HLcol(s.kind)}},s.seq),
   PJh("div",{className:"grow"},PJh("b",null,HLplace(s)),PJh("span",{className:"dim"},HLlab(s.kind)+" · "+HLt(s.arrive)+" – "+HLt(s.depart))),
   s.kind==="jobsite"||s.ev?PYchip(s.ev,s.sure,PYhow({typ:s.kind==="jobsite"?"J":"U",ev:s.ev,name:s.place||"",sure:s.sure},e)):null,PJh("span",{className:"mono"},HLmin(s.minutes)))}
 /* a foreman's status on the console: the Live board's rules (LVgeo, LVjob) */
@@ -2323,7 +2337,7 @@ function FMdossier(o){var e=o.e,fm=o.fm,t=o.t,today=o.today,dday=o.dday,tab=o.ta
       sf?PJh(HLtimeline,{day:dday,stops:sf.stops,hd:sf.hd,today:today,now:t}):null,
       sf?PJh("div",{className:"hl-day-b"},
         PJh(HLmap,{className:"hl-fmap",stops:sf.stops,trails:[{pts:sf.trail,color:fm.color,weight:3.5}],fitTrails:!0,sig:fm.n+dday+sf.stops.length+"|"+sf.trail.length,view:fm.n+"|"+dday,maxZoom:15,wheel:!0}),
-        PJh("div",{className:"hl-stops"},sf.stops.length?sf.stops.map(function(x){return PYstopRow(x,e)}):PJh(ve,null,"No stops recorded for this day."))):s?PJh(ve,null,"Reading this day's GPS for the map and the stops…"):null):null,
+        PJh("div",{className:"hl-stops"},sf.stops.length?sf.stops.map(function(x){return PYstopRow(x,e,fm.n+"|"+dday)}):PJh(ve,null,"No stops recorded for this day."))):s?PJh(ve,null,"Reading this day's GPS for the map and the stops…"):null):null,
     tab==="month"?PJh("div",{className:"hl-cal"},
       PJh("div",{className:"hl-cal-g"},["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w){return PJh("span",{key:w,className:"hl-cal-w"},w)}),cells.map(function(c,i){if(!c)return PJh("i",{key:"e"+i,className:"hl-cell empty"});var r=c<=today?S(fm.aid,c):null,m=r&&r.main;
         return PJh("button",{key:c,className:"hl-cell py-cell"+(c===today?" td":"")+(c>today?" fut":"")+(m&&!m.code?" no":m&&!m.sure?" chk":""),title:r?PYtip(r,e):"",onClick:function(){if(c<=today){o.setDay(c);o.setTab("day")}},style:m?{"--h":Math.min(1,.18+r.total/600*.82)}:null},

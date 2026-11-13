@@ -1983,3 +1983,10 @@ html[data-theme] .lc-stub .btn{padding:4px 10px}
 .hl-truck svg{flex:0 0 auto;overflow:visible;filter:drop-shadow(0 0 4px rgba(0,0,0,.55))}
 .dot.tri{border-radius:0;clip-path:polygon(50% 0,100% 100%,0 100%);width:9px;height:8px;box-shadow:none}
 .sd-legend i.tri{border-radius:0;clip-path:polygon(50% 0,100% 100%,0 100%);width:10px;height:9px}
+
+/* v274 · a stop in a day's list takes the map there (HLgo): the row is a button, the chosen stop's row and number ring */
+html[data-theme] .hl-srow.go{cursor:pointer;border-radius:8px;transition:background .12s}
+html[data-theme] .hl-srow.go:hover{background:var(--btn-hover)}
+html[data-theme] .hl-srow.go:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+html[data-theme] .hl-srow.go.on{background:var(--btn-hover);box-shadow:inset 3px 0 0 var(--accent)}
+.hl-num.on span{transform:scale(1.25);box-shadow:0 0 0 3px var(--accent),0 2px 8px rgba(0,0,0,.45)}
