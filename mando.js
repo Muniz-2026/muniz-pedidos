@@ -1839,7 +1839,7 @@ function Hl({d:e,now:t,t:tok,onMap:om,onChanged:rf,onSide:onSide}){
         a.tk&&a.tk.phone?PJh("a",{className:"btn sm",href:"tel:"+a.tk.phone},"CALL"):null,a.tk?PJh("button",{className:"btn sm",onClick:function(){setSel(a.tk.n);setDay(a.stop?String(a.stop.day).slice(0,10):"");setTab("day")}},"REPLAY"):null)})):PJh(ve,{ok:!0},"No surprises. Every truck is doing what it should.")),
     /* ---------- v241 · payroll: where each trucker worked ---------- */
     PJh(G,{title:"WHERE EACH TRUCKER WORKED \u00B7 "+(pwk===PYmon(today)?"THIS WEEK":"WEEK OF "+PJday(pwk).toUpperCase()),right:PYweekNav({wk:pwk,setWk:setPwk,today:today,busy:pmsg,onExport:function(){PYexport(e,tok,pwk,setPmsg)}})},
-      PJh(PYgrid,{e:e,who:"Trucker",msg:PYwait(e),rows:ptrk,days:PYdays(pwk),today:today,sum:function(aid,d){return PYsum(aid,d,e,t)},sel:tk&&tk.n,selDay:dday,onCell:function(n,d){setSel(n);setDay(d);setTab("day");PYscroll("hl-dos")}}),
+      PJh(PYgrid,{e:e,who:"Trucker",msg:PYwait(e),rows:ptrk,days:PYdays(pwk),today:today,sum:function(x,d){return PYsum(x.aid,d,e,t)},sel:tk&&tk.n,selDay:dday,onCell:function(n,d){setSel(n);setDay(d);setTab("day");PYscroll("hl-dos")}}),
       PJh("div",{className:"py-note"},PYrule("Trucker"))),
     PJh("div",{id:"hl-dos",className:"py-anchor"}),
     /* ---------- dossier ---------- */
@@ -2016,14 +2016,78 @@ function PYoffice(aid,day,s,e){if(!s||!s.main)return s;var C=e.dayCodes||[],r=nu
   for(var i=0;i<C.length;i++){var c=C[i];if(String(c.actsoft_id)===String(aid)&&String(c.day).slice(0,10)===day){r=c;break}}if(!r||!r.code)return s;
   var k=PYOC.get(s);if(k&&k.r===r)return k.o;var ev={label:r.code,code:r.code,contract:"",n:0,tot:0,ring:0,office:r,mix:[]};
   var m=Object.assign({},s.main,{code:r.code,ev:ev,sure:!0}),o=Object.assign({},s,{main:m,sites:s.sites.map(function(q){return q===s.main?m:q})});PYOC.set(s,{r:r,o:o});return o}
-var PYMEN={f:null,p:null,d:null,w:"",out:[]};
-function PYmen(e,wk){wk=wk||PYmon(qt(Date.now()));if(PYMEN.f===e.fleet&&PYMEN.p===e.ppl&&PYMEN.d===e.truckDrivers&&PYMEN.w===wk)return PYMEN.out;var ppl=e.ppl||[],w1=PYadd(wk,6);
-  var us=(e.fleet||[]).filter(function(u){return u.group_name==="Foreman"&&u.person}),dr={};us.forEach(function(u){var r=PYdrv(u.actsoft_id,wk,w1,e);if(r)dr[String(u.actsoft_id)]=r});
-  var out=us.map(function(u){var r=dr[String(u.actsoft_id)],n=r?r.person:u.person;
-    if(!r&&Object.keys(dr).some(function(a){return a!==String(u.actsoft_id)&&PJsame(dr[a].person,u.person)}))n="NO DRIVER \u00B7 "+u.person;
-    var p=ppl.find(function(x){return PJsame(x.name,n)})||{};
-    return{n:n,u:u,aid:u.actsoft_id,phone:p.phone||"",role:"Foreman",reg:u.person,drv:r||null}}).sort(function(a,b){return z(a.n).localeCompare(z(b.n))});
-  out.forEach(function(x,i){x.color=PJCOL[i%PJCOL.length]});PYMEN={f:e.fleet,p:e.ppl,d:e.truckDrivers,w:wk,out:out};return out}
+/* v275 · one line per foreman (Tito, Nov 13: "there should not be two rows for the same foreman. I understand he switched trucks
+   but it is still the same foreman"). A Foreman truck belongs, day by day, to who drove it (PYown); a foreman's line shows each
+   day the truck he drove that day, and on the day he changed trucks the time on both adds up for him (PYpsum). A truck nobody
+   known drove (its registered person drove another truck, or left: People inactive) gets its own "No driver" line only in a
+   week it sat at a job or an unknown site that way (PYshown). */
+/* who drove Foreman truck u on day d: its dated driver record (truck_drivers) that day; else its registered person, unless he
+   drove another truck that day by a dated record (then nobody known drove u) — except on that record's first and last day: the
+   day he changed trucks, both were his — or he is no longer active in People (a name with no dates: never put a person who
+   left on a truck's work; Spare 1 V-PRE is registered to Pablo Reynaga) */
+var PYOFF={p:null,m:{}};
+function PYgone(n,e){if(PYOFF.p!==e.ppl){var m={};(e.ppl||[]).forEach(function(q){if(q.active===!1)m[MK(q.name)||q.name]=1});PYOFF={p:e.ppl,m:m}}return !!PYOFF.m[MK(n)||n]}
+function PYown(u,d,e){if(!u)return null;var r=PYdrv(u.actsoft_id,d,d,e);if(r)return r.person;var p=u.person;if(!p||PYgone(p,e))return null;
+  var R=e.truckDrivers||[];for(var i=0;i<R.length;i++){var q=R[i],f=String(q.from_day).slice(0,10),l=q.to_day?String(q.to_day).slice(0,10):"";
+    if(String(q.actsoft_id)!==String(u.actsoft_id)&&PJsame(q.person,p)&&d!==f&&d!==l&&PYdrv(q.actsoft_id,d,d,e)===q)return null}
+  return p}
+/* the trucks on a line that day (actsoft ids): a foreman's = every Foreman truck he drove that day; a "No driver" line's = its
+   truck on a day nobody known drove it */
+var PYONC={f:null,d:null,m:{}};
+function PYon(x,d,e){if(!x)return[];if(x.wk&&x.wk[d])return x.wk[d];if(PYONC.f!==e.fleet||PYONC.d!==e.truckDrivers)PYONC={f:e.fleet,d:e.truckDrivers,m:{}};
+  var k=x.n+"|"+d;if(PYONC.m[k])return PYONC.m[k];var o=[];
+  if(x.nod){if(PYown(x.u,d,e)==null)o.push(x.aid)}else(e.fleet||[]).forEach(function(u){if(u.group_name==="Foreman"&&u.person&&PJsame(PYown(u,d,e),x.n))o.push(u.actsoft_id)});
+  return PYONC.m[k]=o}
+var PYMEN={f:null,p:null,d:null,w:"",t:"",out:[]};
+function PYmen(e,wk){var today=qt(Date.now());wk=wk||PYmon(today);if(PYMEN.f===e.fleet&&PYMEN.p===e.ppl&&PYMEN.d===e.truckDrivers&&PYMEN.w===wk&&PYMEN.t===today)return PYMEN.out;
+  var ppl=e.ppl||[],days=PYdays(wk),L={},out=[],us=(e.fleet||[]).filter(function(u){return u.group_name==="Foreman"&&u.person});
+  us.forEach(function(u){days.forEach(function(d){var n=PYown(u,d,e),k=n?"P|"+(MK(n)||n):"T|"+u.actsoft_id;
+    var x=L[k]||(L[k]=n?{n:n,wk:{},us:[]}:{n:"NO DRIVER \u00B7 "+(u.vehicle_id||u.actsoft_id),nod:!0,opt:!0,u:u,aid:u.actsoft_id,wk:{},us:[]});
+    (x.wk[d]=x.wk[d]||[]).push(u.actsoft_id);if(x.us.indexOf(u)<0)x.us.push(u)})});
+  Object.keys(L).forEach(function(k){var x=L[k],had=days.filter(function(d){return x.wk[d]}),past=had.filter(function(d){return d<=today}),ld=past.length?past[past.length-1]:had[0];
+    var at=function(u){for(var i=0;i<days.length;i++)if((x.wk[days[i]]||[]).indexOf(u.actsoft_id)>=0)return i;return 9};
+    var span=function(a){var ds=past.filter(function(d){return x.wk[d].indexOf(a)>=0}),o=[],s=null,p=null,put=function(){if(s)o.push(PJdow(s)+(p!==s?"\u2013"+PJdow(p):""))};
+      ds.forEach(function(d){if(p&&PYadd(p,1)===d){p=d;return}put();s=p=d});put();return o.join(", ")};
+    x.us.sort(function(a,b){return at(a)-at(b)});x.vids=x.us.map(function(u){return u.vehicle_id||String(u.actsoft_id)});x.role="Foreman";
+    if(x.nod){x.phone="";x.reg=x.u.person;x.drv=null;x.tip="Nobody known drove "+x.vids[0]+" "+span(x.aid)+": it is registered to "+z(x.u.person)+(PYgone(x.u.person,e)?", no longer active in People":", who drove another truck then (driver record in Haul)");out.push(x);return}
+    var A=x.wk[ld]||[],nx=PYadd(ld,1),cur=A.filter(function(a){return PJsame(PYown(x.us.find(function(v){return v.actsoft_id===a}),nx,e),x.n)})[0];
+    if(cur==null)cur=A[A.length-1];x.u=x.us.find(function(v){return v.actsoft_id===cur})||x.us[0];x.aid=x.u.actsoft_id;
+    var p=ppl.find(function(q){return PJsame(q.name,x.n)})||{};x.phone=p.phone||"";x.reg=x.u.person;x.drv=PYdrv(x.aid,ld,ld,e);x.opt=p.active===!1;
+    var parts=x.us.map(function(u){var s=span(u.actsoft_id);return s?(u.vehicle_id||u.actsoft_id)+" "+s:""}).filter(Boolean);
+    x.tip=parts.length>1?z(x.n)+" this week: "+parts.join(", then ")+" (driver record in Haul)"
+      :x.drv?z(x.n)+" drives "+(x.u.vehicle_id||"this truck")+" since "+PJday(x.drv.from_day)+(x.drv.to_day?" until "+PJday(x.drv.to_day):"")+" (registered to "+z(x.reg)+")":"";
+    out.push(x)});
+  out.sort(function(a,b){return(a.nod?2:a.opt?1:0)-(b.nod?2:b.opt?1:0)||PYnm(a).localeCompare(PYnm(b))});
+  out.forEach(function(x,i){x.color=PJCOL[i%PJCOL.length]});PYMEN={f:e.fleet,p:e.ppl,d:e.truckDrivers,w:wk,t:today,out:out};return out}
+function PYnm(x){return x.nod?"No driver \u00B7 "+(x.vids&&x.vids[0]||x.aid):z(x.n)}
+/* the lines a week shows: every active foreman; a "No driver" truck or a person no longer active only with a day on a site */
+function PYshown(men,days,today,S){return men.filter(function(x){return !x.opt||days.some(function(d){if(d>today)return !1;var s=S(x,d);return !!(s&&s.main)})})}
+/* every truck the lines need GPS for */
+function PYaids(L){var o=[];(L||[]).forEach(function(x){(x.us?x.us.map(function(u){return u.actsoft_id}):[x.aid]).forEach(function(a){if(a&&o.indexOf(a)<0)o.push(a)})});return o}
+var PYNO={},PYPM={};
+function PYnone(d){return PYNO[d]||(PYNO[d]={day:d,ran:!1,sites:[],total:0,main:null,home:0,none:!0,stops:[],trail:[],hd:{}})}
+function PYvid(a,e){var u=(e.fleet||[]).find(function(v){return String(v.actsoft_id)===String(a)});return u&&u.vehicle_id||String(a)}
+/* a line's day: its one truck's answer as it is, or the trucks he drove that day put together; null until each is known */
+function PYpsum(x,d,e,now){var A=PYon(x,d,e);if(!A.length)return PYnone(d);if(A.length===1)return PYsum(A[0],d,e,now);
+  var P=A.map(function(a){return PYsum(a,d,e,now)});return P.some(function(s){return !s})?null:PYmerge("S|"+x.n+"|"+d,P,A,e)}
+function PYpfull(x,d,e,now){var A=PYon(x,d,e);if(!A.length)return PYnone(d);if(A.length===1)return PYfull(A[0],d,e,now);
+  var P=A.map(function(a){return PYfull(a,d,e,now)});return P.some(function(s){return !s})?null:PYmerge("F|"+x.n+"|"+d,P,A,e)}
+/* one person's day from the trucks he drove that day: the time at each job adds up (a person drives one truck at a time); the
+   stops, trails and engine hours too (the dossier's replay). The same answer object while the trucks' answers stay the same */
+function PYmerge(k,P,A,e){var c=PYPM[k];if(c&&c.P.length===P.length&&c.P.every(function(s,i){return s===P[i]}))return c.r;
+  var G={},sites=[],full=P.every(function(s){return Array.isArray(s.stops)}),stops=[],trails=[],on=null,off=null,ran=!1,home=0;
+  P.forEach(function(s){ran=ran||!!s.ran;home+=s.home||0;
+    s.sites.forEach(function(q){var key=q.code?"C|"+q.code:q.typ+"|"+q.name+"|"+(q.ev?q.ev.label:""),g=G[key];
+      if(!g){g=G[key]=Object.assign({},q,{key:key,names:[],min:0,big:-1});sites.push(g)}
+      g.min+=q.min;if(q.first<g.first)g.first=q.first;if(q.last>g.last)g.last=q.last;q.names.forEach(function(n){if(g.names.indexOf(n)<0)g.names.push(n)});
+      if(q.min>g.big){g.big=q.min;g.name=q.name;g.ev=q.ev;g.sure=q.sure;g.lat=q.lat;g.lon=q.lon;g.typ=q.typ}});
+    if(full){stops=stops.concat(s.stops);trails.push(s.trail||[]);var hd=s.hd||{};if(hd.first_on!=null&&(on==null||hd.first_on<on))on=hd.first_on;if(hd.last_off!=null&&(off==null||hd.last_off>off))off=hd.last_off}});
+  sites.forEach(function(g){delete g.big;g.names=[g.name].concat(g.names.filter(function(n){return n!==g.name}))});
+  sites.sort(function(a,b){return b.min-a.min||(a.typ<b.typ?-1:a.typ>b.typ?1:0)||a.name.localeCompare(b.name)});
+  var total=sites.reduce(function(s,q){return s+q.min},0);sites.forEach(function(q){q.share=total?q.min/total:0});
+  var r={day:P[0].day,ran:ran,sites:sites,total:total,main:sites[0]||null,home:home,trucks:A.map(function(a){return PYvid(a,e)})};
+  if(full){stops.sort(function(a,b){return a.arrive-b.arrive});r.stops=stops.map(function(s,i){return Object.assign({},s,{seq:i+1})});r.trails=trails;r.trail=[].concat.apply([],trails);r.hd={first_on:on,last_off:off}}
+  PYPM[k]={P:P,r:r};return r}
 function PYtruckers(e){var fleet=e.fleet||[],ppl=e.ppl||[];return HLdrivers(e).map(function(n,i){var u=fleet.find(function(x){return PJsame(x.person,n)})||null,p=ppl.find(function(x){return PJsame(x.name,n)})||{},
     hd=u?null:(e.haulDays||[]).find(function(r){return PJsame(r.person,n)});return{n:n,u:u,aid:u&&u.actsoft_id||hd&&hd.actsoft_id||null,phone:p.phone||"",role:"Trucker",color:PJCOL[i%PJCOL.length]}})}
 /* a known place that is no job: Actsoft's geofence tag, a geofence circle with coordinates (yard, office, stations) or a
@@ -2183,8 +2247,8 @@ function PYhow(s,e){if(!s)return"";var ev=s.ev;
   var mix=ev.mix.map(function(m){return(/^NOCODE /.test(m.label)?m.label.slice(7)+" (no job #)":m.label)+" ×"+m.n}).join(", ");
   if(!ev.code)return"Crew emails at this spot: "+mix+" — "+ev.contract+" has no job number in the jobsite log yet";
   return"Crew emails: "+ev.n+" of "+ev.tot+" crew day"+(ev.tot===1?"":"s")+" within "+ev.ring+" m said "+ev.code+(ev.mix.length>1?" ("+mix+")":"")+(s.sure?"":" · check")}
-function PYtip(s,e){if(!s)return"";if(!s.sites.length)return s.ran?"The truck ran but never stopped at a job site between 6 AM and 5 PM":"The truck didn't run";
-  return s.sites.map(function(q){return(q.code||(q.typ==="U"?"not a known job site":"no job #"))+" · "+q.name+" · "+PYhr(q.min)+" ("+Math.round(q.share*100)+"%)"}).join("\n")+"\n\n"+PYhow(s.main,e)}
+function PYtip(s,e){if(!s)return"";if(s.none)return"No truck on this line this day";var tk=s.trucks?"\n\nChanged trucks this day: "+s.trucks.join(" + ")+" (the time on both counts)":"";if(!s.sites.length)return(s.ran?"The truck ran but never stopped at a job site between 6 AM and 5 PM":"The truck didn't run")+tk;
+  return s.sites.map(function(q){return(q.code||(q.typ==="U"?"not a known job site":"no job #"))+" · "+q.name+" · "+PYhr(q.min)+" ("+Math.round(q.share*100)+"%)"}).join("\n")+"\n\n"+PYhow(s.main,e)+tk}
 function PYrule(who){return"Most of the day = the job where the "+(who==="Trucker"?"truck":"foreman's truck")+" sat the most minutes between 6 AM and 5 PM: stopped within 400 m of a job place (as on the Live board), never at the yard, the office, a station, a supplier, a dump or where the truck spent the night"+(who==="Trucker"?" (loading and dumping don't count)":"")+". Several spots of the same job count together. The cost code is what the crew emails called that spot — the same evidence as the POs' GPS cost codes. Amber = no job number on file, or too little evidence for it: check before you assign the hours."}
 function PYchip(ev,sure,title){return ev&&ev.code?PJh("span",{className:"py-chip"+(sure?"":" chk"),title:title||""},ev.code):ev&&ev.contract?PJh("span",{className:"py-chip no",title:title||""},"no job #"):null}
 /* the cost code of the job place at a point (the Truck dossier's stops inside a job area: the haul tables only know the
@@ -2196,11 +2260,11 @@ function PYweekNav(o){var cur=PYmon(o.today);return PJh("div",{className:"py-wkn
   PJh("span",{className:"py-wkl"},o.wk===cur?"This week":"Week of "+PJday(o.wk)),
   PJh("button",{className:"btn sm",title:"The week after",disabled:o.wk>=cur,onClick:function(){o.setWk(PYadd(o.wk,7))}},"›"),
   PJh("button",{className:"btn sm primary",disabled:!!o.busy,title:"Excel: every foreman and trucker, each day of this week, the job they were at most of the day and its cost code",onClick:o.onExport},o.busy||"↓ EXCEL"))}
-function PYgrid(p){var today=p.today,wait=0,cols=p.days.filter(function(d,i){return i<6||p.rows.some(function(x){var s=d<=today?p.sum(x.aid,d):null;return !!(s&&(s.ran||s.sites.length))})});
+function PYgrid(p){var today=p.today,wait=0,cols=p.days.filter(function(d,i){return i<6||p.rows.some(function(x){var s=d<=today?p.sum(x,d):null;return !!(s&&(s.ran||s.sites.length))})});
   var tb=PJh("table",{className:"tbl py-tbl"},
     PJh("thead",null,PJh("tr",null,PJh("th",null,p.who==="Trucker"?"TRUCKER":"FOREMAN"),cols.map(function(d){return PJh("th",{key:d,className:d===today?"py-td":""},PYDF.format(new Date(d+"T12:00:00")))}),PJh("th",null,"WEEK"))),
     PJh("tbody",null,p.rows.map(function(x){var wsum={},wmin=0,wdays=0;
-      var cells=cols.map(function(d){if(d>today)return PJh("td",{key:d},PJh("span",{className:"py-c fut"}));var s=p.sum(x.aid,d);
+      var cells=cols.map(function(d){if(d>today)return PJh("td",{key:d},PJh("span",{className:"py-c fut"}));var s=p.sum(x,d);
         if(!x.aid)return PJh("td",{key:d},PJh("span",{className:"py-c off"},PJh("b",null,"—")));
         if(!s){wait++;return PJh("td",{key:d},PJh("span",{className:"py-c load"},PJh("b",null,"…")))}
         var m=s.main,on=p.sel===x.n&&p.selDay===d;if(m){wdays++;s.sites.forEach(function(q){var k=q.code||q.name;wsum[k]=(wsum[k]||0)+q.min;wmin+=q.min})}
@@ -2210,14 +2274,14 @@ function PYgrid(p){var today=p.today,wait=0,cols=p.days.filter(function(d,i){ret
           m?PJh("span",null,Math.round(m.share*100)+"% · "+PYhr(m.min)):s.ran?PJh("span",null,"yard, stations, home"):null,
           m?PJh("span",null,m.name):null))});
       var top=Object.keys(wsum).sort(function(a,b){return wsum[b]-wsum[a]})[0];
-      return PJh("tr",{key:(x.aid||"")+"|"+x.n},PJh("td",{className:"py-who",title:x.drv?z(x.n)+" drives "+(x.u&&x.u.vehicle_id||"this truck")+" since "+PJday(x.drv.from_day)+" (registered to "+z(x.reg)+")":""},PJh("b",null,z(x.n)),PJh("span",{className:"dim"},x.u&&x.u.vehicle_id?x.u.vehicle_id:x.aid?"tracker":"no tracker")),cells,
+      return PJh("tr",{key:(x.aid||"")+"|"+x.n},PJh("td",{className:"py-who",title:x.tip||""},PJh("b",null,x.nod?"No driver":PYnm(x)),PJh("span",{className:"dim"},x.vids&&x.vids.length?x.vids.join(" → "):x.u&&x.u.vehicle_id?x.u.vehicle_id:x.aid?"tracker":"no tracker")),cells,
         PJh("td",{className:"py-wk"},top?PJh("b",null,top):PJh("span",{className:"dim"},"—"),wmin?PJh("span",{className:"dim"},wdays+" day"+(wdays===1?"":"s")+" · "+PYhr(wmin)):null))})));
   /* v242 · what the waiting cells wait for floats over the grid: nothing moves when it comes and goes */
   return PJh("div",{className:"py-wrap"},wait&&p.msg?PJh("div",{className:"py-float",role:"status"},p.msg):null,tb)}
 /* a day's answer: every job the truck sat at, its share, hours and cost code */
 function PYanswer(s,e){if(!s)return PJh(ve,null,"Reading GPS…");
-  if(!s.sites.length)return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT · 6 AM – 5 PM"),PJh("div",{className:"py-none"},s.ran?"No time on a job site: the truck ran but only stopped at the yard, stations, suppliers or home.":"The truck didn't run this day."));
-  return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT · 6 AM – 5 PM"),
+  if(!s.sites.length)return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT · 6 AM – 5 PM"),PJh("div",{className:"py-none"},s.none?"No truck on this line this day.":s.ran?"No time on a job site: the truck ran but only stopped at the yard, stations, suppliers or home.":"The truck didn't run this day."));
+  return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT · 6 AM – 5 PM"+(s.trucks?" · "+s.trucks.join(" + "):"")),
     s.sites.map(function(q,i){var jn=PYjobName(q.code,e);return PJh("div",{key:q.key,className:"py-ar"+(i?"":" main")},
       PJh("div",{className:"py-al"},PJh("div",{className:"py-alh"},q.code?PJh("b",{className:"py-code"+(q.sure?"":" chk")},q.code):PJh("b",{className:"py-code no"},q.typ==="U"?"Not a known job site":"No job number"),PJh("span",null,q.name+(q.names.length>1?" + "+(q.names.length-1)+" more spot"+(q.names.length>2?"s":""):""))),
         PJh("span",{className:"dim"},jn?jn+(q.sure?"":" · "+PYhow(q,e)):PYhow(q,e))),
@@ -2251,8 +2315,8 @@ function FMroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
   var a5=(0,M.useState)(0),setTick=a5[1];
   var a6=(0,M.useState)(""),msg=a6[0],setMsg=a6[1];
   var a7=(0,M.useState)(""),xmsg=a7[0],setXmsg=a7[1];
-  var fm=men.find(function(x){return x.n===sel})||men[0]||null,dday=day||today,faid=fm&&fm.aid;
-  var aids=men.map(function(x){return x.aid}).filter(Boolean),aidKey=aids.join(","),wdays=PYdays(wk),slot=Math.floor(minute/5);
+  var wdays=PYdays(wk),slot=Math.floor(minute/5),S=function(x,d){return PYpsum(x,d,e,t)},shown=PYshown(men,wdays,today,S),fm=shown.find(function(x){return x.n===sel})||shown[0]||null,dday=day||today,faid=fm&&fm.aid;
+  var aids=PYaids(men),aidKey=aids.join(",");
   /* the week on screen and today, for every foreman; today again every 5 minutes (not while nobody is looking) */
   (0,M.useEffect)(function(){var dead=!1,ds=wdays.filter(function(d){return d<=today});if(ds.indexOf(today)<0)ds.push(today);if(PYC.at[aids[0]+"|"+today]&&(document.hidden||MZidleMin()>10))return;
     var bump=function(){setTick(function(x){return x+1})};
@@ -2260,15 +2324,15 @@ function FMroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
     return function(){dead=!0}},[aidKey,wk,today,slot]);
   /* the dossier's foreman: the last 31 days and the day on screen */
   (0,M.useEffect)(function(){if(!faid)return;var dead=!1,ds=[],bump=function(){if(!dead)setTick(function(x){return x+1})};for(var i=30;i>=0;i--)ds.push(PYadd(today,-i));if(ds.indexOf(dday)<0)ds.push(dday);ds.sort();
+    var fd=PYon(fm,dday,e).slice(),fall=[];ds.forEach(function(d){PYon(fm,d,e).forEach(function(a){if(fall.indexOf(a)<0)fall.push(a)})});if(!fd.length)fd=[faid];if(fall.indexOf(faid)<0)fall.push(faid);
     /* v242 · the day on screen first, from its GPS (the replay needs its stops); then the 30 days' answers from the nightly
        table, and GPS only for the days it doesn't have, two at a time (the week grid goes first) */
-    PYload([faid],[dday],tok,null,{full:!0}).then(function(n){n&&bump();var y=PYadd(today,-1);return ds[0]<=y?PYsrv([faid],ds[0],y,tok):0})
-      .then(function(n){n&&bump();return PYload([faid],ds,tok,null,{lanes:2})}).then(function(n){n&&bump()}).catch(function(){});
-    return function(){dead=!0}},[faid,dday,today,slot]);
-  var S=function(aid,d){return PYsum(aid,d,e,t)};
-  var rows=men.map(function(x){var st=FMstatus(x.u,e,t),td=S(x.aid,today);return{x:x,st:st,td:td,mi:PYmiles(e,x.aid,today)}});
+    PYload(fd,[dday],tok,null,{full:!0}).then(function(n){n&&bump();var y=PYadd(today,-1);return ds[0]<=y?PYsrv(fall,ds[0],y,tok):0})
+      .then(function(n){n&&bump();return PYload(fall,ds,tok,null,{lanes:2})}).then(function(n){n&&bump()}).catch(function(){});
+    return function(){dead=!0}},[fm&&fm.n,faid,dday,today,slot]);
+  var rows=shown.filter(function(x){return !x.nod}).map(function(x){var st=FMstatus(x.u,e,t),td=S(x,today);return{x:x,st:st,td:td,mi:PYon(x,today,e).reduce(function(a,id){var v=PYmiles(e,id,today);return v==null?a:(a||0)+v},null)}});
   var onSite=rows.filter(function(r){return r.st.k==="site"}).length,hrsT=rows.reduce(function(s,r){return s+(r.td?r.td.total:0)},0);
-  var wkd=[];men.forEach(function(x){wdays.forEach(function(d){if(d>today)return;var s=S(x.aid,d);if(s&&s.main)wkd.push(s)})});
+  var wkd=[];rows.forEach(function(r){wdays.forEach(function(d){if(d>today)return;var s=S(r.x,d);if(s&&s.main)wkd.push(s)})});
   var wkCode=wkd.filter(function(s){return s.main.code}).length,wkNo=wkd.length-wkCode;
   var live=rows.filter(function(r){return r.x.u&&r.x.u.last_lat!=null}).map(function(r){var u=r.x.u;return{lat:+u.last_lat,lon:+u.last_lon,color:r.st.c,label:PJfirst(r.x.n),live:r.st.k==="drive",hd:u.last_heading,tip:"<b>"+z(r.x.n)+(u.vehicle_id?" · "+u.vehicle_id:"")+"</b><br>"+r.st.t}});
   var sig=JSON.stringify(live.map(function(x){return[x.lat,x.lon,x.color]}));
@@ -2278,7 +2342,7 @@ function FMroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
     PJh(SDswitch,{side:"foremen",onSide:onSide}),
     PJh("div",{className:"hl-console"},
       PJh("div",{className:"hl-console-top"},
-        PJh("div",null,PJh("div",{className:"hl-k"},"FOREMEN · "+men.length+" TRUCKS"),PJh("div",{className:"hl-h"},wkday&&hr>=6&&hr<17?onSite+" of "+men.length+" on a job site.":"Where every foreman is, right now.")),
+        PJh("div",null,PJh("div",{className:"hl-k"},"FOREMEN · "+rows.length),PJh("div",{className:"hl-h"},wkday&&hr>=6&&hr<17?onSite+" of "+rows.length+" on a job site.":"Where every foreman is, right now.")),
         PJh("div",{className:"hl-clock"},PJh("b",null,new Date(t).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",second:"2-digit"})),PJh("span",null,new Date(t).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})))),
       men.length?null:PJh(ve,null,"No trucks in Actsoft's group “Foreman” in the live fleet."),
       PJh("div",{className:"hl-console-body sd-body"},
@@ -2300,32 +2364,32 @@ function FMroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
               u&&u.last_lat!=null&&om?PJh("button",{className:"hl-btn",onClick:function(ev){ev.stopPropagation();om(u.last_lat,u.last_lon,z(x.n))}},"Fleet map"):null))}))),
       PJh("div",{className:"sd-legend"},[["ON A JOB SITE",SDCOL.green],["DRIVING",SDCOL.blue,1],["STOPPED ELSEWHERE",SDCOL.amber],["YARD · STATION · QUIET",SDCOL.gray]].map(function(l){return PJh("span",{key:l[0]},PJh("i",{className:l[2]?"tri":void 0,style:{background:l[1]}}),l[0])}))),
     PJh("div",{className:"strip sd-kpis"},
-      PJh(K,{label:"ON A JOB SITE NOW",value:onSite+"/"+men.length,tone:onSite?_.green:void 0,sub:"stopped within 400 m of a job place"}),
+      PJh(K,{label:"ON A JOB SITE NOW",value:onSite+"/"+rows.length,tone:onSite?_.green:void 0,sub:"stopped within 400 m of a job place"}),
       PJh(K,{label:"HOURS ON JOB SITES · TODAY",value:PYhr(hrsT),sub:"all foremen · 6 AM – 5 PM"}),
       PJh(K,{label:"DAYS WITH A COST CODE",value:wkCode+"/"+wkd.length,sub:(wk===PYmon(today)?"this week":"week of "+PJday(wk))+" · from the crew emails"}),
       PJh(K,{label:"NEED A JOB NUMBER",value:String(wkNo),tone:wkNo?_.amber:void 0,sub:wkNo?"foreman-days at a site with no job number":"every day has a cost code"})),
     PJh(G,{title:"WHERE EACH FOREMAN WORKED · "+(wk===PYmon(today)?"THIS WEEK":"WEEK OF "+PJday(wk).toUpperCase()),right:PYweekNav({wk:wk,setWk:setWk,today:today,busy:xmsg,onExport:function(){PYexport(e,tok,wk,setXmsg)}})},
-      PJh(PYgrid,{e:e,who:"Foreman",rows:men,days:wdays,today:today,sum:S,sel:fm&&fm.n,selDay:dday,onCell:pick,msg:msg||PYwait(e)}),
+      PJh(PYgrid,{e:e,who:"Foreman",rows:shown,days:wdays,today:today,sum:S,sel:fm&&fm.n,selDay:dday,onCell:pick,msg:msg||PYwait(e)}),
       PJh("div",{className:"py-note"},PYrule("Foreman"))),
     PJh("div",{id:"fm-dos",className:"py-anchor"}),
-    fm?PJh(G,{title:"FOREMAN DOSSIER",right:PJh("select",{className:"sel",value:fm.n,"aria-label":"Foreman",onChange:function(ev){setSel(ev.target.value);setDay("")}},men.map(function(x){return PJh("option",{key:(x.aid||"")+"|"+x.n,value:x.n},z(x.n))}))},
-      FMdossier({e:e,fm:fm,t:t,today:today,dday:dday,tab:tab,setTab:setTab,setDay:setDay,S:S,F:function(aid,d){return PYfull(aid,d,e,t)},st:(rows.find(function(r){return r.x===fm})||{}).st,om:om})):null)}
+    fm?PJh(G,{title:"FOREMAN DOSSIER",right:PJh("select",{className:"sel",value:fm.n,"aria-label":"Foreman",onChange:function(ev){setSel(ev.target.value);setDay("")}},shown.map(function(x){return PJh("option",{key:(x.aid||"")+"|"+x.n,value:x.n},PYnm(x))}))},
+      FMdossier({e:e,fm:fm,t:t,today:today,dday:dday,tab:tab,setTab:setTab,setDay:setDay,S:S,F:function(x,d){return PYpfull(x,d,e,t)},st:(rows.find(function(r){return r.x===fm})||{}).st,om:om})):null)}
 /* the dossier's body, a function (not a component: it never remounts on a redraw) */
 function FMdossier(o){var e=o.e,fm=o.fm,t=o.t,today=o.today,dday=o.dday,tab=o.tab,S=o.S,u=fm.u;
   var last=[];for(var i=29;i>=0;i--)last.push(PYadd(today,-i));
-  var got=last.map(function(d){return{d:d,s:S(fm.aid,d)}}),ready=got.filter(function(x){return x.s}).length,work=got.filter(function(x){return x.s&&x.s.main});
+  var got=last.map(function(d){return{d:d,s:S(fm,d)}}),ready=got.filter(function(x){return x.s}).length,work=got.filter(function(x){return x.s&&x.s.main});
   var by={};work.forEach(function(x){x.s.sites.forEach(function(q){var k=q.code?"C|"+q.code:"N|"+q.name,g=by[k]||(by[k]={k:k,code:q.code,name:q.name,names:{},min:0,days:{},main:0,last:"",ev:q.ev,sure:q.sure,typ:q.typ});
     g.min+=q.min;g.days[x.d]=1;q.names.forEach(function(n){g.names[n]=1});if(x.d>g.last)g.last=x.d;if(q===x.s.main)g.main++})});
   var jobs=Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return b.min-a.min}),hrs=work.reduce(function(s,x){return s+x.s.total},0),noNum=work.filter(function(x){return !x.s.main.code}).length;
   var tod=function(f){var a=work.map(function(x){var v=f(x.s);if(!v)return null;var dt=new Date(v);return dt.getHours()*60+dt.getMinutes()}).filter(function(v){return v!=null});if(!a.length)return"—";
     var m=Math.round(a.reduce(function(s,v){return s+v},0)/a.length);return PYtm(new Date(2000,0,3,Math.floor(m/60),m%60).getTime())};
   var firstOn=function(s){return s.sites.reduce(function(a,q){return a==null||q.first<a?q.first:a},null)},lastOn=function(s){return s.sites.reduce(function(a,q){return a==null||q.last>a?q.last:a},null)};
-  var s=S(fm.aid,dday),sf=o.F?o.F(fm.aid,dday):s,shift=function(n){var k=PYadd(dday,n);if(k<=today)o.setDay(k)};
+  var s=S(fm,dday),sf=o.F?o.F(fm,dday):s,shift=function(n){var k=PYadd(dday,n);if(k<=today)o.setDay(k)};
   var mm=new Date(t),y0=mm.getFullYear(),m0=mm.getMonth(),lead=(new Date(y0,m0,1).getDay()+6)%7,nd=new Date(y0,m0+1,0).getDate(),cells=[];
   for(var i2=0;i2<lead;i2++)cells.push(null);for(var d2=1;d2<=nd;d2++)cells.push(qt(new Date(y0,m0,d2,12).getTime()));
   return PJh("div",{className:"hl-dos"},
-    PJh("div",{className:"hl-dos-h"},PJh("span",{className:"pj-av",style:{background:fm.color}},PJini(fm.n)),PJh("div",null,PJh("b",null,z(fm.n)),PJh("span",{className:"dim"},(u?(u.vehicle_id||"")+(u.plate?" · "+u.plate:""):"no tracker")+(fm.phone?" · "+fm.phone:"")+(o.st?" · "+o.st.t:""))),
-      PJh("div",{className:"hl-dos-a"},fm.phone?PJh("a",{className:"btn",href:"tel:"+fm.phone},"CALL"):null,u&&u.last_lat!=null&&o.om?PJh("button",{className:"btn",onClick:function(){o.om(u.last_lat,u.last_lon,z(fm.n))}},"FLEET MAP"):null)),
+    PJh("div",{className:"hl-dos-h"},PJh("span",{className:"pj-av",style:{background:fm.color}},PJini(fm.n)),PJh("div",null,PJh("b",null,PYnm(fm)),PJh("span",{className:"dim"},(u?(u.vehicle_id||"")+(u.plate?" · "+u.plate:""):"no tracker")+(fm.phone?" · "+fm.phone:"")+(o.st?" · "+o.st.t:""))),
+      PJh("div",{className:"hl-dos-a"},fm.phone?PJh("a",{className:"btn",href:"tel:"+fm.phone},"CALL"):null,u&&u.last_lat!=null&&o.om?PJh("button",{className:"btn",onClick:function(){o.om(u.last_lat,u.last_lon,PYnm(fm))}},"FLEET MAP"):null)),
     PJh("div",{className:"hl-kpis"},[["Days on a job · 30",String(work.length)],["Hours on job sites · 30",PYhr(hrs)],["Main job · 30 days",jobs[0]?jobs[0].code||"no job #":"—"],["Job sites · 30 days",String(jobs.length)],
       ["First on site · average",tod(firstOn)],["Last on site · average",tod(lastOn)],["Days without a job # · 30",String(noNum)],["GPS read",ready<last.length?ready+" of "+last.length+" days…":"30 days"]].map(function(r){return PJh("div",{key:r[0]},PJh("b",null,r[1]),PJh("span",null,r[0]))})),
     PJh("div",{className:"segs hl-tabs"},[["day","Forensic day"],["month","This month"],["jobs","Jobs · 30 days"]].map(function(q){return PJh("button",{key:q[0],className:tab===q[0]?"on":"",onClick:function(){o.setTab(q[0])}},q[1])})),
@@ -2336,15 +2400,15 @@ function FMdossier(o){var e=o.e,fm=o.fm,t=o.t,today=o.today,dday=o.dday,tab=o.ta
       PYanswer(s,e),
       sf?PJh(HLtimeline,{day:dday,stops:sf.stops,hd:sf.hd,today:today,now:t}):null,
       sf?PJh("div",{className:"hl-day-b"},
-        PJh(HLmap,{className:"hl-fmap",stops:sf.stops,trails:[{pts:sf.trail,color:fm.color,weight:3.5}],fitTrails:!0,sig:fm.n+dday+sf.stops.length+"|"+sf.trail.length,view:fm.n+"|"+dday,maxZoom:15,wheel:!0}),
+        PJh(HLmap,{className:"hl-fmap",stops:sf.stops,trails:(sf.trails||[sf.trail]).map(function(q){return{pts:q,color:fm.color,weight:3.5}}),fitTrails:!0,sig:fm.n+dday+sf.stops.length+"|"+sf.trail.length,view:fm.n+"|"+dday,maxZoom:15,wheel:!0}),
         PJh("div",{className:"hl-stops"},sf.stops.length?sf.stops.map(function(x){return PYstopRow(x,e,fm.n+"|"+dday)}):PJh(ve,null,"No stops recorded for this day."))):s?PJh(ve,null,"Reading this day's GPS for the map and the stops…"):null):null,
     tab==="month"?PJh("div",{className:"hl-cal"},
-      PJh("div",{className:"hl-cal-g"},["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w){return PJh("span",{key:w,className:"hl-cal-w"},w)}),cells.map(function(c,i){if(!c)return PJh("i",{key:"e"+i,className:"hl-cell empty"});var r=c<=today?S(fm.aid,c):null,m=r&&r.main;
+      PJh("div",{className:"hl-cal-g"},["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(function(w){return PJh("span",{key:w,className:"hl-cal-w"},w)}),cells.map(function(c,i){if(!c)return PJh("i",{key:"e"+i,className:"hl-cell empty"});var r=c<=today?S(fm,c):null,m=r&&r.main;
         return PJh("button",{key:c,className:"hl-cell py-cell"+(c===today?" td":"")+(c>today?" fut":"")+(m&&!m.code?" no":m&&!m.sure?" chk":""),title:r?PYtip(r,e):"",onClick:function(){if(c<=today){o.setDay(c);o.setTab("day")}},style:m?{"--h":Math.min(1,.18+r.total/600*.82)}:null},
           PJh("b",null,Number(c.slice(8))),m?PJh("span",null,m.code||"no job #"):null,m?PJh("em",null,PYhr(r.total)+" · "+Math.round(m.share*100)+"%"):null)})),
       PJh("div",{className:"hl-cal-t"},"This month: "+(function(){var a=got.filter(function(x){return x.d.slice(0,7)===today.slice(0,7)&&x.s&&x.s.main});return a.length+" days on a job · "+PYhr(a.reduce(function(s2,x){return s2+x.s.total},0))+" on job sites"})())):null,
     tab==="jobs"?PJh("div",{className:"hl-routes"},
-      PJh("div",{className:"pj-sec"},"WHERE "+PJfirst(fm.n).toUpperCase()+" WORKED · 30 DAYS"),
+      PJh("div",{className:"pj-sec"},(fm.nod?"WHERE "+fm.vids[0]+" WORKED WITH NO KNOWN DRIVER":"WHERE "+PJfirst(fm.n).toUpperCase()+" WORKED")+" · 30 DAYS"),
       jobs.length?jobs.map(function(g){return PJh("div",{key:g.k,className:"row"},PYchip(g.ev,g.sure,PYhow(g,e))||PJh("span",{className:"py-chip no"},g.typ==="U"?"unknown site":"no job #"),
         PJh("b",{className:"grow tr"},Object.keys(g.names).join(" · ")),PJh("span",{className:"dim tr"},PYjobName(g.code,e)),PJh("span",{className:"mono"},Object.keys(g.days).length+" day"+(Object.keys(g.days).length===1?"":"s")),PJh("span",{className:"mono r"},PYhr(g.min)))}):PJh(ve,null,ready<last.length?"Reading GPS…":"No time on a job site in the last 30 days.")):null)}
 /* ---------- the Excel: foremen and truckers, each day of a week ---------- */
@@ -2384,31 +2448,32 @@ function PYxlsx(sheets){var X=function(v){return String(v==null?"":v).replace(/[
   return PYzip(f)}
 function PYxday(day){var p=day.split("-");return(Date.UTC(+p[0],+p[1]-1,+p[2])-Date.UTC(1899,11,30))/864e5}
 function PYxtime(ts){if(!ts)return"";var d=new Date(ts);return(d.getHours()*60+d.getMinutes())/1440}
-function PYrows(e,wk,now){var today=qt(now),days=PYdays(wk).filter(function(d){return d<=today}),who=PYmen(e,wk).concat(PYtruckers(e)).filter(function(x){return x.aid}),R=[],by={};
-  who.forEach(function(x){days.forEach(function(d){var s=PYsum(x.aid,d,e,now);if(!s||(!s.ran&&!s.sites.length))return;R.push({d:d,x:x,s:s});
+function PYrows(e,wk,now){var today=qt(now),days=PYdays(wk).filter(function(d){return d<=today}),S=function(x,d){return x.role==="Foreman"?PYpsum(x,d,e,now):PYsum(x.aid,d,e,now)},
+    who=PYshown(PYmen(e,wk),days,today,S).concat(PYtruckers(e)).filter(function(x){return x.aid}),R=[],by={};
+  who.forEach(function(x){days.forEach(function(d){var s=S(x,d);if(!s||(!s.ran&&!s.sites.length))return;R.push({d:d,x:x,s:s,tk:s.trucks?s.trucks.join(" + "):x.role==="Foreman"?PYon(x,d,e).map(function(a){return PYvid(a,e)}).join(" + "):x.u&&x.u.vehicle_id||""});
     s.sites.forEach(function(q){var k=x.role+"|"+x.n+"|"+(q.code?"C|"+q.code:"N|"+q.name),g=by[k]||(by[k]={x:x,q:q,code:q.code,name:q.name,names:{},days:0,min:0});g.min+=q.min;q.names.forEach(function(n){g.names[n]=1});if(q===s.main)g.days++})})});
   R.sort(function(a,b){return a.d<b.d?-1:a.d>b.d?1:a.x.role!==b.x.role?(a.x.role==="Foreman"?-1:1):z(a.x.n).localeCompare(z(b.x.n))});
   return{days:days,who:who,R:R,G:Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return a.x.role!==b.x.role?(a.x.role==="Foreman"?-1:1):z(a.x.n).localeCompare(z(b.x.n))||b.min-a.min})}}
 async function PYexport(e,tok,wk,say){var now=Date.now(),today=qt(now),days=PYdays(wk).filter(function(d){return d<=today}),who=PYmen(e,wk).concat(PYtruckers(e)).filter(function(x){return x.aid});
   if(!who.length||!days.length){MZtoast("Nothing to export: no foremen or truckers with a tracker this week.","info");return}
   if(!PYready(e)){MZtoast("Still reading the job places and the crew emails' job numbers — try again in a moment.","info");return}
-  try{say("READING…");var ids=who.map(function(x){return x.aid}),past=days.filter(function(d){return d<today});if(past.length)await PYsrv(ids,past[0],past[past.length-1],tok);
+  try{say("READING…");var ids=PYaids(who),past=days.filter(function(d){return d<today});if(past.length)await PYsrv(ids,past[0],past[past.length-1],tok);
     await PYload(ids,days,tok,function(i,n){say("READING "+i+"/"+n+"…")});
     say("WRITING…");var X=PYrows(e,wk,now);
     var rows=X.R.map(function(r){var s=r.s,m=s.main,f=s.sites.reduce(function(a,q){return a==null||q.first<a?q.first:a},null),l=s.sites.reduce(function(a,q){return a==null||q.last>a?q.last:a},null);
-      return[PYxday(r.d),PYDF.format(new Date(r.d+"T12:00:00")).split(",")[0],z(r.x.n),r.x.role,r.x.u&&r.x.u.vehicle_id||"",
+      return[PYxday(r.d),PYDF.format(new Date(r.d+"T12:00:00")).split(",")[0],PYnm(r.x),r.x.role,r.tk,
         m?m.name+(m.names.length>1?" (+ "+m.names.slice(1).join(", ")+")":""):"No time on a job site",m&&m.code||"",m&&m.code?PYjobName(m.code,e):m&&m.ev&&m.ev.contract?m.ev.contract+" · no job number yet":"",
         m?Math.round(m.share*100)/100:"",m?Math.round(m.min/6)/10:"",Math.round(s.total/6)/10,
         s.sites.slice(1).map(function(q){return q.name+" · "+(q.code||"no job #")+" · "+Math.round(q.share*100)+"% ("+PYhr(q.min)+")"}).join("; "),
         PYxtime(f),PYxtime(l),m?PYhow(m,e):s.ran?"The truck ran but only stopped at the yard, stations, suppliers or home between 6 AM and 5 PM":""]});
-    var rows2=X.G.map(function(g){return[z(g.x.n),g.x.role,g.x.u&&g.x.u.vehicle_id||"",g.code||"",g.code?PYjobName(g.code,e):g.q.ev&&g.q.ev.contract?g.q.ev.contract+" · no job number yet":"",Object.keys(g.names).join(", "),g.days,Math.round(g.min/6)/10]});
+    var rows2=X.G.map(function(g){return[PYnm(g.x),g.x.role,g.x.vids?g.x.vids.join(" + "):g.x.u&&g.x.u.vehicle_id||"",g.code||"",g.code?PYjobName(g.code,e):g.q.ev&&g.q.ev.contract?g.q.ev.contract+" · no job number yet":"",Object.keys(g.names).join(", "),g.days,Math.round(g.min/6)/10]});
     var bytes=PYxlsx([
       {name:"Payroll",cols:[{h:"Date",w:11,t:"d"},{h:"Day",w:6},{h:"Name",w:24},{h:"Role",w:9},{h:"Truck",w:8},{h:"Job site (most of the day)",w:36,t:"w"},{h:"Cost code",w:13},{h:"Job (jobsite log)",w:36,t:"w"},{h:"% of time on job sites",w:11,t:"p"},
         {h:"Hours there (6 AM\u20135 PM)",w:11,t:"n"},{h:"Hours on all job sites (6 AM\u20135 PM)",w:13,t:"n"},{h:"Other job sites",w:44,t:"w"},{h:"First on a job site",w:11,t:"t"},{h:"Last on a job site",w:11,t:"t"},{h:"How the cost code was found",w:60,t:"w"}],rows:rows},
       {name:"By cost code",cols:[{h:"Name",w:24},{h:"Role",w:9},{h:"Truck",w:8},{h:"Cost code",w:13},{h:"Job (jobsite log)",w:40,t:"w"},{h:"Job sites (GPS)",w:44,t:"w"},{h:"Days it was the main job",w:12,t:"i"},{h:"Hours on site (6 AM\u20135 PM)",w:12,t:"n"}],rows:rows2},
       {name:"How to read",cols:[{h:"How this sheet is made",w:140,t:"w"}],rows:[
         ["Week of "+PJday(wk)+", "+wk.slice(0,4)+" · made "+new Date(now).toLocaleString("en-US")+" from the trucks' GPS (Command Center → Haul → Foremen / Truckers)."],
-        ["Foremen = the trucks in Actsoft's group “Foreman”, by the person each truck is registered to. Truckers = the drivers in Rules · fuel_split_drivers. A truck that changed hands that day still shows its registered person."],
+        ["Foremen = the trucks in Actsoft's group “Foreman”, each day by who drove it: its driver record in Haul, else the person it is registered to. One line per foreman: on a day he changed trucks the time on both counts (Truck = both), and a truck nobody known drove shows as “No driver” only on a day it was on a site. Truckers = the drivers in Rules · fuel_split_drivers."],
         [PYrule("Foreman")],
         ["% of time on job sites = the minutes at that job ÷ the minutes at every job that day (6 AM – 5 PM). Hours there = stopped time at that job; driving, the yard, stations, suppliers, dumps and home are not on a job site."],
         ["A job place counts from 15 minutes in a day; a place that is no known job counts from 45 minutes and shows Actsoft's street for it (“near 1615 Rutland Dr”). It has no cost code until a crew email names that spot or the jobsite log has a number for it."],
