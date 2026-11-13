@@ -3920,6 +3920,26 @@ function LCuname(s){return String(s||"").replace(/\s*VIN\s*#?\s*(\d+)\s*$/i," #$
 function LCunit(c){return LCuname(c.unit)||"Unit "+c.actsoft_id}
 /* the unit and its person, once when the tracker is named after the person */
 function LCwho(c){var u=LCunit(c),p=c.person?z(c.person):"";return p&&u.toLowerCase().indexOf(p.toLowerCase())<0?u+" \u00B7 "+p:u}
+/* metres between two points (tools/permits/rules.js havM, R = 6371000) */
+function LChav(a,b,c,d){var r=Math.PI/180,x=Math.pow(Math.sin((c-a)*r/2),2)+Math.cos(a*r)*Math.cos(c*r)*Math.pow(Math.sin((d-b)*r/2),2);return 2*6371000*Math.asin(Math.min(1,Math.sqrt(x)))}
+/* ascending, nulls last; strings by code point (as Postgres orders with collate "C") */
+function LCcmp(a,b){return a==null?(b==null?0:1):b==null?-1:typeof a==="number"&&typeof b==="number"?a-b:(a=String(a),b=String(b),a<b?-1:a>b?1:0)}
+/* spec 6e E3 · the gap places of a day (the grouping the gap alerts use): that day's gap stops, longest first (then street,
+   block, unit); a stop joins the first place whose first stop is within 150 m, else it starts a place. A stop with no position
+   starts its own place. Each place: its first stop (street, block, point for ACKNOWLEDGE), its units once each (longest stop
+   first), the longest minutes, the lapse in words (a stop whose lapse reads as one first) and the ticket to renew, if any */
+function LCgapPlaces(b,day,byN){var st=[],out=[];byN=byN||{};
+  (b.crews||[]).forEach(function(c){if(c.day!==day)return;(c.places||[]).forEach(function(pl,i){if(LCgap(c,pl))st.push({c:c,pl:pl,i:i})})});
+  st.sort(function(x,y){return(y.pl.min||0)-(x.pl.min||0)||LCcmp(x.pl.street,y.pl.street)||LCcmp(x.pl.block,y.pl.block)||LCcmp(+x.c.actsoft_id,+y.c.actsoft_id)});
+  st.forEach(function(s){var q=s.pl.lat!=null&&s.pl.lon!=null?out.find(function(o){var f=o.stops[0].pl;return f.lat!=null&&f.lon!=null&&LChav(+f.lat,+f.lon,+s.pl.lat,+s.pl.lon)<=150}):null;
+    if(q)q.stops.push(s);else out.push({stops:[s]})});
+  return out.map(function(o){var f=o.stops[0],seen={},units=[];o.stops.forEach(function(s){var k=String(s.c.actsoft_id);if(!seen[k]){seen[k]=1;units.push(s.c)}});
+    var lp=o.stops.filter(function(s){return s.pl.tstate==="LAPSED"}),rd=lp.find(function(s){return/^ticket lapsed /.test(LCtsText(s.pl,day,byN)[0])})||null,ls=rd||lp[0]||null,
+      t=rd&&byN[rd.pl.ticket]&&byN[rd.pl.ticket].ours!==!1?byN[rd.pl.ticket]:null;
+    return{key:day+"|"+f.c.actsoft_id+"|"+f.i,day:day,c:f.c,pl:f.pl,i:f.i,stops:o.stops,units:units,min:f.pl.min||0,lapse:ls?LCtsText(ls.pl,day,byN):[LCTS.NONE,null],t:t}})}
+/* spec 6e E1 · the days a crew stood on an expired ticket's area with no live ticket there (open7 / open_last, parche216);
+   a board from before parche216 has neither: then the days of any crew on the area (last_seen / seen7) */
+function LCopenLast(t){return t&&t.open7!=null?t.open_last:t&&t.last_seen}
 function LCtkSort(a,b){var r=function(t){return t.status==="STUB"?1:t.status==="LIVE"?0:2};return r(a)-r(b)||
   (r(a)===0?String(a.renew_by).localeCompare(String(b.renew_by)):String(b.created_day||"").localeCompare(String(a.created_day||"")))||String(b.number).localeCompare(String(a.number))}
 
@@ -3930,9 +3950,9 @@ function LCcalc(b){var today=b.today,T=b.tickets||[],P=b.permits||[],C=b.crews||
   var mine=function(t){return t.ours!==!1};
   var renew=live.filter(function(t){return t.level==="DUE"&&mine(t)}).sort(function(a,c){return String(a.renew_by).localeCompare(String(c.renew_by))||String(a.number).localeCompare(String(c.number))});
   var soon=live.filter(function(t){return t.level==="SOON"&&mine(t)}).sort(function(a,c){return String(a.renew_by).localeCompare(String(c.renew_by))});
-  var expired=T.filter(function(t){return t.level==="EXPIRED"&&mine(t)}).sort(function(a,c){return String(c.last_seen||"").localeCompare(String(a.last_seen||""))||String(c.expires_cal).localeCompare(String(a.expires_cal))});
-  var gaps=[];C.forEach(function(c){if(c.day!==today)return;(c.places||[]).forEach(function(pl,i){if(LCgap(c,pl))gaps.push({c:c,pl:pl,i:i,t:pl.ticket?byN[pl.ticket]||null:null})})});
-  gaps.sort(function(a,c){return(c.pl.min||0)-(a.pl.min||0)});
+  var expired=T.filter(function(t){return t.level==="EXPIRED"&&mine(t)}).sort(function(a,c){return String(LCopenLast(c)||"").localeCompare(String(LCopenLast(a)||""))||String(c.expires_cal).localeCompare(String(a.expires_cal))});
+  /* one row per gap place (6e E3), not per stop */
+  var gaps=LCgapPlaces(b,today,byN);
   var pAct=P.filter(function(p){return p.active!==!1});
   var pSoon=pAct.filter(function(p){return p.level==="SOON"}).sort(function(a,c){return String(a.end).localeCompare(String(c.end))});
   var pEnded=P.filter(function(p){return p.level==="ENDED"&&LCcrew3(p,today)}).sort(function(a,c){return String(c.last_seen).localeCompare(String(a.last_seen))});
@@ -3951,8 +3971,9 @@ function LCcalc(b){var today=b.today,T=b.tickets||[],P=b.permits||[],C=b.crews||
     nums:{renew_today:renew.length,crews_no_ticket:gaps.length,permits_soon:pSoon.length,not_marked_sites:quiet.length,expired_with_crew:expired.length,renew_soon:soon.length,permits_ended_with_crew:pEnded.length},
     tickets:T.filter(function(t){return t.kind!=="DIGUP"}).slice().sort(LCtkSort),
     permits:P.slice().sort(function(a,c){var r=function(p){return p.level==="ENDED"?(LCcrew3(p,today)?0:3):p.level==="SOON"?1:p.level==="NODATE"?2:2};return r(a)-r(c)||String(a.end||"9").localeCompare(String(c.end||"9"))})}}
-/* crews of one day, gaps first, then the most minutes */
-function LCcrewsOf(b,day){return(b.crews||[]).filter(function(c){return c.day===day}).map(function(c){var g=(c.places||[]).filter(function(pl){return LCgap(c,pl)}).length,
+/* crews of one day, gaps first, then the most minutes; gaps = the day's gap places (6e E3) this unit is in */
+function LCcrewsOf(b,day){var per={};LCgapPlaces(b,day).forEach(function(o){var s={};o.stops.forEach(function(x){var k=String(x.c.actsoft_id);if(!s[k]){s[k]=1;per[k]=(per[k]||0)+1}})});
+  return(b.crews||[]).filter(function(c){return c.day===day}).map(function(c){var g=per[String(c.actsoft_id)]||0,
   w=(c.places||[]).some(function(pl){return pl.tstate==="WORKLIFE"&&!pl.home});return{c:c,gaps:g,wl:w}}).sort(function(a,x){return(x.gaps>0)-(a.gaps>0)||(x.c.ticket_gap?1:0)-(a.c.ticket_gap?1:0)||x.wl-a.wl||(x.c.minutes||0)-(a.c.minutes||0)})}
 /* DigUp: what the utilities of the damaged kind had answered on the ticket the crew worked under */
 function LCdmgAns(d){var hit=String(d.hit||"").toLowerCase().split(/[^a-z]+/).filter(Boolean),a=d.parent_answers||[];
@@ -4000,13 +4021,13 @@ function LCroom(p){var b=p.b,tok=p.t,c=(0,M.useMemo)(function(){return LCcalc(b)
       PJh("div",{className:"lc-eyebrow"},"811 TICKETS + ROW PERMITS · "+LCday(today).toUpperCase()),
       PJh("div",{className:"lc-nums"},
         num("renew",c.nums.renew_today,"RENEW TODAY",c.expired.length?"+ "+c.expired.length+" past expiry with a crew":"tickets due on Texas811","red"),
-        num("gap",c.nums.crews_no_ticket,"CREWS WITHOUT A TICKET","places today, 60+ min, no live ticket","red"),
+        num("gap",c.nums.crews_no_ticket,"NO LIVE TICKET","places with a crew today, 60+ min","red"),
         num("psoon",c.nums.permits_soon,"PERMITS ENDING","within "+((b.rules&&b.rules.row_soon_days)||14)+" days"+(c.pEnded.length?" · "+c.pEnded.length+" ended, crew there":""),"amber"),
         num("quiet",c.nums.not_marked_sites,"NOT MARKED","a utility that usually answers has not","amber")),
       PJh("div",{className:"lc-src"},src.map(function(s){var lv=s.level==="DOWN"?"red":s.level==="LATE"?"amber":"";
         return PJh("span",{key:s.source,className:lv,title:s.note||""},PJh("b",null,LCSRC[s.source]||s.source),"read "+LCwhen(s.last_ok,today)+(lv?" · "+(s.level==="DOWN"?"not reading":"late"):""))})),
       stubN?PJh("div",{className:"lc-line"},LCplural(stubN,"earlier ticket number is","earlier ticket numbers are")+" still being read from Texas811."):null,
-      nv.length?PJh("div",{className:"lc-line dim"},"These utilities do not post answers to Texas811, so their lines are never confirmed marked: "+nv.join(", ")+"."):null),
+      nv.length?PJh("div",{className:"lc-line dim"},"These utilities rarely or never post answers to Texas811, so their lines are not confirmed marked: "+nv.join(", ")+"."):null),
     PJh(LCpaste,{t:tok,inRef:pasteRef,stubs:c.stubs,armed:b.armed!==!1}),
     PJh("div",{className:"lc-tabs"},tabs.map(function(x){return PJh("button",{key:x[0],className:"pj-chip"+(tab===x[0]?" on":""),onClick:function(){setTab(x[0]);setFocus(null)}},x[1]+(x[2]!=null?" "+x[2]:""))})),
     tab==="today"?LCtoday(ctx,focus,function(){setFocus(null)}):null,
@@ -4043,7 +4064,7 @@ function LCpaste(p){var[txt,setTxt]=(0,M.useState)(""),[busy,setBusy]=(0,M.useSt
 /* TODAY: what to do, most urgent first; a big number above narrows it to its own rows */
 var LCSEC={renew:["RENEW TODAY","Renew on Texas811, then paste the new number in the box above."],
   expired:["PAST EXPIRY, CREW STILL THERE","Renewed already? Paste the new ticket number in the box above and this clears. Not renewed: renew it on Texas811 now."],
-  gap:["CREWS WITHOUT A LIVE TICKET TODAY","60+ minutes where no live ticket covers the place. A yard, private property, no digging? Acknowledge the place."],
+  gap:["PLACES WITHOUT A LIVE TICKET TODAY","60+ minutes where no live ticket covers the place. A yard, private property, no digging? Acknowledge the place."],
   pended:["PERMIT ENDED, CREW STILL THERE","The crew was on the permit's street in the last 3 days."],
   soon:["RENEW NEXT WORKING DAY",""],
   psoon:["PERMITS ENDING",""],
@@ -4060,19 +4081,22 @@ function LCtoday(ctx,focus,clear){var c=ctx.c,ks=focus?LCFOCUS[focus]:null,rows=
       PJh("div",{className:"lc-acts"},s.rows.map(function(x,i){return LCact(ctx,x,i)})))})
     :PJh("section",{className:"panel lc-sec"},PJh("div",{className:"empty ok"},"Nothing to do on 811 tickets or ROW permits right now.")))}
 function LCseen(x,today){if(!x.last_seen)return"no crew seen";var d=x.last_seen===today?"today":LCday(x.last_seen);return"crew seen "+d+(x.seen7?" · "+LCplural(x.seen7,"day")+" this week":"")}
-function LCact(ctx,x,i){var today=ctx.c.today,t=x.t,p=x.p,g=x.g,tone=x.tone,key=x.k+(t?t.number:p?p.id:i),main,sub,btns=[],onOpen;
+/* an expired ticket's crew days: the days with no live ticket there when the board sends them (6e E1), else presence */
+function LCseenOpen(t,today){return t.open7!=null?LCseen({last_seen:t.open_last,seen7:t.open7},today):LCseen(t,today)}
+function LCact(ctx,x,i){var today=ctx.c.today,t=x.t,p=x.p,g=x.g,tone=x.tone,key=x.k+(t?t.number:p?p.id:g?g.key:i),main,sub,btns=[],onOpen;
   if(t){onOpen=function(){ctx.open("t",t.number)};main=[PJh("b",{key:"n",className:"mono"},t.number),PJh("span",{key:"s"},LCsite(t)),t.ours===!1?PJh("span",{key:"o",className:"lc-chip amber"},"OTHER COMPANY\u0027S TICKET"):null];
     if(x.k==="renew"||x.k==="soon"){sub=["Renew by "+LCday(t.renew_by),"expires "+LCday(t.expires_cal),t.contact?"PM "+z(t.contact):"",(t.units_today||[]).length?"today: "+t.units_today.map(LCuname).join(", "):LCseen(t,today)];
       if(t.ours!==!1)btns.push(LCbtnA(LCtx(t.number),"RENEW",x.k==="renew"?"primary":""))}
-    else if(x.k==="expired"){sub=["Expired "+LCday(t.expires_cal),LCseen(t,today),t.contact?"PM "+z(t.contact):""];
+    else if(x.k==="expired"){sub=["Expired "+LCday(t.expires_cal),LCseenOpen(t,today),t.contact?"PM "+z(t.contact):""];
       if(t.ours!==!1)btns.push(LCbtnA(LCtx(t.number),"RENEW","primary"));btns.push(PJh("button",{key:"pz",className:"btn sm",onClick:LCstop(ctx.toPaste)},"I RENEWED IT"))}
     else{var q=LCunusual(t);sub=["Not answered: "+q.map(function(s){return s.name+" ("+s.fac+")"}).join(", "),LCseen(t,today)];btns.push(PJh("button",{key:"o",className:"btn sm",onClick:LCstop(onOpen)},"OPEN"))}}
   else if(p){onOpen=function(){ctx.open("p",p.id)};main=[PJh("b",{key:"n"},LCpermitWhere(p)),PJh("span",{key:"s",className:"mono"},p.permit||"no number")];
     sub=[x.k==="pended"?"Ended "+LCday(p.end):"Ends "+LCday(p.end)+" · "+LCplural(p.days_left,"day"),p.request_by&&x.k==="psoon"?"ask by "+LCday(p.request_by):"",LCseen(p,today)];
     btns.push(p.requested?PJh("span",{key:"r",className:"lc-chip"},"Requested "+LCdayS(p.ext_requested_on)):PJh("button",{key:"x",className:"btn sm"+(x.k==="pended"?" primary":""),onClick:LCstop(onOpen)},"REQUEST EXTENSION"))}
-  else{var cr=g.c,pl=g.pl,gt=g.t;onOpen=function(){ctx.open("pl",cr.day+"|"+cr.actsoft_id+"|"+g.i)};main=[PJh("b",{key:"n"},LCplace(pl)),PJh("span",{key:"s"},LCwho(cr))];
-    sub=[LCplural(pl.min||0,"min")+" today",LCtsText(pl,cr.day,ctx.c.byN).filter(Boolean).join(" · "),pl.pstate&&pl.pstate!=="NONE"?LCPS[pl.pstate]:""];
-    if(gt&&gt.ours!==!1)btns.push(LCbtnA(LCtx(gt.number),"RENEW",""));btns.push(PJh("button",{key:"a",className:"btn sm",onClick:LCstop(onOpen)},"ACKNOWLEDGE"))}
+  else{/* one gap place (6e E3): its first stop's street and block, every unit once, the longest minutes; ACKNOWLEDGE = the first stop */
+    var pl=g.pl,gt=g.t;onOpen=function(){ctx.open("pl",g.key)};main=[PJh("b",{key:"n"},LCplace(pl)),PJh("span",{key:"s"},g.units.map(LCwho).join(", "))];
+    sub=[(g.stops.length>1?"up to ":"")+LCplural(g.min,"min")+" today",g.lapse.filter(Boolean).join(" · "),pl.pstate&&pl.pstate!=="NONE"?LCPS[pl.pstate]:""];
+    if(gt)btns.push(LCbtnA(LCtx(gt.number),"RENEW",""));btns.push(PJh("button",{key:"a",className:"btn sm",onClick:LCstop(onOpen)},"ACKNOWLEDGE"))}
   return PJh("div",{key:key,className:"lc-act "+tone,role:"button",tabIndex:0,onClick:onOpen,onKeyDown:function(ev){if(ev.key==="Enter")onOpen()}},
     PJh("div",{className:"lc-am"},PJh("div",{className:"lc-a1"},main),PJh("div",{className:"lc-a2"},sub.filter(Boolean).join(" · "))),
     PJh("div",{className:"lc-ab"},btns))}
@@ -4124,8 +4148,8 @@ function LCcrews(p){var ctx=p.ctx,b=ctx.b,c=ctx.c,[day,setDay]=(0,M.useState)(c.
   var unack=async function(a){if(!(await MZconfirm("Undo this acknowledgement?\n"+a.reason+"\nCrews there count again as without a ticket.")))return;
     try{await Gi("locate_place_unack",{p_id:a.id},ctx.t);MZtoast("Acknowledgement removed","ok");MZforce(["locates"])}catch(x){MZtoast(LCerr(x),"err",8000)}};
   return PJh("div",{className:"lc-crews"},
-    PJh(G,{title:"WHERE THE CREWS WORKED · "+LCday(day).toUpperCase(),flush:!0,right:PJh("div",{className:"lc-tools"},c.days.slice(0,3).map(function(d){var n=(b.crews||[]).filter(function(x){return x.day===d}).reduce(function(a,x){return a+(x.places||[]).filter(function(pl){return LCgap(x,pl)}).length},0);
-        return PJh("button",{key:d,className:"pj-chip"+(d===day?" on":""),onClick:function(){setDay(d)}},(d===c.today?"Today":LCday(d))+(n?" · "+n+" without a ticket":""))}))},
+    PJh(G,{title:"WHERE THE CREWS WORKED · "+LCday(day).toUpperCase(),flush:!0,right:PJh("div",{className:"lc-tools"},c.days.slice(0,3).map(function(d){var n=LCgapPlaces(b,d).length;/* places, as the TODAY list counts them (6e E3) */
+        return PJh("button",{key:d,className:"pj-chip"+(d===day?" on":""),onClick:function(){setDay(d)}},(d===c.today?"Today":LCday(d))+(n?" · "+LCplural(n,"place")+" without a ticket":""))}))},
       PJh("div",{className:"lc-note"},"Places of 20+ minutes from truck GPS. Red = 60+ min with no live ticket. Amber = past 14 days, inside 14 working days (Texas811's count). Grey = home or acknowledged."),
       PJh("div",{className:"lc-crewlist"},rows.length?rows.map(function(r){var cr=r.c;return PJh("div",{key:cr.actsoft_id,className:"lc-crew"+(r.gaps?" red":r.wl?" amber":"")},
         PJh("div",{className:"lc-ch"},PJh("b",null,LCwho(cr)),PJh("span",null,[cr.kind,HLmin(cr.minutes)].filter(Boolean).join(" · ")),
@@ -4174,7 +4198,7 @@ function LCdrawer(o){return PJh("div",{className:"drawer-bg",onClick:o.onClose},
   PJh("header",{className:"dh"},PJh("div",null,PJh("div",{className:"ml"},o.ml),PJh("h2",null,o.title)),o.chip||null),
   PJh("div",{className:"db"},o.body),PJh("footer",{className:"df"},PJh("button",{className:"btn",onClick:o.onClose},"CLOSE"),o.foot)))}
 function LCcopy(txt,msg){try{navigator.clipboard.writeText(txt).then(function(){MZtoast(msg||"Copied","ok")},function(){MZtoast("Couldn't copy: select the text and copy it","err")})}catch(x){MZtoast("Couldn't copy: select the text and copy it","err")}}
-var LCUSUAL={NEVER:"never posts answers",ANSWERS:"usually answers",MIXED:"answers sometimes"};
+var LCUSUAL={NEVER:"never posts answers",RARELY:"rarely posts answers",ANSWERS:"usually answers",MIXED:"answers sometimes"};
 
 /* TICKET window */
 function LCtWin(p){var t=p.tk,ctx=p.ctx,b=ctx.b,c=ctx.c,today=c.today,[busy,setBusy]=(0,M.useState)("");
@@ -4206,7 +4230,7 @@ function LCtWin(p){var t=p.tk,ctx=p.ctx,b=ctx.b,c=ctx.c,today=c.today,[busy,setB
         chain.map(function(x){return PJh("button",{key:x.number,className:"lc-crow"+(x.number===t.number?" on":""),disabled:x.number===t.number,onClick:function(){ctx.open("t",x.number)}},
           PJh("span",{className:"mono"},x.number),PJh("span",null,x.created_day?"taken "+LCday(x.created_day):""),LCchip(LCtStat(x,today)))})):null,
       ans.length?PJh("div",{key:"ans",className:"lc-blk"},PJh("div",{className:"lc-bh"},"THE UTILITIES' ANSWERS · "+(t.resp?(t.resp.located||0)+" located · "+(t.resp.clear||0)+" clear · "+(t.resp.overdue||0)+" not answered":"")),
-        ans.map(function(a,i){var s=sil[a.code],ok=/^(Located|Clear)$/i.test(a.action||""),un=!ok&&!!s&&a.usual!=="NEVER";
+        ans.map(function(a,i){var s=sil[a.code],ok=/^(Located|Clear)$/i.test(a.action||""),un=!ok&&!!s&&a.usual!=="NEVER"&&a.usual!=="RARELY";/* 6e E2: silence is normal for a group that never or rarely answers */
           return PJh("div",{key:i,className:"lc-ans"+(un?" amber":ok?"":" grey")},PJh("b",null,a.name),PJh("span",null,a.fac||""),PJh("span",{className:"lc-aa"},(a.action||"no answer yet")+(a.at?" · "+LCdayS(a.at):"")),
             PJh("i",null,a.usual?LCUSUAL[a.usual]||"":""))})):null,
       ring?PJh("div",{key:"map",className:"lc-blk"},PJh("div",{className:"lc-bh"},"WORK AREA + CREW STOPS OF THE LAST 3 DAYS · "+stops.length),
