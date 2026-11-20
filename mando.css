@@ -1990,3 +1990,11 @@ html[data-theme] .hl-srow.go:hover{background:var(--btn-hover)}
 html[data-theme] .hl-srow.go:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
 html[data-theme] .hl-srow.go.on{background:var(--btn-hover);box-shadow:inset 3px 0 0 var(--accent)}
 .hl-num.on span{transform:scale(1.25);box-shadow:0 0 0 3px var(--accent),0 2px 8px rgba(0,0,0,.45)}
+
+/* v277 · small dumps: each truck's route today (SDroutes) — its color on the truck's label on the map, on its tile, in the legend.
+   The Haul console is dark in both themes, so these sit with its own light-on-dark text colors (.hl-tile-s) */
+.hl-truck b.rc{box-shadow:inset 3px 0 0 var(--rc);padding-left:8px}
+.sd-rt{display:flex;align-items:center;gap:8px;margin-top:6px;font:500 12px/1.3 var(--sans);color:rgba(232,236,242,.7)}
+.sd-rt i{flex:0 0 auto;width:20px;height:3px;border-radius:2px;background:var(--rc)}
+.sd-rt i.dash{background:repeating-linear-gradient(90deg,var(--rc) 0 6px,transparent 6px 10px)}
+.sd-legend i.rt{width:20px;height:3px;border-radius:2px;vertical-align:3px}

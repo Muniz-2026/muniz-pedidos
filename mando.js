@@ -1671,12 +1671,12 @@ function HLmap(p){var box=(0,M.useRef)(null),map=(0,M.useRef)(null),lay=(0,M.use
   (0,M.useEffect)(function(){var L=window.L;if(!L||!map.current)return;var g=lay.current;g.clearLayers();var pts=[],mk={};map.current._mzStops=mk;if(p.view!==void 0)HLREG[p.view]=map.current;
     /* v268 · areas: polygons (an 811 work area) */(p.areas||[]).forEach(function(a){(a.rings||[]).forEach(function(r){if(!r||r.length<3)return;var pg=L.polygon(r,{color:a.color||"var(--accent)",weight:a.weight||2,fillColor:a.color||"var(--accent)",fillOpacity:a.fill!=null?a.fill:.12,dashArray:a.dash||null}).addTo(g);if(a.tip)pg.bindTooltip(a.tip,{className:"tip"});r.forEach(function(q){pts.push(q)})})});
     (p.places||[]).forEach(function(pl){if(!pl.lat)return;var c=HLcol(pl.kind);L.circleMarker([pl.lat,pl.lon],{radius:pl.kind==="jobsite"?4:5,color:c,weight:1.5,fillColor:c,fillOpacity:.35}).addTo(g).bindTooltip("<b>"+pl.name+"</b><br>"+HLlab(pl.kind),{className:"tip"})});
-    (p.trails||[]).forEach(function(tr){if(tr.pts&&tr.pts.length>1){L.polyline(tr.pts,{color:tr.color,weight:tr.weight||3,opacity:tr.opacity||.85,lineJoin:"round"}).addTo(g);if(p.fitTrails)tr.pts.forEach(function(q){pts.push(q)})}});
+    (p.trails||[]).forEach(function(tr){if(tr.pts&&tr.pts.length>1){L.polyline(tr.pts,{color:tr.color,weight:tr.weight||3,opacity:tr.opacity||.85,lineJoin:"round",dashArray:tr.dash||null}).addTo(g);/* v277 · a hover on a route names its truck (a clear 14 px line over the 3 px one) */if(tr.tip)L.polyline(tr.pts,{color:tr.color,weight:14,opacity:0}).addTo(g).bindTooltip(tr.tip,{className:"tip",sticky:!0});if(p.fitTrails)tr.pts.forEach(function(q){pts.push(q)})}});
     (p.route||[]).forEach(function(r,i,a){if(i>0)L.polyline([[a[i-1].lat,a[i-1].lon],[r.lat,r.lon]],{color:"#0A84FF",weight:3,dashArray:"6 6",opacity:.95}).addTo(g);
       L.marker([r.lat,r.lon],{icon:L.divIcon({className:"hl-num route",html:"<span>"+(i===0?"S":i)+"</span>",iconSize:[26,26],iconAnchor:[13,13]})}).addTo(g).bindTooltip(r.label||"",{className:"tip"});pts.push([r.lat,r.lon])});
     (p.stops||[]).forEach(function(s,i){if(!s.lat)return;mk[s.seq]=L.marker([s.lat,s.lon],{icon:L.divIcon({className:"hl-num"+(map.current._mzOn===s.seq?" on":""),html:"<span style='background:"+HLcol(s.kind)+"'>"+s.seq+"</span>",iconSize:[24,24],iconAnchor:[12,12]}),zIndexOffset:map.current._mzOn===s.seq?1e3:0}).addTo(g)
       .bindTooltip("<b>"+s.seq+". "+HLplace(s)+"</b><br>"+HLlab(s.kind)+" · "+HLt(s.arrive)+"–"+HLt(s.depart)+" · "+HLmin(s.minutes),{className:"tip"});pts.push([s.lat,s.lon])});
-    (p.trucks||[]).forEach(function(tk){if(!tk.lat)return;L.marker([tk.lat,tk.lon],{icon:L.divIcon({className:"hl-truck"+(tk.live?" live":""),html:(tk.live?MZtri(tk.color,14,"#fff",tk.hd):"<i style='background:"+tk.color+"'></i>")+"<b>"+tk.label+"</b>",iconSize:[120,26],iconAnchor:[10,13]})}).addTo(g)
+    (p.trucks||[]).forEach(function(tk){if(!tk.lat)return;L.marker([tk.lat,tk.lon],{icon:L.divIcon({className:"hl-truck"+(tk.live?" live":""),html:(tk.live?MZtri(tk.color,14,"#fff",tk.hd):"<i style='background:"+tk.color+"'></i>")+(tk.rc?"<b class='rc' style='--rc:"+tk.rc+"'>":"<b>")+tk.label+"</b>",iconSize:[120,26],iconAnchor:[10,13]})}).addTo(g)
       .bindTooltip(tk.tip||tk.label,{className:"tip"});pts.push([tk.lat,tk.lon])});
     var mc=map.current,fresh=p.view!==void 0&&p.view!==mc._mzView;if(fresh)mc._mzOn=null;
     if(pts.length)try{MZrefit(mc,pts,{padding:[40,40],maxZoom:p.maxZoom||14},fresh);mc._mzView=p.view}catch(x){}},[p.sig]);
@@ -1933,17 +1933,39 @@ function HlRoot(p){var a=(0,M.useState)(function(){return SDside()}),side=a[0],s
   var setSide=function(v){v=v==="dump"||v==="foremen"?v:"truckers";try{localStorage.setItem("muniz_haul_side",v)}catch(x){}set0(v)};
   (0,M.useEffect)(function(){var f=function(ev){var v=ev&&ev.detail;if(v==="dump"||v==="truckers"||v==="foremen")setSide(v)};window.addEventListener("mz-haul-side",f);return function(){window.removeEventListener("mz-haul-side",f)}},[]);
   return side==="dump"?PJh(SDroom,Object.assign({},p,{onSide:setSide})):side==="foremen"?PJh(FMroom,Object.assign({},p,{onSide:setSide})):PJh(Hl,Object.assign({},p,{onSide:setSide}))}
+/* v277 · ROUTES TODAY on the small dumps map (Tito, Nov 20: "The same way on Haul tab when I am looking at the truckers I want to be
+   able see routes in the map the same for small dumps"): each small dump truck's GPS trail since midnight, read the way the TRUCKERS
+   console reads its trails (gps_positions, again every minute while this side is open; not while the page is hidden or untouched for
+   10 min). A truck has a route once it drove today (a position over 3 mph): a truck parked all day draws none. The dots keep their
+   status colors (red / amber / green / gray), so a route never wears one of those: its own color from SDRC, handed out in the order the
+   trucks first drove today and kept all day (SDRA: a truck that starts later never repaints the others); from the 6th truck on the
+   colors come back dashed. The color is on the truck's label on the map, on its tile and in the legend; a hover on a route names it. */
+var SDRC=["#3D8BFF","#FDE047","#D946EF","#00E5FF","#B4A7FF"],SDRDASH=[null,"10 8","2 8"],SDRA={day:"",at:{},n:0},SDR0={},
+  SDRgrad="linear-gradient(90deg,"+SDRC.map(function(c,i){return c+" "+(i*20)+"% "+(i*20+20)+"%"}).join(",")+")";
+function SDroutes(rows,day){var by={};
+  rows.forEach(function(q){if(q.lat==null||q.lon==null)return;var k=String(q.actsoft_id),o=by[k]||(by[k]={pts:[],mv:null});o.pts.push([q.lat,q.lon]);if(o.mv==null&&(Number(q.speed)||0)>3)o.mv=Date.parse(q.ts)||0});
+  if(SDRA.day!==day)SDRA={day:day,at:{},n:0};
+  Object.keys(by).filter(function(k){return by[k].mv!=null&&SDRA.at[k]==null}).sort(function(a,b){return by[a].mv-by[b].mv||(a<b?-1:1)}).forEach(function(k){SDRA.at[k]=SDRA.n++});
+  var out={};Object.keys(by).forEach(function(k){var i=SDRA.at[k];if(i==null||by[k].pts.length<2)return;out[k]={pts:by[k].pts,c:SDRC[i%SDRC.length],dash:SDRDASH[Math.floor(i/SDRC.length)%SDRDASH.length]}});
+  return out}
+function SDuseRoutes(aids,day,tok){var a=(0,M.useState)(null),s=a[0],set=a[1];
+  (0,M.useEffect)(function(){if(!aids)return;var dead=!1,last="",since=new Date(day+"T00:00:00").toISOString();
+    var go2=function(){MZpages("gps_positions?select=actsoft_id,ts,lat,lon,speed&actsoft_id=in.("+aids+")&ts=gte."+encodeURIComponent(since)+"&order=ts.asc,actsoft_id.asc",tok.access_token,10)
+      .then(function(r){if(dead||!Array.isArray(r))return;var k=r.length+"|"+(r.length?r[r.length-1].ts:"");if(k===last)return;last=k;set({day:day,rt:SDroutes(r,day)})}).catch(function(){})};
+    go2();var iv=setInterval(function(){document.hidden||MZidleMin()>10||go2()},6e4);return function(){dead=!0;clearInterval(iv)}},[aids,day]);
+  return s&&s.day===day?s.rt:SDR0}
 function SDroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
-  var thr=SDthr(e),ppl=e.ppl||[];
+  var thr=SDthr(e),ppl=e.ppl||[],rt=SDuseRoutes((e.fleet||[]).filter(SDisDump).map(function(u){return String(u.actsoft_id||"")}).filter(Boolean).sort().join(","),HLtoday(t),tok);
   var trucks=(e.fleet||[]).filter(SDisDump).map(function(u){var name=u.person||u.assigned_to||"",p=name?ppl.find(function(x){return PJsame(x.name,name)}):null,st=SDstatus(u,t,thr);
-    return{u:u,unit:SDunit(u),name:name,first:name?PJfirst(name):"",phone:p&&p.phone||"",st:st,place:SDplace(u,e),plate:u.plate||""}});
+    return{u:u,unit:SDunit(u),name:name,first:name?PJfirst(name):"",phone:p&&p.phone||"",st:st,place:SDplace(u,e),plate:u.plate||"",rt:rt[String(u.actsoft_id)]||null}});
   var rank={idle:0,moving:1,parked:2,quiet:3,none:4};
   trucks.sort(function(a,b){var ha=!!a.st.hot,hb=!!b.st.hot;if(ha!==hb)return ha?-1:1;if(rank[a.st.k]!==rank[b.st.k])return rank[a.st.k]-rank[b.st.k];if(a.st.k==="idle")return b.st.min-a.st.min;return a.unit.localeCompare(b.unit)});
   var hot=trucks.filter(function(x){return x.st.hot}),idling=trucks.filter(function(x){return x.st.k==="idle"}),moving=trucks.filter(function(x){return x.st.k==="moving"}),parked=trucks.filter(function(x){return x.st.k==="parked"}),quiet=trucks.filter(function(x){return x.st.k==="quiet"});
   var alerts=(e.sdAlerts||[]).slice().sort(function(a,b){return String(b.alerted_at||b.started_at).localeCompare(String(a.alerted_at||a.started_at))});
   var day0=new Date(t);day0.setHours(0,0,0,0);var today=alerts.filter(function(a){return Date.parse(a.alerted_at||a.started_at)>=day0.getTime()}),recent=alerts.filter(function(a){return Date.parse(a.alerted_at||a.started_at)>=t-48*36e5}).slice(0,40);
-  var live=trucks.filter(function(x){return x.u.last_lat!=null}).map(function(x){return{lat:x.u.last_lat,lon:x.u.last_lon,color:x.st.c,label:x.unit+(x.first?" · "+x.first:""),live:x.st.k==="moving",hd:x.u.last_heading,tip:"<b>"+x.unit+(x.name?" · "+z(x.name):"")+"</b><br>"+x.st.t+(x.place?"<br>"+x.place:"")}});
-  var sig=JSON.stringify(live.map(function(x){return[x.lat,x.lon,x.color]}));
+  var live=trucks.filter(function(x){return x.u.last_lat!=null}).map(function(x){return{lat:x.u.last_lat,lon:x.u.last_lon,color:x.st.c,label:x.unit+(x.first?" · "+x.first:""),live:x.st.k==="moving",hd:x.u.last_heading,rc:x.rt?x.rt.c:void 0,tip:"<b>"+x.unit+(x.name?" · "+z(x.name):"")+"</b><br>"+x.st.t+(x.place?"<br>"+x.place:"")}});
+  var trails=trucks.filter(function(x){return x.rt}).map(function(x){return{pts:x.rt.pts,color:x.rt.c,dash:x.rt.dash,weight:3,opacity:.9,tip:"<b>"+x.unit+(x.name?" \u00B7 "+z(x.name):"")+"</b><br>Route today"}});
+  var sig=JSON.stringify(live.map(function(x){return[x.lat,x.lon,x.color]}))+"|"+trails.map(function(x){return x.color+(x.dash||"")+":"+x.pts.length}).join(",");
   var gmap=function(x){return"https://www.google.com/maps/search/?api=1&query="+x.u.last_lat+","+x.u.last_lon};
   var hint=!trucks.length?PJh(ve,null,"No small dump trucks in the live fleet. In Actsoft they sit in the group \u201cSmall Dump Trucks\u201d; the next fleet refresh picks them up."):null;
   return PJh("div",{className:"room room-haul sd-room"},
@@ -1955,18 +1977,19 @@ function SDroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
       hot.length?PJh("div",{className:"sd-banner"},hot.map(function(x){return PJh("div",{key:x.unit,className:"sd-banner-r"},PJh("b",null,x.unit+(x.first?" \u00B7 "+x.first:"")),PJh("span",null,"idle "+SDmin(x.st.min)+(x.place?" \u00B7 "+x.place:"")+" \u00B7 since "+SDwhen(x.u.last_status_since,t)))})):null,
       hint,
       PJh("div",{className:"hl-console-body sd-body"},
-        PJh(HLmap,{dark:!0,className:"hl-live sd-map",trucks:live,sig:sig,maxZoom:12}),
+        PJh(HLmap,{dark:!0,className:"hl-live sd-map",trucks:live,trails:trails,sig:sig,maxZoom:12}),
         PJh("div",{className:"hl-tele sd-list"},trucks.map(function(x){var u=x.u;
           return PJh("div",{key:x.unit,className:"hl-tile sd-tile"+(x.st.hot?" hot":"")},
             PJh("div",{className:"hl-tile-h"},PJh("i",{style:{background:x.st.c}}),PJh("b",null,x.unit+(x.first?" \u00B7 "+z(x.name):"")),PJh("span",{className:"hl-st",style:{color:x.st.c}},x.st.w)),
             PJh("div",{className:"hl-tile-s"},x.st.t),
             PJh("div",{className:"sd-where"},x.place?x.place:(u.last_lat!=null?"No known place \u00B7 "+Number(u.last_lat).toFixed(4)+", "+Number(u.last_lon).toFixed(4):"No position yet"),x.plate?PJh("span",{className:"dim"}," \u00B7 "+x.plate):null,!x.name?PJh("span",{className:"dim"}," \u00B7 no driver on file"):null),
+            x.rt?PJh("div",{className:"sd-rt"},PJh("i",{className:x.rt.dash?"dash":void 0,style:{"--rc":x.rt.c}}),"Route today"):null,
             PJh("div",{className:"hl-tile-a"},
               x.phone?PJh("a",{className:"hl-btn",href:"tel:"+x.phone},"Call"):null,
               x.phone?PJh("a",{className:"hl-btn",href:"sms:"+x.phone},"Text"):null,
               u.last_lat!=null?PJh("a",{className:"hl-btn",href:gmap(x),target:"_blank",rel:"noopener"},"Map"):null,
               u.last_lat!=null&&om?PJh("button",{className:"hl-btn",onClick:function(){om(u.last_lat,u.last_lon,x.unit)}},"Fleet map"):null))}))),
-      PJh("div",{className:"sd-legend"},[["IDLE "+thr+"+ MIN",SDCOL.red],["IDLE",SDCOL.amber],["MOVING",SDCOL.green,1],["ENGINE OFF / QUIET",SDCOL.gray]].map(function(l){return PJh("span",{key:l[0]},PJh("i",{className:l[2]?"tri":void 0,style:{background:l[1]}}),l[0])}))),
+      PJh("div",{className:"sd-legend"},[["IDLE "+thr+"+ MIN",SDCOL.red],["IDLE",SDCOL.amber],["MOVING",SDCOL.green,1],["ENGINE OFF / QUIET",SDCOL.gray]].map(function(l){return PJh("span",{key:l[0]},PJh("i",{className:l[2]?"tri":void 0,style:{background:l[1]}}),l[0])}),trails.length?PJh("span",{key:"rt"},PJh("i",{className:"rt",style:{background:SDRgrad}}),"ROUTES TODAY \u00B7 ONE COLOR PER TRUCK"):null)),
     PJh("div",{className:"strip sd-kpis"},
       PJh(K,{label:"IDLING "+thr+"+ MIN · NOW",value:hot.length,tone:hot.length?SDCOL.red:SDCOL.green,sub:hot.length?hot.map(function(x){return x.unit}).join(" \u00B7 "):"nobody over the line"}),
       PJh(K,{label:"IDLING",value:idling.length,tone:idling.length?SDCOL.amber:void 0,sub:"engine on, not moving"}),
