@@ -368,7 +368,7 @@ function LVsites(sd){return LVidx(sd,function(a){var best={};a.forEach(function(
 /* v252 · CREWS ON SITE from the foremen's trucks (Tito, Nov 10: "i do not want the board to use the crew email to identify whether
    or not a crew is on site. it can recognize where a crew has been working based off of the foremans truck location … based off of
    patterns"). A crew = a truck of the Actsoft group "Foreman" that spent CRWORK+ minutes at one place on CRMIN of the last CRLOOK
-   workdays (payroll_days: the FOREMEN grid's own rule, stopped 6 AM–5 PM, never a house, never the yard), or is on site now. Its
+   workdays (payroll_days: the FOREMEN grid's own rule: stopped there at any hour, never a house, never the yard), or is on site now. Its
    sites = those places (300 m apart), newest first. On site = stopped or creeping (LVSLOW, no geofence) within LVREACH of one of its
    own sites or of a known job place (LVjob), or CRNEW+ minutes today at a place no list knows; never where the truck spent the
    night (2–4 AM, CRHOME) unless that is one of its sites. Nov 10, 9:50 AM, live: 21 crew trucks, 20 on site, V-DMO at the yard. */
@@ -2008,7 +2008,7 @@ function SDroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
    charge their hours to. She asked for the same for the foremen, and one Excel with foremen and truckers: the job site each
    one was at most of the day (the 80/20) and its cost code.
    A day comes from the truck's own GPS positions (Actsoft's trips miss stops) and the Live board's job places (LVplaces /
-   LVjob): a truck stopped within 400 m of a job place between 6 AM and 5 PM is on that job, never at a geofence (the yard,
+   LVjob): a truck stopped within 400 m of a job place is on that job at any hour of its day (see PYcalc), never at a geofence (the yard,
    the office, the stations), at a place named in Haul (yard, supplier, dump) or where it spent the night (home / parking).
    Each position lasts until the next one, at most 30 min, or the whole gap when the next one comes within 65 min at the
    same spot: Actsoft reports a parked truck once an hour (crew_site_days stops at 30 and counts half of a parked day).
@@ -2157,22 +2157,31 @@ function PYws(ws,la,lo){var best=null,bd=1e12;(ws||[]).forEach(function(w){if(w.
 function PYcalc(pos,day,e,ws,now){
   var hh=function(h){return("0"+h).slice(-2)+":00:00"},d0=new Date(day+"T00:00:00").getTime(),d1=new Date(PYadd(day,1)+"T00:00:00").getTime(),w0=new Date(day+"T"+hh(PYWIN.from)).getTime(),w1=new Date(day+"T"+hh(PYWIN.to)).getTime(),P=PYplaces(e);
   var night=function(dk){var la=0,lo=0,n=0;pos.forEach(function(p){if(p.dk===dk&&(p.h===2||p.h===3)){la+=p.lat;lo+=p.lon;n++}});return n?[la/n,lo/n]:null};
-  var N=[night(day),night(PYadd(day,1))].filter(Boolean),atHome=function(la,lo){return N.some(function(q){return PJhav(la,lo,q[0],q[1])<=PYHOME})};
+  var N0=night(day),N1=night(PYadd(day,1)),N=[N0,N1].filter(Boolean),atHome=function(la,lo){return N.some(function(q){return PJhav(la,lo,q[0],q[1])<=PYHOME})};
+  /* The day is the truck's own day, not a clock window (Claudia, Nov 23: Pedro Limon on Mesa Dr 7:55 AM - 7:33 PM on Nov 17, the
+     sheet said 9.1 h and "last 5:55 PM"). Until then only 6 AM - 5 PM counted (PYWIN) and "last" was the end of the last position
+     that started before 5 PM: a parked truck reports once an hour, so 4:55 PM + 60 min = 5:55 PM, no truck event at all. Now a
+     stopped position counts at any hour, except where the truck spent the night (atHome): there a parked truck cannot say when
+     work started or ended, so a job place keeps 6 AM - 5 PM (and a place that is no known job is never counted, as before). A
+     side whose night is not known keeps its old bound too: before 6 AM needs that morning's 2-3 AM spot (ok0), after 5 PM the
+     next morning's (ok1) — while that night is not over yet (until 4 AM) the morning's spot alone decides. first / last = the
+     first and the last minute that counted (ca / cb). The same rule in SQL: diag158 (pb / pw), payroll_days_calc. */
+  var ok0=!!N0,ok1=!!N1||Date.now()<d1+4*36e5;
   var Jm={},U={},UA=[],home=0,ran=!1,trail=[],on=null,off=null,runs=[],cur=null;
   for(var i=0;i<pos.length;i++){var p=pos[i];if(p.t<d0||p.t>=d1)continue;trail.push([p.lat,p.lon]);var mv=p.ign||p.sp>=3;
-    if(mv&&p.h>=6&&p.h<=16)ran=!0;if(mv&&p.h>=3){if(on==null)on=p.t;off=p.t}
+    if(mv)ran=!0;if(mv&&p.h>=3){if(on==null)on=p.t;off=p.t}
     if(p.sp<3){if(!cur)cur={a:p.t,b:p.t,P:[]};cur.b=p.t;cur.P.push(p)}else{if(cur){cur.nx=p.t;runs.push(cur);cur=null}continue}
     var nx=pos[i+1],raw;
     if(nx){var gap=(nx.t-p.t)/6e4;raw=gap<=30?gap:gap<=PYBEAT&&PJhav(p.lat,p.lon,nx.lat,nx.lon)<=150?gap:30}else raw=now&&now>p.t?Math.min((now-p.t)/6e4,PYBEAT):0;
-    var end=p.t+raw*6e4,wm=(Math.min(end,w1)-Math.max(p.t,w0))/6e4;if(!(wm>0))continue;
+    var end=p.t+raw*6e4,nt=atHome(p.lat,p.lon),ca=Math.max(p.t,!nt&&ok0?d0:w0),cb=Math.min(end,!nt&&ok1?d1:w1),wm=(cb-ca)/6e4;if(!(wm>0))continue;
     if(PYknown(p.lat,p.lon,p.gf,e))continue;
     var pl=PYnear(P,p.lat,p.lon);
-    if(pl){if(LVyard(pl.name))continue;var o=Jm[pl.i]||(Jm[pl.i]={pl:pl,min:0,first:p.t,last:end});o.min+=wm;if(end>o.last)o.last=end;continue}
-    if(atHome(p.lat,p.lon)){home+=wm;continue}
+    if(pl){if(LVyard(pl.name))continue;var o=Jm[pl.i]||(Jm[pl.i]={pl:pl,min:0,first:ca,last:cb});o.min+=wm;if(ca<o.first)o.first=ca;if(cb>o.last)o.last=cb;continue}
+    if(nt){home+=wm;continue}
     /* a place that is no known job: its work stop's place, else the earliest position that day within 150 m (no grid: a stop on
        a cell's edge was split in two) */
     var w=PYws(ws,p.lat,p.lon),an=null;if(!w){for(var j=0;j<UA.length;j++){var q=UA[j];if(Math.abs(q.lat-p.lat)<.002&&Math.abs(q.lon-p.lon)<.002&&PJhav(p.lat,p.lon,q.lat,q.lon)<=150){an=q;break}}UA.push(p);an=an||p}
-    var k=w?"w|"+w.street+"|"+w.block:"a|"+an.t,u=U[k]||(U[k]={k:k,w:w,lat:w?+w.lat:an.lat,lon:w?+w.lon:an.lon,min:0,first:p.t,last:end});u.min+=wm;if(end>u.last)u.last=end}
+    var k=w?"w|"+w.street+"|"+w.block:"a|"+an.t,u=U[k]||(U[k]={k:k,w:w,lat:w?+w.lat:an.lat,lon:w?+w.lon:an.lon,min:0,first:ca,last:cb});u.min+=wm;if(ca<u.first)u.first=ca;if(cb>u.last)u.last=cb}
   if(cur){cur.nx=null;runs.push(cur)}
   /* job time adds up per cost code (no code: per place); the place with the most minutes names it */
   var G={},sites=[];Object.keys(Jm).forEach(function(i){var o=Jm[i],ev=o.pl.ev,k=ev&&ev.code?"C|"+ev.code:"N|"+o.pl.name+"|"+(ev?ev.label:"");
@@ -2271,9 +2280,9 @@ function PYhow(s,e){if(!s)return"";var ev=s.ev;
   var mix=ev.mix.map(function(m){return(/^NOCODE /.test(m.label)?m.label.slice(7)+" (no job #)":m.label)+" ×"+m.n}).join(", ");
   if(!ev.code)return"Crew emails at this spot: "+mix+" — "+ev.contract+" has no job number in the jobsite log yet";
   return"Crew emails: "+ev.n+" of "+ev.tot+" crew day"+(ev.tot===1?"":"s")+" within "+ev.ring+" m said "+ev.code+(ev.mix.length>1?" ("+mix+")":"")+(s.sure?"":" · check")}
-function PYtip(s,e){if(!s)return"";if(s.none)return"No truck on this line this day";var tk=s.trucks?"\n\nChanged trucks this day: "+s.trucks.join(" + ")+" (the time on both counts)":"";if(!s.sites.length)return(s.ran?"The truck ran but never stopped at a job site between 6 AM and 5 PM":"The truck didn't run")+tk;
+function PYtip(s,e){if(!s)return"";if(s.none)return"No truck on this line this day";var tk=s.trucks?"\n\nChanged trucks this day: "+s.trucks.join(" + ")+" (the time on both counts)":"";if(!s.sites.length)return(s.ran?"The truck ran but never stopped at a job site":"The truck didn't run")+tk;
   return s.sites.map(function(q){return(q.code||(q.typ==="U"?"not a known job site":"no job #"))+" · "+q.name+" · "+PYhr(q.min)+" ("+Math.round(q.share*100)+"%)"}).join("\n")+"\n\n"+PYhow(s.main,e)+tk}
-function PYrule(who){return"Most of the day = the job where the "+(who==="Trucker"?"truck":"foreman's truck")+" sat the most minutes between 6 AM and 5 PM: stopped within 400 m of a job place (as on the Live board), never at the yard, the office, a station, a supplier, a dump or where the truck spent the night"+(who==="Trucker"?" (loading and dumping don't count)":"")+". Several spots of the same job count together. The cost code is what the crew emails called that spot — the same evidence as the POs' GPS cost codes. Amber = no job number on file, or too little evidence for it: check before you assign the hours."}
+function PYrule(who){return"Most of the day = the job where the "+(who==="Trucker"?"truck":"foreman's truck")+" sat the most minutes that day, at any hour: stopped within 400 m of a job place (as on the Live board), never at the yard, the office, a station, a supplier or a dump"+(who==="Trucker"?" (loading and dumping don't count)":"")+". Where the truck spent the night only 6 AM – 5 PM counts, and only at a job place. First and last on a job site are the first and the last minute it was stopped at one. Several spots of the same job count together. The cost code is what the crew emails called that spot — the same evidence as the POs' GPS cost codes. Amber = no job number on file, or too little evidence for it: check before you assign the hours."}
 function PYchip(ev,sure,title){return ev&&ev.code?PJh("span",{className:"py-chip"+(sure?"":" chk"),title:title||""},ev.code):ev&&ev.contract?PJh("span",{className:"py-chip no",title:title||""},"no job #"):null}
 /* the cost code of the job place at a point (the Truck dossier's stops inside a job area: the haul tables only know the
    learned spots, so a stop at a crew-day place reads "Unknown stop" there while the payroll line counts it on that job) */
@@ -2304,8 +2313,8 @@ function PYgrid(p){var today=p.today,wait=0,cols=p.days.filter(function(d,i){ret
   return PJh("div",{className:"py-wrap"},wait&&p.msg?PJh("div",{className:"py-float",role:"status"},p.msg):null,tb)}
 /* a day's answer: every job the truck sat at, its share, hours and cost code */
 function PYanswer(s,e){if(!s)return PJh(ve,null,"Reading GPS…");
-  if(!s.sites.length)return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT · 6 AM – 5 PM"),PJh("div",{className:"py-none"},s.none?"No truck on this line this day.":s.ran?"No time on a job site: the truck ran but only stopped at the yard, stations, suppliers or home.":"The truck didn't run this day."));
-  return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT · 6 AM – 5 PM"+(s.trucks?" · "+s.trucks.join(" + "):"")),
+  if(!s.sites.length)return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT"),PJh("div",{className:"py-none"},s.none?"No truck on this line this day.":s.ran?"No time on a job site: the truck ran but only stopped at the yard, stations, suppliers or home.":"The truck didn't run this day."));
+  return PJh("div",{className:"py-ans"},PJh("div",{className:"pj-sec"},"WHERE THE DAY WENT"+(s.trucks?" · "+s.trucks.join(" + "):"")),
     s.sites.map(function(q,i){var jn=PYjobName(q.code,e);return PJh("div",{key:q.key,className:"py-ar"+(i?"":" main")},
       PJh("div",{className:"py-al"},PJh("div",{className:"py-alh"},q.code?PJh("b",{className:"py-code"+(q.sure?"":" chk")},q.code):PJh("b",{className:"py-code no"},q.typ==="U"?"Not a known job site":"No job number"),PJh("span",null,q.name+(q.names.length>1?" + "+(q.names.length-1)+" more spot"+(q.names.length>2?"s":""):""))),
         PJh("span",{className:"dim"},jn?jn+(q.sure?"":" · "+PYhow(q,e)):PYhow(q,e))),
@@ -2389,7 +2398,7 @@ function FMroom({d:e,now:t,t:tok,onMap:om,onSide:onSide}){
       PJh("div",{className:"sd-legend"},[["ON A JOB SITE",SDCOL.green],["DRIVING",SDCOL.blue,1],["STOPPED ELSEWHERE",SDCOL.amber],["YARD · STATION · QUIET",SDCOL.gray]].map(function(l){return PJh("span",{key:l[0]},PJh("i",{className:l[2]?"tri":void 0,style:{background:l[1]}}),l[0])}))),
     PJh("div",{className:"strip sd-kpis"},
       PJh(K,{label:"ON A JOB SITE NOW",value:onSite+"/"+rows.length,tone:onSite?_.green:void 0,sub:"stopped within 400 m of a job place"}),
-      PJh(K,{label:"HOURS ON JOB SITES · TODAY",value:PYhr(hrsT),sub:"all foremen · 6 AM – 5 PM"}),
+      PJh(K,{label:"HOURS ON JOB SITES · TODAY",value:PYhr(hrsT),sub:"all foremen · so far today"}),
       PJh(K,{label:"DAYS WITH A COST CODE",value:wkCode+"/"+wkd.length,sub:(wk===PYmon(today)?"this week":"week of "+PJday(wk))+" · from the crew emails"}),
       PJh(K,{label:"NEED A JOB NUMBER",value:String(wkNo),tone:wkNo?_.amber:void 0,sub:wkNo?"foreman-days at a site with no job number":"every day has a cost code"})),
     PJh(G,{title:"WHERE EACH FOREMAN WORKED · "+(wk===PYmon(today)?"THIS WEEK":"WEEK OF "+PJday(wk).toUpperCase()),right:PYweekNav({wk:wk,setWk:setWk,today:today,busy:xmsg,onExport:function(){PYexport(e,tok,wk,setXmsg)}})},
@@ -2489,17 +2498,17 @@ async function PYexport(e,tok,wk,say){var now=Date.now(),today=qt(now),days=PYda
         m?m.name+(m.names.length>1?" (+ "+m.names.slice(1).join(", ")+")":""):"No time on a job site",m&&m.code||"",m&&m.code?PYjobName(m.code,e):m&&m.ev&&m.ev.contract?m.ev.contract+" · no job number yet":"",
         m?Math.round(m.share*100)/100:"",m?Math.round(m.min/6)/10:"",Math.round(s.total/6)/10,
         s.sites.slice(1).map(function(q){return q.name+" · "+(q.code||"no job #")+" · "+Math.round(q.share*100)+"% ("+PYhr(q.min)+")"}).join("; "),
-        PYxtime(f),PYxtime(l),m?PYhow(m,e):s.ran?"The truck ran but only stopped at the yard, stations, suppliers or home between 6 AM and 5 PM":""]});
+        PYxtime(f),PYxtime(l),m?PYhow(m,e):s.ran?"The truck ran but only stopped at the yard, stations, suppliers or home":""]});
     var rows2=X.G.map(function(g){return[PYnm(g.x),g.x.role,g.x.vids?g.x.vids.join(" + "):g.x.u&&g.x.u.vehicle_id||"",g.code||"",g.code?PYjobName(g.code,e):g.q.ev&&g.q.ev.contract?g.q.ev.contract+" · no job number yet":"",Object.keys(g.names).join(", "),g.days,Math.round(g.min/6)/10]});
     var bytes=PYxlsx([
       {name:"Payroll",cols:[{h:"Date",w:11,t:"d"},{h:"Day",w:6},{h:"Name",w:24},{h:"Role",w:9},{h:"Truck",w:8},{h:"Job site (most of the day)",w:36,t:"w"},{h:"Cost code",w:13},{h:"Job (jobsite log)",w:36,t:"w"},{h:"% of time on job sites",w:11,t:"p"},
-        {h:"Hours there (6 AM\u20135 PM)",w:11,t:"n"},{h:"Hours on all job sites (6 AM\u20135 PM)",w:13,t:"n"},{h:"Other job sites",w:44,t:"w"},{h:"First on a job site",w:11,t:"t"},{h:"Last on a job site",w:11,t:"t"},{h:"How the cost code was found",w:60,t:"w"}],rows:rows},
-      {name:"By cost code",cols:[{h:"Name",w:24},{h:"Role",w:9},{h:"Truck",w:8},{h:"Cost code",w:13},{h:"Job (jobsite log)",w:40,t:"w"},{h:"Job sites (GPS)",w:44,t:"w"},{h:"Days it was the main job",w:12,t:"i"},{h:"Hours on site (6 AM\u20135 PM)",w:12,t:"n"}],rows:rows2},
+        {h:"Hours there",w:11,t:"n"},{h:"Hours on all job sites",w:13,t:"n"},{h:"Other job sites",w:44,t:"w"},{h:"First on a job site",w:11,t:"t"},{h:"Last on a job site",w:11,t:"t"},{h:"How the cost code was found",w:60,t:"w"}],rows:rows},
+      {name:"By cost code",cols:[{h:"Name",w:24},{h:"Role",w:9},{h:"Truck",w:8},{h:"Cost code",w:13},{h:"Job (jobsite log)",w:40,t:"w"},{h:"Job sites (GPS)",w:44,t:"w"},{h:"Days it was the main job",w:12,t:"i"},{h:"Hours on site",w:12,t:"n"}],rows:rows2},
       {name:"How to read",cols:[{h:"How this sheet is made",w:140,t:"w"}],rows:[
         ["Week of "+PJday(wk)+", "+wk.slice(0,4)+" · made "+new Date(now).toLocaleString("en-US")+" from the trucks' GPS (Command Center → Haul → Foremen / Truckers)."],
         ["Foremen = the trucks in Actsoft's group “Foreman”, each day by who drove it: its driver record in Haul, else the person it is registered to. One line per foreman: on a day he changed trucks the time on both counts (Truck = both), and a truck nobody known drove shows as “No driver” only on a day it was on a site. Truckers = the drivers in Rules · fuel_split_drivers."],
         [PYrule("Foreman")],
-        ["% of time on job sites = the minutes at that job ÷ the minutes at every job that day (6 AM – 5 PM). Hours there = stopped time at that job; driving, the yard, stations, suppliers, dumps and home are not on a job site."],
+        ["% of time on job sites = the minutes at that job ÷ the minutes at every job that day. Hours there = stopped time at that job, at any hour of the day; driving, the yard, stations, suppliers, dumps and where the truck spends the night are not on a job site. First / Last on a job site = the first and the last minute the truck was stopped at one that day (GPS)."],
         ["A job place counts from 15 minutes in a day; a place that is no known job counts from 45 minutes and shows Actsoft's street for it (“near 1615 Rutland Dr”). It has no cost code until a crew email names that spot or the jobsite log has a number for it."],
         ["“By cost code” adds the week up per person and job: the days that job was the main one and the hours at it."]]}]);
     var name="Muniz payroll sites - week of "+wk+".xlsx",a=document.createElement("a");a.href=URL.createObjectURL(new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));a.download=name;document.body.appendChild(a);a.click();

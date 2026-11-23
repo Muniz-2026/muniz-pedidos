@@ -1,4 +1,5 @@
-/* MUÑIZ Pedidos - service worker  ·  v277
+/* MUÑIZ Pedidos - service worker  ·  v278
+     · v278: Command Center Haul → Foremen / Truckers payroll: a day is the truck's whole day (it stopped counting at 5 PM) and first / last on a job site are real GPS times (parche221).
      · v277: Haul → Small dumps: each truck's route today on the map, like Truckers (its own color, on its label and tile).
      · v276: Haul → Foremen: on a day a foreman changed trucks, the trucks in the order he drove them.
      · v275: Command Center Haul → Foremen: one line per foreman (a truck change no longer makes a second line).
@@ -109,7 +110,7 @@
        an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v277";
+const CACHE = "muniz-pedidos-v278";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
