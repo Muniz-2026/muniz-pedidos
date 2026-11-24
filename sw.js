@@ -1,4 +1,5 @@
-/* MUÑIZ Pedidos - service worker  ·  v281
+/* MUÑIZ Pedidos - service worker  ·  v282
+     · v282: Command Center Haul → Foremen / Truckers payroll: a job with several job numbers (CAUDI) takes the one the office's dated list has in force that day (parche227).
      · v281: Fuel: when the miles typed fit another truck, one tap puts that truck's plate in (the phone's plate memory after a truck swap).
      · v280: Command Center fuel PO odometer: TENTHS (tenths digit typed) and NO_READING shown; red only for a real mismatch (parche226).
      · v279: Command Center Orders: EDIT ITEMS — change quantities or remove items on an order after its PO (office; parche224).
@@ -113,7 +114,7 @@
        an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v281";
+const CACHE = "muniz-pedidos-v282";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
