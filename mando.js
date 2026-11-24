@@ -2578,7 +2578,7 @@ var ACBTN={"LATAS":"Paint: cans (fewer than a box)","CAJA DE ##":"Paint: a box o
   "📷 FOTO MALA":"Bad photo (feedback)","🏷️ NOMBRE RARO":"Odd name (feedback)","❓ NO SUPE CUÁL":"Didn't know which one (feedback)","HACER OTRO PEDIDO":"Make another order",
   "¿Olvidaste algo? Agregar al pedido (# mi":"Forgot something? Add to the order","🔍 BUSQUÉ Y NO ESTABA (#)":"I searched and it wasn't there (feedback)","−":"One less","+":"One more","CERRAR":"Close","AGREGAR AL PEDIDO":"Add to the order",
   "✕":"Clear the search","AGREGAR":"Add","CANCELAR":"Cancel","DIÉSEL VERDE":"Green diesel (truck)","DIÉSEL ROJO":"Red diesel (equipment)","GASOLINA":"Gasoline",
-  "CONTINUAR →":"Continue","GENERAR PO ⛽":"Get the PO","LISTO":"Done","SÍ, YA QUEDÓ":"Yes, all set","VOLVER AL PO":"Back to the PO",
+  "CONTINUAR →":"Continue","GENERAR PO ⛽":"Get the PO","ES ESA CAMIONETA":"Switch to the truck the miles fit","LISTO":"Done","SÍ, YA QUEDÓ":"Yes, all set","VOLVER AL PO":"Back to the PO",
   "COPIAR EL ERROR (para Tito)":"Copy the error (for Tito)","REINTENTAR ↻":"Try again","OTRO PO →":"Another PO","🧰 Equipo de obra":"Jobsite equipment",
   "🪵 Madera":"Lumber","🧃 Consumibles":"Consumables","🎨 Pintura y marcado":"Paint & marking","🔩 Clavos, alambre y amarre":"Nails, wire & ties",
   "📏 Varilla y estacas":"Rebar & stakes","⭕ Discos y abrasivos":"Discs & abrasives","🛠️ Acabado de concreto":"Concrete finishing","🧪 Quimicos y parches":"Chemicals & patching",
