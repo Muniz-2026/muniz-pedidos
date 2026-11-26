@@ -1,4 +1,5 @@
-/* MUÑIZ Pedidos - service worker  ·  v282
+/* MUÑIZ Pedidos - service worker  ·  v283
+     · v283: Pedidos: CAMIÓN — a big-truck driver sees his next stop and a foreman can ask for a truck (dispatch); while the dispatch mode is off nothing changes on any phone.
      · v282: Command Center Haul → Foremen / Truckers payroll: a job with several job numbers (CAUDI) takes the one the office's dated list has in force that day (parche227).
      · v281: Fuel: when the miles typed fit another truck, one tap puts that truck's plate in (the phone's plate memory after a truck swap).
      · v280: Command Center fuel PO odometer: TENTHS (tenths digit typed) and NO_READING shown; red only for a real mismatch (parche226).
@@ -114,9 +115,9 @@
        an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v282";
+const CACHE = "muniz-pedidos-v283";
 const SHELL = [
-  "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
+  "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./camion.js","./camion.css","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"
 ];
 const NET_TIMEOUT_MS = 3500;
@@ -257,11 +258,26 @@ function askPage(client, url) {
     try { client.postMessage({ type: "MUNIZ_OPEN", url: url, id: id }); } catch (err) { done(false); }
   });
 }
+/* v283 · dispatch (spec2 §7): a push to a big-truck driver (tag "haul-<stop id>", sent by dsp_announce through notify-po only
+   in LIVE) opens or focuses the PHONE app on ./index.html#camion, never the Command Center. An open Pedidos window is only
+   focused, never navigated: a driver in the middle of a fuel PO keeps his screen (the trucker screen re-reads its stop when the
+   app comes back to the front). No Pedidos window (or focus refused) → a new one on ./index.html#camion. */
+function haulOpen() {
+  const target = ourPage("./index.html#camion");
+  return (async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const ours = wins.filter(c => ourPage(c.url) && !/mando\.html/.test(c.url));
+    const phone = ours.find(c => { try { const p = new URL(c.url).pathname; return /\/(index\.html)?$/.test(p); } catch (err) { return false; } }) || ours[0];
+    if (phone) { try { await phone.focus(); return; } catch (err) { } }
+    await self.clients.openWindow(target);
+  })();
+}
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const data = e.notification.data || {};
   const plain = ourPage(data.url) || ourPage("./mando.html");   // only our own pages open from a notification
   const target = ourPage(exactLink(data.url, data.tag || e.notification.tag)) || plain;
+  if (/^haul-/.test(String(data.tag || e.notification.tag || ""))) { e.waitUntil(haulOpen()); return; }   // v283 · dispatch: the phone app
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const mando = wins.find(c => /mando\.html/.test(c.url));

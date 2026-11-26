@@ -1954,7 +1954,7 @@ function Hl({d:e,now:t,t:tok,onMap:om,onChanged:rf,onSide:onSide}){
    trucks comes before the map on narrow screens. #dump in the URL opens this side.
    ============================================================================= */
 var SDCOL={red:"#FF453A",amber:"#FF9F0A",green:"#30D158",gray:"#8E8E93",blue:"#0A84FF"};
-function SDside(){try{var v=localStorage.getItem("muniz_haul_side");return v==="dump"||v==="foremen"?v:"truckers"}catch(x){return"truckers"}}
+function SDside(){try{var v=localStorage.getItem("muniz_haul_side");return v==="dump"||v==="foremen"||v==="dispatch"?v:"truckers"}catch(x){return"truckers"}}
 function SDisDump(u){return !!u&&(String(u.group_name||"")==="Small Dump Trucks"||/^D-\d{4}$/.test(String(u.vehicle_id||"")))}
 function SDunit(u){var id=String(u.vehicle_id||"");if(/^D-/.test(id))return"#"+id.slice(2);var d=String(u.name||"").replace(/\D/g,"");return d?"#"+d.slice(-4):(id||"?")}
 function SDmin(m){m=Math.max(0,Math.round(Number(m)||0));if(m<60)return m+" min";var h=Math.floor(m/60),r=m%60;if(h<48)return h+" h"+(r?" "+r+" min":"");return Math.round(h/24)+" d"}
@@ -1974,12 +1974,531 @@ function SDstatus(u,t,thr){var sec=u.secs_since_seen!=null?u.secs_since_seen:1e9
 function SDswitch(p){return PJh("div",{className:"sd-switch",role:"tablist"},
   PJh("button",{className:"sd-sw"+(p.side==="truckers"?" on":""),onClick:function(){p.onSide&&p.onSide("truckers")}},"TRUCKERS"),
   PJh("button",{className:"sd-sw"+(p.side==="dump"?" on":""),onClick:function(){p.onSide&&p.onSide("dump")}},"SMALL DUMPS"),
-  PJh("button",{className:"sd-sw"+(p.side==="foremen"?" on":""),onClick:function(){p.onSide&&p.onSide("foremen")}},"FOREMEN"))}
-/* the Haul room: one switch, three sides (v241: FOREMEN) */
+  PJh("button",{className:"sd-sw"+(p.side==="foremen"?" on":""),onClick:function(){p.onSide&&p.onSide("foremen")}},"FOREMEN"),
+  PJh("button",{className:"sd-sw"+(p.side==="dispatch"?" on":""),onClick:function(){p.onSide&&p.onSide("dispatch")}},"DISPATCH"))}
+/* ===== DISPATCH · the four big dump trucks: the board (spec2 §10, §12.2, §12.4h–j, §12.5) ==============================
+   A fourth side of Haul (TRUCKERS · SMALL DUMPS · FOREMEN · DISPATCH). It reads rpc/dsp_board(p_world) every 20 s while this
+   side is open, the tab visible and the office not idle (MZidleMin), and on mz-force "dispatch"; a read that brings the same
+   data keeps the same object (nothing redraws: ages and minutes late are worked out from the board's own times and the 15-s
+   clock). Before parche228 (404 PGRST202) one plain line and nothing else. A failed read keeps the last board with its hour.
+   Every action is one office RPC of parche228; a refusal {ok:false, why, detail} or an error shows in plain English, a success
+   re-reads the board. DSguard keeps a throw inside this side from taking the Command Center down. */
+var DSpendSeek=null,DSlast={},DSbid=0,DSids=typeof WeakMap=="function"?new WeakMap:null,DSguardC=null;
+var DSCOL=["#0A84FF","#FF6A1A","#30B158","#AF52DE","#00A4B4","#E5484D"],DSHIRED="#8E8E93";
+var DStf=new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"}),
+  DSpf=new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+var DSMAT={base:"Base",sand:"Sand",topsoil:"Topsoil",loam:"Loam",stone:"Stone",mulch:"Mulch",cold_mix:"Cold mix",hot_mix:"Hot mix",other:"Other material",concrete:"Concrete",dirt:"Dirt",mixed:"Mixed debris"};
+var DSDEB=["concrete","dirt","mixed"],DSMATS=["base","sand","topsoil","loam","stone","mulch","cold_mix","other"];
+var DSACT={load:"Load",unload:"Unload",pick:"Pick up",dump:"Dump",wait:"Wait",home:"Home"};
+var DSKIND={yard:"Yard",transfer:"Transfer",pit:"Pit / yard that sells",dump:"Dump",pit_dump:"Pit + dump",site:"Job site",fuel:"Fuel",shop:"Shop",night:"Night spot",other:"Other",traffic:"Traffic",unnamed:"Unnamed",address:"Address",pk:"Pilot Knob"};
+var DSBASIS={published:"the yard's own page",invoice:"invoices",record:"the GPS record",office:"the office"};
+var DSWHY={mode_off:"Dispatch is OFF: turn SHADOW on first",not_allowed:"Not allowed",unknown_name:"That name is not an active person in People",
+  bad_value:"A value was refused",too_many:"Too many loads (at most 10)",rate:"Too many tries in a short time: wait a minute",
+  too_late:"Too late to change that",not_found:"Not found: it may have just changed (the board reads again)",error:"The database had an error: try again"};
+function DSesc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function DSt(ts){if(!ts)return"—";var d=new Date(ts);return isFinite(d.getTime())?DStf.format(d):"—"}
+function DSms(ts){var t=ts?Date.parse(ts):NaN;return isFinite(t)?t:null}
+function DSdur(min){min=Math.max(0,Math.round(min));if(min<1)return"under a minute";if(min<60)return min+" min";var h=Math.floor(min/60),r=min%60;return h+" h"+(r?" "+r+" min":"")}
+function DSago(ts,now){var t=DSms(ts);return t==null?null:Math.max(0,(now-t)/6e4)}
+function DSwall(t){var o={};DSpf.formatToParts(new Date(t)).forEach(function(p){o[p.type]=p.value});return Date.UTC(+o.year,+o.month-1,+o.day,+o.hour%24,+o.minute)}
+/* "6:40 AM", "6:40", "18:05", "now" → today's moment in Central, as ISO; "" or "now" → null (the database reads it as now) */
+function DSat(txt){var s=String(txt||"").trim().toLowerCase();if(!s||s==="now")return null;
+  var m=/^(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|a|p)?$/.exec(s);if(!m)return undefined;
+  var h=+m[1],mi=+(m[2]||0),ap=m[3]?m[3][0]:"";if(mi>59||h>23||(ap&&(h<1||h>12)))return undefined;if(ap==="p"&&h<12)h+=12;if(ap==="a"&&h===12)h=0;
+  var w=new Date(DSwall(Date.now())),g=Date.UTC(w.getUTCFullYear(),w.getUTCMonth(),w.getUTCDate(),h,mi);return new Date(g-(DSwall(g)-g)).toISOString()}
+function DShm(ts){return ts?DSt(ts):""}
+function DSamt(n){n=Number(n);if(!isFinite(n)||n<=0)return"";if(n===.25)return"¼ load";if(n===.5)return"½ load";if(n===.75)return"¾ load";if(n===1)return"1 load";return(n%1?n.toFixed(2):n)+" loads"}
+function DSword(w){if(!w)return"";return String(w).split(/,\s*/).map(function(x){return DSMAT[x]||x}).join(", ")}
+function DSname(n){try{return n?z(n):""}catch(x){return n||""}}
+/* §12.15d: the board never prints a line of SQL or a raw code. A refusal's detail is either one of the database's field
+   names (said in words, DSFLD), a plain sentence (shown), or anything else (left out: the why alone is said) */
+var DSFLD={for_name:"for whom",heard_at:"when the call came",ready_at:"ready from",want_by:"wanted by",place_id:"the place","where.place_id":"the known place",
+  "where.text":"the cross streets (120 characters at most)","where.here":"the place",where:"the place",loads:"how much",note:"the note (300 characters at most)",
+  reason:"the reason (300 characters at most)",priority:"the priority (1 to 4)",name:"the name",short:"the name on the phones (40 characters at most)",kind:"the kind",
+  material:"the material",debris:"the debris",open:"the hours",lat:"the point on the map",lon:"the point on the map",minutes:"the minutes (1 to 600)",truck:"the truck",
+  load_id:"the load",after_stop_id:"the stop",stop_id:"the stop",from_place:"where it loads",to_place:"where it dumps",status:"the status",world:"real or practice",
+  size:"too much text",id:"the request",visit_id:"the visit",client_ref:"the form (open it again)",office_proof:"the office PIN",
+  who_requests:"who may ask for a truck (PLACES & SETTINGS)",big_to_sites:"big trucks to job sites",live_ok:"the go-live setting",home_place:"the truck's home",
+  actsoft_id:"the tracker",key:"the setting",value:"the value",set:"the change",via:"how it came",confidence:"how sure",circles:"the circle on the map",
+  fee:"the fees",sells:"what it sells",accepts:"what it takes",label:"the truck's name",tap:"the tap",device:"the device",shift:"the shift"};
+function DSplain(s){return!/\bselect\b|\bpublic\.|;|[{}\[\]=<>|\\`$]|\b[a-z0-9]+_[a-z0-9_]+\b|[a-z]\.[a-z]|\w\(/i.test(s)}
+function DSdetail(d){if(d==null)return"";var s=String(d).trim();if(!s)return"";if(Object.prototype.hasOwnProperty.call(DSFLD,s))return DSFLD[s];
+  s=s.replace(/\b[a-z]+(?:[._][a-z]+)+\b/g,function(m){var k=m.replace(/^set\./,"");return Object.prototype.hasOwnProperty.call(DSFLD,m)?DSFLD[m]:Object.prototype.hasOwnProperty.call(DSFLD,k)?DSFLD[k]:m});
+  return DSplain(s)?s.slice(0,200):""}
+function DSwhy(r){var w=r&&r.why,d=DSdetail(r&&r.detail);return(DSWHY[w]||(w&&/^[a-z]+$/i.test(w)?"Refused ("+w+")":"The database refused it"))+(d?": "+d:"")}
+function DSerr(x){var q=String(x&&x.message||x);try{var j=JSON.parse(q);q=j.message||q}catch(y){}
+  if(/PGRST202|schema cache/i.test(q)&&/dsp_/i.test(q))return"parche228 has not run: the dispatch functions do not exist yet.";
+  if(/Failed to fetch|NetworkError|Load failed/i.test(q))return"No connection to the database.";
+  if(!DSplain(q)){try{console.warn("DISPATCH board · database error:",q)}catch(y){}return"The database had an error: try again"}return q.slice(0,220)}
+/* a stop's note as the driver's PROBLEMA tap writes it ("PROBLEM <reason>[: his note]", dsp_stop_tap) said in words */
+var DSPROB={cannot_load:"he could not load",site_not_ready:"the site was not ready",truck:"a problem with the truck",other:"another problem"};
+/* a stop's note is its parts joined by " · " (the driver's PROBLEM taps, then what the office or the rule did): the driver's own
+   words end at the next " · ", so "cancelled by the office: …" after them is never put inside his quotation marks */
+function DSnote(n){if(n==null)return"";var s=String(n),o=s.replace(/PROBLEM ([a-z_]+)(?:: ((?:(?! · ).)*))?/g,function(m,c,t){return"the driver reported a problem: "+(DSPROB[c]||"another problem")+(t?" (“"+t+"”)":"")});
+  return o!==s&&/^the driver/.test(o)?"T"+o.slice(1):o}
+function DSmissing(x){var q=String(x&&x.message||x);return(x&&x.status===404||/PGRST202/.test(q))&&/PGRST202|dsp_board/i.test(q)}
+/* the volatile parts of an answer (its own moment, ages and minutes late worked out with now()) are left out of the
+   comparison: a read that brings the same data keeps the old object, so nothing redraws */
+function DSsig(b){var o={};for(var k in b)if(k!=="at")o[k]=b[k];return JSON.stringify(o,function(k,v){return k==="gps_age_s"||k==="gps_newest_age_s"||k==="late_min"?void 0:v})}
+function DSid(b){if(!b||!DSids)return 0;var i=DSids.get(b);if(!i){i=++DSbid;DSids.set(b,i)}return i}
+/* minutes late (+) or early (−), the database's own rule (dsp_board late_min) on the 15-s clock */
+function DSlate(s,now){var pa=DSms(s.planned_arrive);if(pa==null)return null;var aa=DSms(s.arrived_at);
+  if(aa!=null)return Math.round((aa-pa)/6e4);if((s.status==="planned"||s.status==="announced")&&pa<now)return Math.round((now-pa)/6e4);return null}
+function DSlateTxt(n){if(n==null)return null;if(n>2)return[n+" min late",n>20?"red":"amber"];if(n<-2)return[(-n)+" min early",""];return["on time",""]}
+function DSbedTxt(st){if(!st)return["no reading yet",""];var rec=(st.bed_loads||[]).length;
+  if(rec)return[DSword(st.bed_kind)+" · "+DSamt(st.bed_fill)+" · on record",""];
+  var b=String(st.bed||"unknown"),w=/material/.test(b)?"material":/debris/.test(b)?"debris":b==="empty"?"empty":"not known",s=st.bed_sure;
+  return[w+(w!=="not known"&&s&&s!=="none"?", "+s:w!=="not known"&&s==="none"?", not settled":""),w==="not known"?"dim":""]}
+function DSplaceName(b,id,grp){if(!b)return id||grp||"";var p=null;(b.places||[]).some(function(x){if((id&&x.place_id===id)||(!id&&grp&&x.grp===grp)){p=x;return!0}return!1});return p?p.name:(id||grp||"")}
+function DSstopWhere(s){var p=s.place||{};return p.name||s.jobsite||(p.lat!=null?"a point ("+(+p.lat).toFixed(4)+", "+(+p.lon).toFixed(4)+")":"a place not given")}
+function DSmapKind(k){return k==="yard"||k==="shop"||k==="night"?"yard":k==="pit"||k==="transfer"?"supplier":k==="dump"||k==="pit_dump"||k==="pk"?"dump":k==="site"||k==="address"?"jobsite":k==="fuel"?"fuel":"other"}
+function DSreqWhat(r){return(DSMAT[r.what]||r.what||"?")+" · "+(r.kind==="haul"?"pickup ":"")+DSamt(r.loads)}
+function DSreqWhere(r){var p=r.place;return p&&p.name?p.name:r.jobsite?r.jobsite:p&&p.lat!=null?"a point ("+(+p.lat).toFixed(4)+", "+(+p.lon).toFixed(4)+")":"no place yet"}
+function DSfree(b){return(b.trucks||[]).filter(function(t){return t.in_pool&&!t.hired})}
+function DStruck(b,id){var t=null;(b&&b.trucks||[]).some(function(x){if(String(x.id)===String(id)){t=x;return!0}return!1});return t}
+function DScix(b,id){var ours=(b.trucks||[]).filter(function(t){return!t.hired}),i=-1;ours.some(function(t,k){if(String(t.id)===String(id)){i=k;return!0}return!1});return i<0?-1:i%DSCOL.length}
+function DScolOf(b,id){var i=DScix(b,id);return i<0?DSHIRED:DSCOL[i]}
+function DSlive(s){return s.status==="planned"||s.status==="announced"||s.status==="arrived"}
+/* the work nobody asked the system for (§12.4h): today's closed visits that delivered or picked and served nothing */
+function DSmiss(v){var sv=v.served||[],del=sv.some(function(x){return x.step==="done"}),pk=sv.some(function(x){return x.step==="picked"});
+  if(v.work==="delivered")return sv.length?null:"deliver";if(v.work==="picked")return sv.length?null:"haul";
+  if(v.work==="delivered+picked")return!sv.length?"both":del&&pk?null:del?"haul":pk?"deliver":"both";return null}
+function DSunasked(b){return(b.visits||[]).filter(function(v){return v.depart&&DSmiss(v)})}
+function DSworkTxt(v){var m=DSmiss(v);return v.work==="delivered+picked"?(m==="both"?"delivered and picked up":m==="haul"?"delivered and picked up · the pickup has no request":"delivered and picked up · the delivery has no request"):v.work==="picked"?"picked up":"delivered"}
+function DSvisitOf(b,row){var a=DSms(row.visit_arrive),d=DSms(row.at),v=null;
+  (b.visits||[]).some(function(x){if(String(x.truck)!==String(row.truck))return!1;if((a!=null&&DSms(x.arrive)===a)||(a==null&&d!=null&&DSms(x.depart)===d)){v=x;return!0}return!1});return v}
+function DSvisitWhere(b,v){if(!v)return"";return v.place_id?DSplaceName(b,v.place_id):v.grp?DSplaceName(b,null,v.grp):v.lat!=null?"a point ("+(+v.lat).toFixed(4)+", "+(+v.lon).toFixed(4)+")":"a place the system does not know"}
+function DSshadowTot(rows){var o={agree:0,differ:0,none:0,wait:0};rows.forEach(function(r){if(!r.proposed)o.none++;else if(r.agree===true)o.agree++;else if(r.agree===false)o.differ++;else o.wait++});return o}
+function DSflagTone(k){return k==="run_error"||k==="kick_failed"||k==="fn_error"?"red":"amber"}
+var DSCODE={snapshot:"the day could not be read",timeout:"it took too long",engine:"the planner stopped",apply:"the plan could not be saved"};
+/* the lane's first open stop: told, reached, or not told yet (§12.11D); in SHADOW nobody is told */
+function DSnowLab(s,s0,b,world){if(s.status==="arrived")return"STANDING AT";if(s.status==="announced"||s.source==="dispatcher")return s0&&s0.moving?"DRIVING TO":"TOLD · NEXT";
+  return b.mode==="live"||world==="practice"?"NEXT, NOT TOLD YET":"THE RULE'S NEXT (shadow: nobody is told)"}
+/* phones asking for a trucker's stop notifications (§12.11K): the office approves each one; never an address or a key */
+function DSasks(p){var b=p.b,ctx=p.ctx,L=b.push_asks||[];
+  var go=async function(a,ok){if(!(await MZconfirm((ok?"Approve":"Refuse")+" this phone?\n"+DSname(a.driver)+(a.truck?" · "+a.truck:"")+" · "+(a.kind||"a phone")+" · asked "+DSt(a.at)+(ok?". It will get his next stops as notifications.":". It will get no notifications; he still sees his stop on the screen."),{ok:ok?"APPROVE":"REFUSE",danger:!ok})))return;
+    return DScall(ctx,"dsp_push_review",{p:{id:a.id,ok:!!ok}},(ok?"Approved: ":"Refused: ")+DSname(a.driver)+"'s phone")};
+  return PJh("section",{id:"ds-asks",className:"panel ds-asks"},PJh("header",{className:"ph"},PJh("span",{className:"pt"},"PHONES ASKING FOR STOP NOTIFICATIONS · "+L.length)),
+    PJh("div",{className:"ds-pnote"},"A trucker's phone gets his stops as notifications only after the office has approved that phone."),
+    PJh("div",{className:"ds-list"},L.map(function(a){return PJh("div",{key:a.id,className:"ds-wk"},PJh("span",{className:"ds-wt"},PJh("b",null,DSname(a.driver)),a.truck?" · "+a.truck:""," · ",a.kind||"a phone"," · asked ",DSt(a.at)),
+      PJh("span",{className:"ds-fa"},PJh("button",{className:"btn sm primary",onClick:function(){go(a,!0)}},"APPROVE"),PJh("button",{className:"btn sm red",onClick:function(){go(a,!1)}},"REFUSE")))})))}
+function DSppl(e){var seen={};return(e&&e.ppl||[]).filter(function(p){var n=String(p.name||"").toUpperCase();if(!n||seen[n]||p.active===false)return!1;seen[n]=1;return!p.role||/MAYORDOMO|SUPERVISOR|OFICINA/.test(String(p.role))}).map(function(p){return[String(p.name).toUpperCase(),z(p.name)]}).sort(function(a,b){return a[1]<b[1]?-1:1})}
+function DSsites(b,kinds){return(b.places||[]).filter(function(p){return!kinds||kinds.indexOf(p.kind)>=0}).slice().sort(function(a,c){return(a.priority||9)-(c.priority||9)||(a.name<c.name?-1:1)})}
+var DSLOADS=[["1","1 load"],["2","2 loads"],["3","3 loads"],["4","4 loads"],["5","5 loads"],["6","6 loads"],["7","7 loads"],["8","8 loads"],["9","9 loads"],["10","10 loads"]],
+  DSPART=[["0.25","¼ load"],["0.5","½ load"],["0.75","¾ load"]];
+
+/* ---------- reading ---------- */
+function DSread(world,tok){return Gi("dsp_board",{p_world:world},tok).then(function(r){if(!r||r.ok===false)throw new Error(r?DSwhy(r):"The board answered nothing");return r})}
+function DSuseBoard(world,tok){
+  var a=(0,M.useState)(function(){var l=DSlast[world];return l?{b:l.b,okAt:l.at,err:null,miss:!1}:{b:null,okAt:0,err:null,miss:!1,loading:!0}}),st=a[0],set=a[1];
+  var r=(0,M.useRef)({busy:!1,again:!1,world:world});r.current.world=world;
+  var read=(0,M.useCallback)(function(){var R=r.current;if(R.busy){R.again=!0;return}R.busy=!0;var w=world;
+    DSread(w,tok).then(function(b){var l=DSlast[w],sg=DSsig(b);
+      if(l&&l.sig===sg){l.at=Date.now();set(function(s){return s.err||s.miss||s.loading||s.b!==l.b?{b:l.b,okAt:l.at,err:null,miss:!1}:s});return}
+      DSlast[w]={b:b,sig:sg,at:Date.now()};set({b:b,okAt:Date.now(),err:null,miss:!1})})
+    .catch(function(x){if(DSmissing(x)){set({b:null,okAt:0,err:null,miss:!0});return}
+      var l=DSlast[w];set(function(s){return{b:s.b||(l&&l.b)||null,okAt:s.okAt,err:DSerr(x),errAt:Date.now(),miss:!1}})})
+    .then(function(){R.busy=!1;if(R.again&&R.world===w){R.again=!1;read()}})},[world]);
+  (0,M.useEffect)(function(){read();
+    var iv=setInterval(function(){if(!document.hidden&&MZidleMin()<10)read()},2e4);
+    var vis=function(){if(!document.hidden)read()};document.addEventListener("visibilitychange",vis);
+    var f=function(ev){var n=ev&&ev.detail;if(!n||(Array.isArray(n)?n.indexOf("dispatch")>=0:n==="dispatch"))read()};window.addEventListener("mz-force",f);
+    return function(){clearInterval(iv);document.removeEventListener("visibilitychange",vis);window.removeEventListener("mz-force",f)}},[world]);
+  return[st,read]}
+
+/* ---------- actions: one office RPC each; a refusal or an error in plain English; a success re-reads the board ---------- */
+async function DScall(ctx,fn,args,okMsg){try{var r=await Gi(fn,args,ctx.t);if(r&&r.ok===false){MZtoast(DSwhy(r),"err",9000);return null}
+    if(okMsg)MZtoast(typeof okMsg==="function"?okMsg(r):okMsg,"ok");ctx.reread();return r||{ok:!0}}
+  catch(x){MZtoast(DSerr(x),"err",9000);return null}}
+/* one line of text in the Command Center's own sheet (MZform: a text keyboard, not MZprompt's numeric one) */
+async function DSask(title,sub,label,ph,ok){var v=await MZform({title:title,sub:sub,fields:[{k:"x",label:label,value:"",placeholder:ph}],ok:ok});return v?v.x:null}
+async function DSmode(ctx,to){var b=ctx.b,cur=b.mode;if(to===cur)return;
+  if(to==="live"){if(!(b.settings&&b.settings.live_ok===!0)){MZtoast("LIVE waits for the go-live patch: only Tito turns it on, on the day he decides.","info",7000);return}
+    var w=await DSask("Turn LIVE on?","Each real trucker's phone will show his next stop. Type the words I AM CERTAIN to go live.","The words","I AM CERTAIN","Turn LIVE on");
+    if(w==null)return;if(!String(w).trim()){MZtoast("Not changed: nothing typed","info");return}
+    /* §12.15d: the database's answer to wrong words carries a line of SQL: the board says it in its own words */
+    try{var r=await Gi("dsp_mode_set",{p_mode:"live",p_confirm:String(w).trim()},ctx.t);
+      if(r&&r.ok===false){MZtoast(r.why==="not_allowed"?(/live_ok|go-live/i.test(String(r.detail||""))?"Not changed: LIVE is not open yet. It needs the go-live patch, run on the day Tito decides. SHADOW is available.":"Not changed. Type the words I AM CERTAIN exactly, in capital letters."):DSwhy(r),"err",9000);return null}
+      MZtoast("Dispatch is LIVE","ok");ctx.reread();return r||{ok:!0}}catch(x){MZtoast(DSerr(x),"err",9000);return null}}
+  var txt=to==="off"?"Switch dispatch OFF?\nNothing shows on the phones and nothing runs: no requests, no tracker, no rule.":
+    "Switch dispatch to SHADOW?\nRequests come in and the rule runs beside the real day; no stop reaches a real trucker's phone.";
+  if(!(await MZconfirm(txt,{ok:to==="off"?"Switch OFF":"Switch to SHADOW",danger:cur==="live"})))return;
+  return DScall(ctx,"dsp_mode_set",{p_mode:to,p_confirm:null},"Dispatch is "+to.toUpperCase())}
+function DSwhatOpts(kind){var a=[];if(kind!=="haul")DSMATS.forEach(function(m){a.push(["deliver:"+m,"Material · "+DSMAT[m]])});if(kind!=="deliver")DSDEB.forEach(function(m){a.push(["haul:"+m,"Pickup · "+DSMAT[m]])});return a}
+function DSsplitWhat(v){var p=String(v||"").split(":"),k=p[0],m=p[1];return k==="haul"?{kind:"haul",debris:m}:{kind:"deliver",material:m}}
+/* + REQUEST (and CHANGE): for a foreman; in shadow weeks with the hour the call came (heard_at) */
+async function DSreqForm(ctx,r){var b=ctx.b,shadow=b.mode==="shadow",ppl=DSppl(ctx.e),sites=DSsites(b);
+  if(r&&r.requested_for&&!ppl.some(function(x){return x[0]===String(r.requested_for).toUpperCase()}))ppl=ppl.concat([[String(r.requested_for).toUpperCase(),DSname(r.requested_for)]]);
+  var placeOpts=[["","— none: cross streets below, or place it on the map later —"]].concat(sites.map(function(p){return[p.place_id,p.name+" · "+(DSKIND[p.kind]||p.kind)]}));
+  var cur=r?(r.kind==="haul"?"haul:":"deliver:")+(r.debris||r.material||r.what):"";
+  var loads=String(r?r.loads:1);
+  var f=[{k:"for",label:"For whom",type:"list",options:ppl,required:!0,value:r?(r.requested_for||""):"",upper:!0,placeholder:"A foreman's name"},
+    {k:"what",label:"What",type:"select",options:DSwhatOpts(r?r.kind:null),value:cur||"deliver:base"},
+    {k:"loads",label:"How much",type:"select",options:(r&&r.kind==="deliver"?[]:DSPART).concat(DSLOADS),value:loads},
+    {k:"place",label:"Known place",type:"select",options:placeOpts,value:r&&r.place&&r.place.id?r.place.id:""},
+    {k:"text",label:"Cross streets (when no known place)",value:r&&!(r.place&&(r.place.id||r.place.lat!=null))?(r.jobsite||""):"",placeholder:"Burnet Rd at W 45th St"},
+    {k:"ready",label:"Ready from (blank = now)",value:r&&r.ready_at&&DSms(r.ready_at)>Date.now()?DSt(r.ready_at):"",placeholder:"7:30 AM"},
+    {k:"prio",label:"Priority",type:"select",options:[["","Worked out (crew stopped 1, the site's own, else 3)"],["1","1 · first"],["2","2"],["3","3"],["4","4 · can wait"]],value:r?String(r.priority||""):""},
+    {k:"crew",label:"Crew stopped waiting for it?",type:"select",options:[["no","No"],["yes","Yes"]],value:r&&r.crew_stopped?"yes":"no"},
+    {k:"loader",label:"Machine on site to load it?",type:"select",options:[["","Not said"],["yes","Yes"],["no","No"]],value:r&&r.loader!=null?(r.loader?"yes":"no"):""},
+    {k:"note",label:"Note",value:r&&r.note||"",placeholder:"Pile by the north gate"}];
+  /* §12.15a: a change never changes how a request came or when. A request sent from a phone has no call hour: CHANGE shows
+     none and sends neither via nor heard_at. One entered from a call starts at its SAVED hour; heard_at goes only if changed. */
+  var call=!!(r&&r.via==="shadow"),fromPhone=!!(r&&r.via!=="shadow"&&r.via!=="office"),heard0=call&&r.heard_at?DSt(r.heard_at):"";
+  if(!r&&shadow)f.push({k:"heard",label:"When the call came (Tacho's phone)",required:!0,value:DSt(new Date().toISOString()),placeholder:"6:40 AM"});
+  else if(call)f.push({k:"heard",label:heard0?"When the call came (Tacho's phone)":"When the call came (not known: leave it empty to keep it so)",required:!!heard0,value:heard0,placeholder:"6:40 AM"});
+  var v=await MZform({title:r?"Change "+r.req_no:"New request for a foreman",sub:(r?(fromPhone?"Sent from "+(r.requested_by?DSname(r.requested_by)+"'s phone":"a phone")+": how and when it came stay as they are. ":call?"Entered from a call: the hour it came stays unless you change it. ":"")+"What is asked cannot change between material and a pickup: cancel it and add the other. ":"")+(ctx.world==="practice"?"PRACTICE world. ":"")+(!r&&shadow?"Shadow weeks: write the hour the call came, so the day can be compared.":"The rule plans it with the open requests."),fields:f,ok:r?"Save":"Add request"});
+  if(!v)return;
+  var w=DSsplitWhat(v.what),p={for_name:v["for"]};
+  var ready=DSat(v.ready),heard=v.heard?DSat(v.heard):null;
+  if(ready===undefined){MZtoast("Ready from: write an hour like 7:30 AM, or leave it blank","err");return}
+  if(v.heard&&!heard){MZtoast("When the call came: write an hour like 6:40 AM","err");return}
+  var where=v.place?{place_id:v.place}:v.text?{text:v.text}:null;
+  if(!r){if(!where){MZtoast("Give a known place or the cross streets","err");return}
+    p.kind=w.kind;if(w.material)p.material=w.material;else p.debris=w.debris;p.loads=Number(v.loads);p.where=where;
+    if(ready)p.ready_at=ready;if(v.prio)p.priority=Number(v.prio);p.crew_stopped=v.crew==="yes";if(v.loader)p.loader=v.loader==="yes";if(v.note)p.note=v.note;
+    if(ctx.world==="practice")p.world="practice";
+    if(heard){p.via="shadow";p.heard_at=heard}else p.via="office";
+    p.client_ref="cc-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
+    return DScall(ctx,"dsp_request_office",{p:p},function(x){return"Request "+(x&&x.req_no||"")+" added"})}
+  p.id=r.id;if(w.material&&w.material!==r.material)p.material=w.material;if(w.debris&&w.debris!==r.debris)p.debris=w.debris;
+  if(Number(v.loads)!==Number(r.loads))p.loads=Number(v.loads);
+  if(where&&!(r.place&&r.place.id===v.place&&v.place)&&!(where.text&&where.text===r.jobsite&&!(r.place&&(r.place.id||r.place.lat!=null))))p.where=where;
+  if(ready)p.ready_at=ready;if(v.prio&&Number(v.prio)!==r.priority)p.priority=Number(v.prio);
+  if((v.crew==="yes")!==!!r.crew_stopped)p.crew_stopped=v.crew==="yes";if(v.loader&&(v.loader==="yes")!==r.loader)p.loader=v.loader==="yes";
+  if((v.note||"")!==(r.note||""))p.note=v.note||"";if(call&&heard&&v.heard!==heard0)p.heard_at=heard;
+  return DScall(ctx,"dsp_request_office",{p:p},r.req_no+" changed")}
+async function DSprio(ctx,r,d){var n=Math.max(1,Math.min(4,(r.priority||3)+d));if(n===r.priority)return;return DScall(ctx,"dsp_request_set",{p:{id:r.id,set:{priority:n}}},r.req_no+" · priority "+n)}
+async function DScancel(ctx,r){var why=await DSask("Cancel "+r.req_no+"?",DSreqWhat(r)+" for "+DSname(r.requested_for)+".","Why (kept with the request)","The crew finished early","Cancel the request");
+  if(why==null)return;if(!String(why).trim()){MZtoast("Not cancelled: a reason is needed","err");return}
+  return DScall(ctx,"dsp_request_set",{p:{id:r.id,set:{cancel:!0},reason:String(why).trim()}},r.req_no+" cancelled")}
+async function DSknown(ctx,r){var sites=DSsites(ctx.b);
+  var v=await MZform({title:"Place "+r.req_no+" at a known place",fields:[{k:"pl",label:"Known place",type:"list",required:!0,options:sites.map(function(p){return[p.name,DSKIND[p.kind]||p.kind]})}],ok:"Place it"});
+  if(!v)return;var p=sites.filter(function(x){return x.name.toUpperCase()===String(v.pl).toUpperCase()})[0];if(!p)return;
+  return DScall(ctx,"dsp_request_set",{p:{id:r.id,set:{place_id:p.place_id},reason:"placed by the office"}},r.req_no+" placed at "+p.name)}
+async function DSpin(ctx,r,ll){if(!(await MZconfirm("Put "+r.req_no+" here?\n"+ll.lat.toFixed(5)+", "+ll.lng.toFixed(5),{ok:"Place it"})))return;
+  return DScall(ctx,"dsp_request_set",{p:{id:r.id,set:{lat:+ll.lat.toFixed(6),lon:+ll.lng.toFixed(6)},reason:"placed on the map by the office"}},r.req_no+" placed on the map")}
+/* "make this request's point a known site" (dsp_place_save), then the request points at it */
+async function DSsite(ctx,r){var p=r.place||{};
+  var v=await MZform({title:"Make "+r.req_no+"'s point a known site",sub:(+p.lat).toFixed(5)+", "+(+p.lon).toFixed(5)+" · a circle around it, its name and how much it matters",
+    fields:[{k:"name",label:"Name",required:!0,value:r.jobsite||"",placeholder:"E 12th St at Chicon"},{k:"r",label:"Radius (meters, 20 to 1000)",type:"num",value:"120"},
+      {k:"prio",label:"Priority",type:"select",options:[["","None"],["1","1 · public eyes on it (Congress Ave…)"],["2","2"],["3","3"],["4","4 · quiet residential"]],value:""},{k:"job",label:"Job (optional)",value:""}],ok:"Save the site"});
+  if(!v)return;var o={name:v.name,kind:"site",circles:[{lat:+p.lat,lon:+p.lon,r:Number(v.r)||120}]};if(v.prio)o.priority=Number(v.prio);if(v.job)o.job=v.job;
+  var s=await DScall(ctx,"dsp_place_save",{p:o},"Site "+v.name+" saved");if(s&&s.place_id)return DScall(ctx,"dsp_request_set",{p:{id:r.id,set:{place_id:s.place_id},reason:"its point made a known site"}},r.req_no+" now at "+v.name)}
+async function DSgive(ctx,load,r,fromTruck){var b=ctx.b,ts=DSfree(b).filter(function(t){return String(t.id)!==String(fromTruck)});
+  if(!ts.length){MZtoast("No other truck in the pool","err");return}
+  var isHaul=r&&r.kind==="haul",src=DSsites(b,isHaul?["dump","pit_dump","transfer"]:["pit","yard","transfer","pit_dump"]);
+  var v=await MZform({title:(fromTruck?"Give this load to another truck":"Give this load to a truck"),sub:(r?r.req_no+" · "+DSreqWhat(r)+" · "+DSreqWhere(r):"Load "+load)+". It goes next on that truck: right after the stop its driver was already told, if there is one.",
+    fields:[{k:"truck",label:"Truck",type:"select",options:ts.map(function(t){return[String(t.id),t.label+(t.driver?" · "+DSname(t.driver):"")]}),value:String(ts[0].id)},
+      {k:"pl",label:isHaul?"Dump it at (optional)":"Load it at (optional)",type:"select",options:[["","Let the rule choose"]].concat(src.map(function(p){return[p.place_id,p.name]})),value:""},
+      {k:"why",label:"Why (kept)",required:!0,value:"",placeholder:"Tacho asked for this truck"}],ok:"Give it"});
+  if(!v)return;var p={load_id:Number(load),truck:Number(v.truck),reason:v.why};
+  if(v.pl){if(isHaul)p.to_place=v.pl;else p.from_place=v.pl}
+  return DSassign(ctx,p,"Load given to "+((DStruck(b,v.truck)||{}).label||"the truck"),load)}
+/* dsp_assign; when the load's stop is being served (too_late), its sentence and SETTLE as the override (§12.11E) */
+async function DSassign(ctx,p,okMsg,load){try{var r=await Gi("dsp_assign",{p:p},ctx.t);
+    if(r&&r.ok===false){if(r.why==="too_late"&&load!=null){if(await MZconfirm("Not moved: "+(DSdetail(r.detail)||"the truck is serving this load")+"\nSETTLE the load instead? Say what really happened to it (done, open again or cancelled).",{ok:"SETTLE"}))return DSsettle(ctx,load,null);return null}
+      MZtoast(DSwhy(r),"err",9000);return null}
+    MZtoast(okMsg,"ok");ctx.reread();return r||{ok:!0}}catch(x){MZtoast(DSerr(x),"err",9000);return null}}
+async function DStake(ctx,load,t){var why=await DSask("Take this load back from "+(t?t.label:"the truck")+"?","It goes back to the open requests.","Why (kept)","Tacho moved it","Take it back");
+  if(why==null)return;if(!String(why).trim()){MZtoast("Not changed: a reason is needed","err");return}
+  return DSassign(ctx,{load_id:Number(load),truck:null,reason:String(why).trim()},"Load taken back",load)}
+async function DSpark(ctx,t){var b=ctx.b,here=t.state&&t.state.place,opts=DSsites(b,["yard","pit","dump","pit_dump","transfer","site","shop"]).map(function(p){return[p.place_id,p.name]});
+  var v=await MZform({title:"Park "+t.label,sub:"The truck waits there next (right after the stop its driver was already told, if there is one); the rule plans around it.",
+    fields:[{k:"pl",label:"Where",type:"select",options:opts,value:here||t.home_place||(opts[0]||[""])[0]},{k:"min",label:"Minutes (1 to 600)",type:"num",value:"60"},
+      {k:"why",label:"Why (kept)",required:!0,value:"",placeholder:"Waiting for the loader"}],ok:"Park it"});
+  if(!v)return;return DScall(ctx,"dsp_assign",{p:{park:!0,truck:Number(t.id),place_id:v.pl,minutes:Number(v.min)||60,reason:v.why}},t.label+" parked")}
+async function DSsettle(ctx,load,label){var v=await MZform({title:"Settle load "+load+(label?" · "+label:""),sub:"For a load the tracker could not follow: what really happened.",
+    fields:[{k:"st",label:"The load is",type:"select",options:[["done","Done (delivered or dumped)"],["open","Open again (not done, back to the requests)"],["cancelled","Cancelled"]],value:"done"},
+      {k:"why",label:"Why (kept)",required:!0,value:"",placeholder:"Saw the ticket from Pilot Knob"}],ok:"Save"});
+  if(!v)return;return DScall(ctx,"dsp_load_set",{p:{load_id:Number(load),status:v.st,reason:v.why}},"Load "+load+" · "+v.st)}
+/* ADD THE REQUEST for work nobody asked the system for: filled in from the visit, sent as via shadow with the visit */
+async function DSaddFor(ctx,v){var ppl=DSppl(ctx.e),m=DSmiss(v),k=m==="haul"?"haul":m==="deliver"?"deliver":null,where=DSvisitWhere(ctx.b,v);
+  var f=await MZform({title:"Add the request for this work",sub:(DStruck(ctx.b,v.truck)||{label:v.truck_label}).label+" · "+where+" · "+DSt(v.arrive)+"–"+DSt(v.depart)+" · "+DSworkTxt(v),
+    fields:[{k:"for",label:"For whom",type:"list",options:ppl,required:!0,upper:!0,placeholder:"A foreman's name"},
+      {k:"what",label:"What",type:"select",options:DSwhatOpts(k),value:k==="haul"?"haul:concrete":"deliver:base"},
+      {k:"loads",label:"How much",type:"select",options:(k==="deliver"?[]:DSPART).concat(DSLOADS),value:"1"},
+      {k:"heard",label:"When the call came (leave empty if not known)",value:"",placeholder:"6:40 AM"},
+      {k:"nk",label:"Or",type:"select",options:[["","I typed the hour above"],["unknown","Not known"]],value:""},
+      {k:"note",label:"Note (optional)",value:""}],ok:"Add the request"});
+  if(!f)return;var heard=f.nk==="unknown"?null:DSat(f.heard);if(f.nk!=="unknown"&&!heard){MZtoast("When the call came: write an hour like 6:40 AM, or pick Not known","err");return}
+  var w=DSsplitWhat(f.what),p={for_name:f["for"],kind:w.kind,loads:Number(f.loads),via:"shadow",heard_at:heard,visit_id:Number(v.id),
+    where:v.place_id?{place_id:v.place_id}:v.lat!=null?{lat:+v.lat,lon:+v.lon}:{text:where},client_ref:"cc-v"+v.id+"-"+Date.now().toString(36)};
+  if(w.material)p.material=w.material;else p.debris=w.debris;if(f.note)p.note=f.note;
+  return DScall(ctx,"dsp_request_office",{p:p},function(x){return"Request "+(x&&x.req_no||"")+" added, served by that visit"})}
+async function DSplaceEdit(ctx,pl){var v=await MZform({title:"Edit "+pl.name,sub:pl.source==="request"?"This site was made by a request (where the foreman stood): give it its real name and how much it matters.":"",fields:[{k:"name",label:"Full name (the office's)",required:!0,value:pl.name},{k:"short",label:"Name on the phones (what a trucker or a foreman sees)",value:pl.short||"",placeholder:"Marcelo's Dalton"},
+    {k:"prio",label:"Priority",type:"select",options:[["","None"],["1","1 · public eyes on it (Congress Ave…)"],["2","2"],["3","3"],["4","4 · quiet residential"]],value:pl.priority==null?"":String(pl.priority)},
+    {k:"kind",label:"Kind",type:"select",options:Object.keys(DSKIND).filter(function(k){return k!=="pk"}).map(function(k){return[k,DSKIND[k]]}),value:pl.kind}],ok:"Save"});
+  if(!v)return;var o={place_id:pl.place_id};if(v.name!==pl.name)o.name=v.name;if((v.short||"")!==(pl.short||"")&&v.short)o.short=v.short;if(v.kind!==pl.kind)o.kind=v.kind;if(v.prio!==(pl.priority==null?"":String(pl.priority)))o.priority=v.prio===""?null:Number(v.prio);if(Object.keys(o).length<2)return;
+  return DScall(ctx,"dsp_place_save",{p:o},pl.name+" saved")}
+function DSplacePrio(ctx,pl,val){var o={place_id:pl.place_id,priority:val===""?null:Number(val)};return DScall(ctx,"dsp_place_save",{p:o},pl.name+" · priority "+(val||"none"))}
+function DSset(ctx,key,val,msg){return DScall(ctx,"dsp_setting_set",{p_key:key,p_value:val},msg)}
+
+/* ---------- the guard: a throw inside the board stays inside the board ---------- */
+function DSguardOf(){if(DSguardC)return DSguardC;
+  DSguardC=class extends M.Component{constructor(p){super(p);this.state={err:null}}
+    static getDerivedStateFromError(e){return{err:e}}
+    componentDidCatch(e){try{console.error("DISPATCH board:",e)}catch(x){}}
+    render(){var me=this;if(!this.state.err)return PJh(DSroom,this.props);
+      return PJh("div",{className:"room room-haul ds-room"},PJh(SDswitch,{side:"dispatch",onSide:this.props.onSide}),
+        PJh("div",{className:"ds-line red",role:"alert"},"The dispatch board stopped with an error (",String(this.state.err&&this.state.err.message||this.state.err).slice(0,160),"). The rest of the Command Center keeps working. ",
+          PJh("button",{className:"btn sm",onClick:function(){me.setState({err:null})}},"TRY AGAIN")))}};
+  return DSguardC}
+
+/* ---------- the room ---------- */
+function DSroom(p){
+  var wa=(0,M.useState)(function(){try{return localStorage.getItem("muniz_dsp_world")==="practice"?"practice":"real"}catch(x){return"real"}}),world=wa[0],setWorld0=wa[1];
+  var setWorld=(0,M.useCallback)(function(w){try{localStorage.setItem("muniz_dsp_world",w)}catch(x){}setWorld0(w)},[]);
+  var rb=DSuseBoard(world,p.t),st=rb[0],reread=rb[1],b=st.b,now=p.now||Date.now();
+  var ka=(0,M.useState)(0),seekTick=ka[0],setSeekTick=ka[1],fa=(0,M.useState)(null),focus=fa[0],setFocus=fa[1],pa=(0,M.useState)(null),placing=pa[0],setPlacing=pa[1],oa=(0,M.useState)(!1),showPl=oa[0],setShowPl=oa[1];
+  /* the 15-s clock redraws only what shows minutes: the parts below are memo'd and get the clock by the minute (nowM) and a
+     context object that changes only with the board, the world or the lists (idle cost, deskperf) */
+  var nowM=Math.floor(now/6e4)*6e4,ctx=(0,M.useMemo)(function(){return{t:p.t,b:b,e:p.d,world:world,reread:reread}},[p.t,b,p.d,world,reread]);
+  /* search → a request by its H number (MZseekW), once the board has it */
+  (0,M.useEffect)(function(){var w=MZseekGet("dispatch")||(DSpendSeek&&Date.now()-DSpendSeek.at<6e4?DSpendSeek:null);if(!w||!b)return;DSpendSeek=null;
+    if(w.world&&w.world!==world){setWorld(w.world);return}
+    var r=(b.requests||[]).filter(function(x){return String(x.req_no).toUpperCase()===String(w.req).toUpperCase()})[0];MZseekW=null;
+    if(!r){MZtoast(w.req+" is not an open request on the "+(world==="practice"?"practice ":"")+"board (done, cancelled or another day)","info",7000);return}
+    setFocus({req:r.id,at:Date.now()});setTimeout(function(){var el=document.getElementById("ds-req-"+r.id);el&&el.scrollIntoView({block:"center",behavior:"smooth"})},60)},[b,world,seekTick]);
+  /* a search or an address that asks for a request while the board is already open (mz-haul-side "dispatch") looks again */
+  (0,M.useEffect)(function(){var f=function(ev){if(ev&&ev.detail==="dispatch")setSeekTick(function(x){return x+1})};window.addEventListener("mz-haul-side",f);return function(){window.removeEventListener("mz-haul-side",f)}},[]);
+  /* place it on the map: the next click on the map is the point */
+  (0,M.useEffect)(function(){if(!placing)return;var mp=HLREG["dsp-"+world];if(!mp){setPlacing(null);return}
+    var box=mp.getContainer();box.classList.add("ds-picking");
+    var on=function(ev){var r=placing;setPlacing(null);DSpin(ctx,r,ev.latlng)};mp.once("click",on);
+    var esc=function(ev){if(ev.key==="Escape")setPlacing(null)};document.addEventListener("keydown",esc);
+    return function(){box.classList.remove("ds-picking");mp.off("click",on);document.removeEventListener("keydown",esc)}},[placing]);
+  var V=(0,M.useMemo)(function(){return b?DSview(b):null},[b]);
+  var sw=PJh(SDswitch,{side:"dispatch",onSide:p.onSide});
+  if(st.miss)return PJh("div",{className:"room room-haul ds-room"},sw,PJh("div",{className:"ds-line"},"The dispatch board is not installed yet: the database has no dsp_board (parche228 has not run)."));
+  if(!b)return PJh("div",{className:"room room-haul ds-room"},sw,PJh("div",{className:"ds-line"+(st.err?" red":"")},st.err?"Couldn't read the dispatch board: "+st.err+" · trying again every 20 seconds.":"Reading the dispatch board…"));
+  var mode=b.mode||"off";
+  return PJh("div",{className:"room room-haul ds-room"},sw,
+    PJh(DSmemo("head"),{b:b,ctx:ctx,world:world,setWorld:setWorld,now:nowM,st:st,showPl:showPl,setShowPl:setShowPl}),
+    mode==="off"?PJh("div",{className:"ds-line"},"Dispatch is OFF: nothing runs and no phone shows it. SHADOW lets requests come in and runs the rule beside the real day, without reaching a trucker's phone."):null,
+    mode!=="off"&&(b.flags||[]).length?PJh(DSmemo("flags"),{b:b,ctx:ctx,onFocus:setFocus,onPlace:setPlacing}):null,
+    (b.push_asks||[]).length?PJh(DSmemo("asks"),{b:b,ctx:ctx}):null,
+    placing?PJh("div",{className:"ds-line amber",role:"status"},"Click the map where ",PJh("b",null,placing.req_no)," is. ",PJh("button",{className:"btn sm",onClick:function(){setPlacing(null)}},"CANCEL")):null,
+    mode!=="off"?PJh("div",{className:"ds-grid"},
+      PJh(DSmemo("reqs"),{b:b,V:V,ctx:ctx,now:nowM,focus:focus,onPlace:setPlacing}),
+      PJh(DSmemo("lanes"),{b:b,V:V,ctx:ctx,now:nowM,focus:focus}),
+      PJh("section",{className:"panel ds-mapp"},PJh("header",{className:"ph"},PJh("span",{className:"pt"},"MAP"),PJh("span",{className:"pr"},PJh("span",{className:"dim xs"},"trucks · their stops in order · open requests · today's visits"))),
+        PJh(DSmemo("map"),V.map))):null,
+    mode==="shadow"||mode==="live"?PJh(DSmemo("shadow"),{b:b,ctx:ctx,live:mode==="live"}):null,
+    mode!=="off"&&world==="real"?PJh(DSmemo("work"),{b:b,V:V,ctx:ctx}):null,
+    showPl||mode==="off"?PJh(DSmemo("places"),{b:b,ctx:ctx}):null)}
+
+/* the memo'd parts, made once (top level, never inside a render) */
+var DSM={};
+function DSmemo(k){return DSM[k]||(DSM[k]=M.memo({head:DShead,flags:DSflags,asks:DSasks,reqs:DSreqs,lanes:DSlanes,map:HLmap,shadow:DSshadowP,work:DSwork,places:DSplaces}[k]))}
+/* everything worked out once per board (useMemo on the board object): lanes, the map's props */
+function DSview(b){var id=DSid(b),ours=(b.trucks||[]).filter(function(t){return!t.hired}),hired=(b.trucks||[]).filter(function(t){return t.hired});
+  var pl=[],seen={},want={};
+  (b.trucks||[]).forEach(function(t){(t.stops||[]).forEach(function(s){if(s.place&&s.place.id)want[s.place.id]=1})});
+  (b.places||[]).forEach(function(p){if(p.lat==null)return;if(p.kind==="site"&&!want[p.place_id])return;seen[p.place_id]=1;pl.push({lat:p.lat,lon:p.lon,kind:DSmapKind(p.kind),name:DSesc(p.name)})});
+  (b.requests||[]).forEach(function(r){var q=r.place;if(!q||q.lat==null)return;pl.push({lat:q.lat,lon:q.lon,kind:"jobsite",name:DSesc(r.req_no+" · "+DSreqWhat(r)+" · "+DSreqWhere(r))})});
+  var trails=[],stops=[],trucks=[];
+  (b.trucks||[]).forEach(function(t){var c=DScolOf(b,t.id),s0=t.state;
+    var vs=(b.visits||[]).filter(function(v){return String(v.truck)===String(t.id)&&v.lat!=null}).map(function(v){return[v.lat,v.lon]});
+    if(s0&&s0.lat!=null)vs.push([s0.lat,s0.lon]);if(vs.length>1)trails.push({pts:vs,color:c,weight:2,opacity:.4,tip:DSesc(t.label+" · today's visits")});
+    var nx=(t.stops||[]).filter(DSlive).filter(function(s){return s.place&&s.place.lat!=null});
+    var pts=(s0&&s0.lat!=null?[[s0.lat,s0.lon]]:[]).concat(nx.map(function(s){return[s.place.lat,s.place.lon]}));
+    if(pts.length>1)trails.push({pts:pts,color:c,weight:3,opacity:.95,dash:"7 7",tip:DSesc(t.label+" · its stops in order")});
+    nx.forEach(function(s){stops.push({seq:s.seq,lat:s.place.lat,lon:s.place.lon,kind:s.action==="load"?"supplier":s.action==="dump"?"dump":s.action==="wait"||s.action==="home"?"yard":"jobsite",
+      place:DSesc(t.label+" · "+(DSACT[s.action]||s.action)+" · "+DSstopWhere(s)),arrive:s.planned_arrive,depart:s.planned_depart,minutes:(DSms(s.planned_depart)-DSms(s.planned_arrive))/6e4||0})});
+    if(s0&&s0.lat!=null)trucks.push({lat:s0.lat,lon:s0.lon,color:c,label:DSesc(t.label),live:!!s0.moving,tip:DSesc(t.label+(t.driver?" · "+DSname(t.driver):"")+(t.hired?" · hired":"")+" · "+(s0.moving?"moving":"standing"+(s0.place_name?" at "+s0.place_name:"")))})});
+  return{ours:ours,hired:hired,unasked:DSunasked(b),map:{className:"ds-map",places:pl,trails:trails,stops:stops,trucks:trucks,sig:"ds"+id,view:"dsp-"+b.world,maxZoom:14}}}
+
+function DShead(p){var b=p.b,ctx=p.ctx,mode=b.mode||"off",lr=b.last_run,liveOk=b.settings&&b.settings.live_ok===!0,now=p.now,st=p.st;
+  var newest=null;(b.trucks||[]).forEach(function(t){var a=t.state&&DSms(t.state.at);if(a!=null&&(newest==null||a>newest))newest=a});
+  var gAge=newest!=null?(now-newest)/6e4:b.gps_newest_age_s!=null?b.gps_newest_age_s/60:null;
+  var seg=function(k,lab,dis,title){return PJh("button",{key:k,className:"ds-seg"+(mode===k?" on":"")+(dis?" wait":""),"aria-pressed":mode===k,"aria-disabled":dis?"true":void 0,title:title||void 0,onClick:function(){DSmode(ctx,k)}},lab)};
+  return PJh("section",{className:"panel ds-head"},
+    PJh("div",{className:"ds-hrow"},
+      PJh("div",{className:"ds-hl"},PJh("span",{className:"ds-eyebrow"},"DISPATCH · THE FOUR BIG DUMP TRUCKS"),
+        PJh("div",{className:"segs ds-segs",role:"group","aria-label":"Dispatch mode"},seg("off","OFF"),seg("shadow","SHADOW"),
+          liveOk?seg("live","LIVE"):mode==="live"?seg("live","LIVE"):seg("live","LIVE · waiting for the go-live patch",!0,"Only the go-live patch turns LIVE on (settings.live_ok)."))),
+      PJh("div",{className:"ds-hr"},
+        PJh("div",{className:"segs ds-segs",role:"group","aria-label":"World"},
+          PJh("button",{className:"ds-seg"+(p.world==="real"?" on":""),"aria-pressed":p.world==="real",onClick:function(){p.setWorld("real")}},"REAL"),
+          PJh("button",{className:"ds-seg"+(p.world==="practice"?" on":""),"aria-pressed":p.world==="practice",onClick:function(){p.setWorld("practice")}},"PRACTICE")),
+        mode!=="off"?PJh("button",{className:"btn sm primary",onClick:function(){DSreqForm(ctx,null)}},"+ REQUEST"):null,
+        PJh("button",{className:"btn sm"+(p.showPl?" on":""),"aria-expanded":!!p.showPl,onClick:function(){p.setShowPl(!p.showPl)}},"PLACES & SETTINGS"))),
+    PJh("div",{className:"ds-facts"},
+      PJh("span",{className:lr&&lr.ok===!1?"red":""},PJh("b",null,"Rule"),!lr?"has not run yet":(lr.ok===!1?"failed "+DSt(lr.at)+(DSCODE[lr.code]?": "+DSCODE[lr.code]:"")+" (the flag below says why)":"ran "+DSt(lr.at)+" · ok"+(lr.ms!=null?" · "+lr.ms+" ms":""))),
+      PJh("span",{className:gAge!=null&&gAge>20?"amber":""},PJh("b",null,"Newest GPS position"),gAge==null?"none yet":DSdur(gAge)+" old"),
+      PJh("span",null,PJh("b",null,"World"),p.world==="practice"?"PRACTICE · made-up truck and requests":"REAL"),
+      st.err?PJh("span",{className:"red",role:"alert"},PJh("b",null,"Read failed "+DSt(new Date(st.errAt||Date.now()).toISOString())),st.err+" · showing the board read at "+DSt(new Date(st.okAt).toISOString())):null),
+    lr&&lr.ok!==!1&&Array.isArray(lr.notes)&&lr.notes.length?PJh("div",{className:"ds-notes"},PJh("b",null,"The rule says"),PJh("ul",null,lr.notes.slice(0,5).map(function(n,i){return PJh("li",{key:i},String(n))}))):null)}
+
+function DSflags(p){var b=p.b,ctx=p.ctx;
+  return PJh("section",{className:"panel ds-flags","aria-label":"Flags"},(b.flags||[]).map(function(f,i){var r=f.request!=null?(b.requests||[]).filter(function(x){return String(x.id)===String(f.request)})[0]:null,ld=f.load!=null?f.load:null,t=f.truck!=null?DStruck(b,f.truck):null;
+    return PJh("div",{key:i,className:"ds-flag "+DSflagTone(f.kind)},PJh("span",{className:"ds-ft"},f.text),
+      PJh("span",{className:"ds-fa"},
+        f.kind==="no_place"&&r?PJh("button",{className:"btn sm",onClick:function(){p.onPlace(r)}},"PLACE IT ON THE MAP"):null,
+        f.kind==="no_place"&&r?PJh("button",{className:"btn sm",onClick:function(){DSknown(ctx,r)}},"KNOWN PLACE"):null,
+        f.kind==="bed_mismatch"&&ld!=null?PJh("button",{className:"btn sm",onClick:function(){DSsettle(ctx,ld,t&&t.label)}},"SETTLE LOAD "+ld):null,
+        f.kind==="push_ask"&&(b.push_asks||[]).length?PJh("button",{className:"btn sm",onClick:function(){var el=document.getElementById("ds-asks");el&&el.scrollIntoView({block:"center",behavior:"smooth"})}},"REVIEW"):null,
+        t&&f.kind!=="bed_mismatch"?PJh("button",{className:"btn sm",onClick:function(){p.onFocus({truck:t.id,at:Date.now()});var el=document.getElementById("ds-lane-"+t.id);el&&el.scrollIntoView({block:"center",behavior:"smooth"})}},"SHOW "+t.label):null))}))}
+
+function DSreqs(p){var b=p.b,rs=b.requests||[];
+  return PJh("section",{className:"panel ds-reqs"},PJh("header",{className:"ph"},PJh("span",{className:"pt"},"OPEN REQUESTS · "+rs.length),PJh("span",{className:"pr"},PJh("span",{className:"dim xs"},"first = planned first"))),
+    rs.length?PJh("div",{className:"ds-list"},rs.map(function(r){return PJh(DSreq,{key:r.id,r:r,b:b,ctx:p.ctx,now:p.now,on:p.focus&&p.focus.req===r.id,onPlace:p.onPlace})})):PJh("div",{className:"ds-empty"},"No open requests."))}
+function DSreq(p){var r=p.r,ctx=p.ctx,now=p.now,noPlace=(r.flags||[]).indexOf("no_place")>=0,since=r.heard_at||r.created_at,wait=DSago(since,now);
+  var pl=r.place,bare=pl&&!pl.id&&pl.lat!=null,own=pl&&pl.id?DSplaceRow(ctx.b,pl.id):null,made=own&&own.source==="request";
+  return PJh("article",{id:"ds-req-"+r.id,className:"ds-card"+(p.on?" on":"")+(noPlace?" amber":"")},
+    PJh("div",{className:"ds-c1"},PJh("span",{className:"mono"},r.req_no),PJh("span",{className:"ds-prio p"+(r.priority||3),title:"Priority "+r.priority+" (1 goes first)"},"P"+(r.priority||"?")),
+      PJh("b",null,DSreqWhat(r)),r.crew_stopped?PJh("span",{className:"lc-chip red"},"crew stopped"):null,PJh("span",{className:"lc-chip"},r.status)),
+    PJh("div",{className:"ds-c2"},r.requested_by&&r.requested_by!==r.requested_for?"asked by "+DSname(r.requested_by)+" for ":"for ",PJh("b",null,DSname(r.requested_for)||"?"),
+      " · "+(r.via==="shadow"?"entered from Tacho's call":r.via==="office"?"entered by the office":"from the phone")),
+    PJh("div",{className:"ds-c2"+(noPlace?" amber":"")},noPlace?"No place yet: "+(r.jobsite?"“"+r.jobsite+"”":"nothing given"):DSreqWhere(r),made?PJh("span",{className:"dim"}," · a site made by this request"+(own.priority?"":" (no priority yet)")):null),
+    PJh("div",{className:"ds-c2"},"ready "+(DSms(r.ready_at)>now?DSt(r.ready_at):"now")+" · waiting "+(wait==null?"—":DSdur(wait))+(r.heard_at?" · the call came "+DSt(r.heard_at):"")+(r.loader===!0?" · machine on site":r.loader===!1?" · no machine to load":"")),
+    PJh("div",{className:"ds-c2"},r.planned_truck?PJh("span",null,"planned: ",PJh("b",null,r.planned_truck),r.planned_arrive?" · about "+DSt(r.planned_arrive):""):PJh("span",{className:"dim"},"no truck planned yet",r.why?PJh("span",{className:"ds-why1"}," · "+r.why):null)),
+    r.note?PJh("div",{className:"ds-c2 dim"},"“"+r.note+"”"):null,
+    PJh("div",{className:"ds-loads"},(r.loads_list||[]).map(function(l){var t=l.truck!=null?DStruck(ctx.b,l.truck):null;
+      return PJh("div",{key:l.id,className:"ds-load"},PJh("span",null,"Load "+l.seq+(l.amount!==1?" · "+DSamt(l.amount):"")+" · "+l.status+(t?" · "+t.label:""),l.why&&l.why!==r.why?PJh("span",{className:"ds-why1"}," · "+l.why):null),
+        PJh("span",{className:"ds-fa"},l.status==="open"?PJh("button",{className:"btn sm",onClick:function(){DSgive(ctx,l.id,r,null)}},"GIVE TO A TRUCK"):null,
+          l.status==="assigned"?PJh("button",{className:"btn sm",onClick:function(){DStake(ctx,l.id,t)}},"TAKE BACK"):null,
+          l.status!=="done"&&l.status!=="cancelled"?PJh("button",{className:"btn sm",onClick:function(){DSsettle(ctx,l.id,r.req_no)}},"SETTLE"):null))})),
+    PJh("div",{className:"ds-acts"},
+      PJh("button",{className:"btn sm",disabled:(r.priority||3)<=1,"aria-label":"Move "+r.req_no+" up (priority "+Math.max(1,(r.priority||3)-1)+")",title:"Move up",onClick:function(){DSprio(ctx,r,-1)}},"▲ UP"),
+      PJh("button",{className:"btn sm",disabled:(r.priority||3)>=4,"aria-label":"Move "+r.req_no+" down (priority "+Math.min(4,(r.priority||3)+1)+")",title:"Move down",onClick:function(){DSprio(ctx,r,1)}},"▼ DOWN"),
+      PJh("button",{className:"btn sm",onClick:function(){DSreqForm(ctx,r)}},"CHANGE"),
+      noPlace?PJh("button",{className:"btn sm amber",onClick:function(){p.onPlace(r)}},"PLACE IT ON THE MAP"):null,
+      bare?PJh("button",{className:"btn sm",onClick:function(){DSsite(ctx,r)}},"MAKE IT A KNOWN SITE"):null,
+      made?PJh("button",{className:"btn sm",onClick:function(){DSplaceEdit(ctx,own)}},"NAME THIS SITE"):null,
+      PJh("button",{className:"btn sm red",onClick:function(){DScancel(ctx,r)}},"CANCEL")))}
+
+function DSlanes(p){var V=p.V;
+  return PJh("section",{className:"panel ds-lanes"},PJh("header",{className:"ph"},PJh("span",{className:"pt"},"TRUCKS · "+V.ours.length),PJh("span",{className:"pr"},PJh("span",{className:"dim xs"},"what each is doing and will do"))),
+    PJh("div",{className:"ds-list"},V.ours.map(function(t){return PJh(DSlane,{key:t.id,t:t,b:p.b,ctx:p.ctx,now:p.now,on:p.focus&&String(p.focus.truck)===String(t.id)})})),
+    V.hired.length?PJh("div",{className:"ds-hired"},PJh("div",{className:"ds-sub"},"HIRED · seen, never planned"),V.hired.map(function(t){return PJh(DSlane,{key:t.id,t:t,b:p.b,ctx:p.ctx,now:p.now,hired:!0})})):null)}
+/* a wait or the trip home has no hour to keep: no late / early on it */
+function DSstopRow(s,now,ctx,t,first){var lt=s.action==="wait"||s.action==="home"?null:DSlateTxt(DSlate(s,now)),lid=s.load_id,acts=[];
+  if(lid!=null&&!t.hired&&(s.status==="planned"||s.status==="announced")){acts.push(PJh("button",{key:"g",className:"btn sm",onClick:function(){DSgive(ctx,lid,(ctx.b.requests||[]).filter(function(r){return r.id===s.request_id})[0]||{req_no:s.req_no,kind:s.action==="pick"||s.action==="dump"?"haul":"deliver"},t.id)}},"GIVE TO ANOTHER"));
+    acts.push(PJh("button",{key:"t",className:"btn sm",onClick:function(){DStake(ctx,lid,t)}},"TAKE BACK"))}
+  return PJh("div",{key:s.id,className:"ds-stop"+(first?" now":"")+(s.status==="arrived"?" at":"")},
+    PJh("span",{className:"ds-sq"},s.seq),
+    PJh("div",{className:"ds-sm"},PJh("div",{className:"ds-s1"},PJh("b",null,DSACT[s.action]||s.action)," · ",DSstopWhere(s),s.what?" · "+DSword(s.what):"",s.amount&&s.action!=="wait"?" · "+DSamt(s.amount):s.action==="wait"&&s.amount?" · "+DSdur(s.amount):""),
+      PJh("div",{className:"ds-s2"},(s.status==="arrived"?"there since "+DSt(s.arrived_at):"planned "+DSt(s.planned_arrive))+(s.for_who?" · for "+DSname(s.for_who):"")+(s.req_no?" · "+s.req_no:"")+(s.source==="dispatcher"?" · the office's":""),
+        s.status==="announced"?PJh("span",{className:"lc-chip ds-told",title:"The driver was told this stop: the rule will not move it. GIVE TO ANOTHER or TAKE BACK moves it."},s.announced_at?"told "+DSt(s.announced_at):"told to the driver"):null,
+        lt?PJh("span",{className:"lc-chip "+lt[1]},lt[0]):null),
+      s.note&&/PROBLEM /.test(s.note)?PJh("div",{className:"ds-s2 amber ds-prob"},DSnote(s.note)):s.note&&s.source==="dispatcher"?PJh("div",{className:"ds-s2 dim"},"“"+s.note+"”"):null),
+    acts.length?PJh("div",{className:"ds-fa"},acts):null)}
+function DSlane(p){var t=p.t,b=p.b,ctx=p.ctx,now=p.now,s0=t.state,ci=DScix(b,t.id);
+  var live=(t.stops||[]).filter(DSlive),done=(t.stops||[]).filter(function(s){return s.status==="done"}).length,cur=live[0],rest=live.slice(1);
+  var age=s0?DSago(s0.at,now):null;if(age==null&&s0&&s0.gps_age_s!=null)age=s0.gps_age_s/60;
+  var bed=DSbedTxt(s0),where=!s0?"no position yet":s0.moving?"moving":"standing "+(s0.place_name?"at "+s0.place_name:"at a place the system does not know");
+  var loads=s0&&s0.bed_loads||[],drop=(t.stops||[]).filter(function(s){return s.status==="skipped"});
+  return PJh("article",{id:"ds-lane-"+t.id,className:"ds-lane ds-c"+(ci<0?"h":ci)+(p.on?" on":"")+(p.hired?" hired":"")},
+    PJh("div",{className:"ds-l1"},PJh("i",{className:"ds-dot"+(s0&&s0.moving?" mv":""),"aria-hidden":"true"}),PJh("b",null,t.label),t.driver?PJh("span",{className:"dim"},DSname(t.driver)):null,
+      PJh("span",{className:"ds-l1r"+(age!=null&&age>20?" amber":"")},where+(age!=null?" · position "+DSdur(age)+" old":""))),
+    PJh("div",{className:"ds-l2"},PJh("span",{className:bed[1]},"Bed: "+bed[0]),
+      loads.length&&!p.hired?PJh("span",{className:"ds-fa"},loads.map(function(id){return PJh("button",{key:id,className:"btn sm",onClick:function(){DSsettle(ctx,id,t.label)}},"SETTLE LOAD "+id)})):null),
+    p.hired?null:cur?PJh("div",{className:"ds-stops"},PJh("div",{className:"ds-sub"},DSnowLab(cur,s0,b,ctx.world)),DSstopRow(cur,now,ctx,t,!0),
+      rest.length?PJh("div",{className:"ds-sub"},"AFTER THAT"):null,rest.map(function(s){return DSstopRow(s,now,ctx,t,!1)})):PJh("div",{className:"ds-empty"},"No stop planned"+(done?" · "+done+" done today":"")),
+    cur&&done?PJh("div",{className:"ds-s2 dim"},done+" stop"+(done===1?"":"s")+" done today"):null,
+    !p.hired&&drop.length?PJh("div",{className:"ds-stops"},PJh("div",{className:"ds-sub"},"DROPPED TODAY"),drop.map(function(s){return PJh("div",{key:s.id,className:"ds-stop dropped"},PJh("span",{className:"ds-sq"},s.seq),
+      PJh("div",{className:"ds-sm"},PJh("div",{className:"ds-s1"},PJh("s",null,(DSACT[s.action]||s.action)+" · "+DSstopWhere(s)+(s.what?" · "+DSword(s.what):""))),
+        PJh("div",{className:"ds-s2"},s.note?DSnote(s.note):"dropped",s.announced_at?" · it had been told "+DSt(s.announced_at):"")))})):null,
+    !p.hired&&t.in_pool?PJh("div",{className:"ds-acts"},PJh("button",{className:"btn sm",onClick:function(){DSpark(ctx,t)}},"PARK THIS TRUCK")):null)}
+
+/* "The rule and the day": each time a truck was free, what the rule had, what it did, agree or not, and why */
+function DSshadowP(p){var b=p.b,rows=b.shadow||[],T=DSshadowTot(rows);
+  return PJh("section",{className:"panel ds-shadow"},PJh("header",{className:"ph"},PJh("span",{className:"pt"},"THE RULE AND THE DAY"),PJh("span",{className:"pr"},PJh("span",{className:"dim xs"},p.live?"live: only where a truck did something else":"each time a truck was free"))),
+    PJh("div",{className:"ds-tot"},"Today: ",PJh("b",null,T.agree)," agree · ",PJh("b",{className:T.differ?"amber":""},T.differ)," differ · ",PJh("b",null,T.none)," no proposal",T.wait?" · "+T.wait+" waiting for what the truck does next":""),
+    rows.length?PJh("div",{className:"lc-scroll"},PJh("table",{className:"tbl ds-tbl"},PJh("thead",null,PJh("tr",null,PJh("th",null,"Free"),PJh("th",null,"Truck"),PJh("th",null,"After"),PJh("th",null,"The rule had"),PJh("th",null,"It did"),PJh("th",null,""),PJh("th",null,"Why"))),
+      PJh("tbody",null,rows.map(function(r){return PJh(DSshRow,{key:r.id,r:r,b:b,ctx:p.ctx})})))):PJh("div",{className:"ds-empty"},"No truck has been free yet today."))}
+function DSshRow(p){var r=p.r,b=p.b,t=DStruck(b,r.truck),v=DSvisitOf(b,r),pr=r.proposed,ac=r.actual;
+  var had=!pr?"no proposal":(DSACT[pr.action]||pr.action||"go")+" · "+(pr.place_id?DSplaceName(b,pr.place_id):pr.grp?DSplaceName(b,null,pr.grp):pr.lat!=null?"a point ("+(+pr.lat).toFixed(4)+", "+(+pr.lon).toFixed(4)+")":"?")+(pr.planned_arrive?" · "+DSt(pr.planned_arrive):"");
+  var did=!ac?"not yet":"went to "+(ac.place_id?DSplaceName(b,ac.place_id):ac.grp?DSplaceName(b,null,ac.grp):ac.lat!=null?"a point ("+(+ac.lat).toFixed(4)+", "+(+ac.lon).toFixed(4)+")":"an unnamed place")+(ac.arrive?" · "+DSt(ac.arrive):"");
+  var ag=!pr?["—",""]:r.agree===!0?["agree","green"]:r.agree===!1?["differs","amber"]:["waiting",""];
+  return PJh("tr",{className:r.agree===!1?"lc-amber":""},PJh("td",{className:"nowrap mono"},DSt(r.at)),PJh("td",{className:"nowrap"},t?t.label:r.truck),
+    PJh("td",null,v?DSvisitWhere(b,v)+(v.work?" · "+v.work:""):"—"),PJh("td",null,had),PJh("td",null,did),PJh("td",null,PJh("span",{className:"lc-chip "+ag[1]},ag[0])),
+    PJh("td",{className:"ds-why"},PJh(DSreason,{r:r,ctx:p.ctx})))}
+function DSreason(p){var r=p.r,a=(0,M.useState)(r.reason||""),v=a[0],set=a[1],bz=(0,M.useState)(!1),busy=bz[0],setBusy=bz[1];
+  (0,M.useEffect)(function(){set(r.reason||"")},[r.reason]);
+  var save=async function(){if(!v.trim()||v.trim()===(r.reason||""))return;setBusy(!0);await DScall(p.ctx,"dsp_shadow_reason",{p:{id:r.id,reason:v.trim()}},"Reason saved");setBusy(!1)};
+  return PJh("div",{className:"ds-rsn"},PJh("input",{className:"inp",value:v,maxLength:500,"aria-label":"Why, for the row at "+DSt(r.at),placeholder:r.agree===!1?"Why did the truck do something else?":"A note (optional)",onChange:function(ev){set(ev.target.value)},onKeyDown:function(ev){if(ev.key==="Enter")save()}}),
+    PJh("button",{className:"btn sm",disabled:busy||!v.trim()||v.trim()===(r.reason||""),onClick:save},busy?"SAVING…":"SAVE"),r.reason_by?PJh("span",{className:"dim xs"},"by "+DSname(r.reason_by)):null)}
+
+/* §12.4h: today's closed visits that delivered or picked and served no request: one tap to add the request */
+function DSwork(p){var b=p.b,L=p.V.unasked;
+  return PJh("section",{className:"panel ds-work"},PJh("header",{className:"ph"},PJh("span",{className:"pt"},"WORK NOBODY ASKED THE SYSTEM FOR · "+L.length),PJh("span",{className:"pr"},PJh("span",{className:"dim xs"},"each one is a call Tacho took: add it"))),
+    L.length?PJh("div",{className:"ds-list"},L.map(function(v){var t=DStruck(b,v.truck);
+      return PJh("div",{key:v.id,className:"ds-wk"},PJh("span",{className:"ds-wt"},PJh("b",null,t?t.label:v.truck_label)," · ",DSvisitWhere(b,v)," · ",DSt(v.arrive),"–",DSt(v.depart)," · ",DSworkTxt(v)),
+        PJh("button",{className:"btn sm primary",onClick:function(){DSaddFor(p.ctx,v)}},"ADD THE REQUEST"))})):PJh("div",{className:"ds-empty"},"Nothing today: every delivery and pickup the trucks made has its request."))}
+
+/* places and settings: priority per site (public eyes first), what a place is, where each fact comes from */
+function DSfact(lab,val,bs){var src=bs&&DSBASIS[bs]?DSBASIS[bs]:bs;return lab+": "+(val!=null&&val!==""?val+(src?" ("+src+")":""):src?"on file, from "+src:"not known")}
+function DShmin(m){var h=Math.floor(m/60),mi=m%60;return(h%12||12)+(mi?":"+String(mi).padStart(2,"0"):"")+(h<12?" AM":" PM")}
+function DSallDay(x){return!!x&&x[0]===0&&x[1]>=1439}
+function DSopen(o){if(!Array.isArray(o))return null;var d=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  if(!o.some(Boolean))return"closed every day";return o.map(function(x,i){return d[i]+" "+(!x?"closed":DSallDay(x)?"all day":DShmin(x[0])+"–"+DShmin(x[1]))}).join(", ")}
+/* §12.15e: a yard's hours corrected on the board. dsp_place_save's open = 7 days, Sunday first, each null (closed) or
+   [from, to] in whole minutes of the day, from ≤ to (the engine's world.mjs rule); "all day" = [0, 1439] as the seed has it */
+var DSDAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function DSdaySpan(x){return x?(DSallDay(x)?"all day":DShmin(x[0])+" – "+DShmin(x[1])):"closed"}
+function DSmin(txt,close){var s=String(txt||"").trim().toLowerCase().replace(/\s+/g," ");if(s==="noon")return 720;if(s==="midnight")return close?1439:0;
+  var m=/^(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|a|p)?$/.exec(s);if(!m)return null;var h=+m[1],mi=+(m[2]||0),ap=m[3]?m[3][0]:"";
+  if(mi>59||h>23||(ap&&(h<1||h>12)))return null;if(ap==="p"&&h<12)h+=12;if(ap==="a"&&h===12)h=0;var t=h*60+mi;return close&&t===0?1439:t}
+/* "6:30 AM – 5 PM" / "all day" / "closed" → null (closed), [from, to], or undefined (not readable / closes before it opens) */
+function DSday(txt){var s=String(txt||"").trim().toLowerCase();if(/^(closed|close|shut|no)$/.test(s))return null;if(/^(all day|open all day|24 ?h(ours)?|24\/7)$/.test(s))return[0,1439];
+  var p=s.split(/\s*(?:–|—|-|\bto\b|\buntil\b)\s*/);if(p.length!==2)return void 0;var a=DSmin(p[0],!1),b=DSmin(p[1],!0);return a==null||b==null||a>=b?void 0:[a,b]}
+async function DShours(ctx,pl){var cur=Array.isArray(pl.open)&&pl.open.length===7?pl.open:null,bs=(pl.basis||{}).open;
+  var f=DSDAYS.map(function(d,i){return{k:"d"+i,label:d,required:!0,value:cur?DSdaySpan(cur[i]):"",placeholder:"6:30 AM – 5 PM, all day, or closed"}});
+  var v=await MZform({title:"Hours of "+pl.name,sub:"The rule plans by these hours from its next run: no truck is sent to get there while it is closed, and a stop the truck would reach after closing is dropped, even one its driver was told. "+
+    (cur?"Now: from "+(DSBASIS[bs]||bs||"a source not named")+".":"Now: not known (the rule takes it as always open).")+" Write each day like 6:30 AM – 5 PM, all day, or closed.",fields:f,ok:"Save the hours"});
+  if(!v)return;var o=[];
+  for(var i=0;i<7;i++){var x=DSday(v["d"+i]);if(x===void 0){MZtoast(DSDAYS[i]+": write it like 6:30 AM – 5 PM, all day, or closed (it must close after it opens)","err",9000);return}o.push(x)}
+  if(cur&&JSON.stringify(o)===JSON.stringify(cur)){MZtoast("Nothing changed: the hours are the same","info");return}
+  return DScall(ctx,"dsp_place_save",{p:{place_id:pl.place_id,open:o}},pl.name+" · hours saved")}
+function DSplaces(p){var b=p.b,ctx=p.ctx,s=b.settings||{},a=(0,M.useState)(""),q=a[0],setQ=a[1],ka=(0,M.useState)("site"),kf=ka[0],setKf=ka[1];
+  var src=s.sources&&typeof s.sources==="object"?Object.keys(s.sources).filter(function(k){return s.sources[k]&&s.sources[k].grp}):null;if(src&&!src.length)src=null;
+  var rows=(b.places||[]).filter(function(x){return(kf==="all"||(kf==="site"?x.kind==="site":x.kind!=="site"))&&(!q||(x.name+" "+(x.job||"")+" "+x.place_id).toLowerCase().indexOf(q.toLowerCase())>=0)})
+    .slice().sort(function(x,y){return(x.priority||9)-(y.priority||9)||(x.name<y.name?-1:1)});
+  return PJh("section",{className:"panel ds-places"},PJh("header",{className:"ph"},PJh("span",{className:"pt"},"PLACES & SETTINGS")),
+    PJh("div",{className:"ds-sets"},
+      PJh("label",null,PJh("span",null,"Who may ask for a truck from the phone"),PJh("select",{className:"inp",value:s.who_requests||"foremen",onChange:function(ev){DSset(ctx,"who_requests",ev.target.value,"Who may ask: "+ev.target.value)}},
+        PJh("option",{value:"foremen"},"Foremen, supervisors and the office"),PJh("option",{value:"supervisors"},"Supervisors and the office"),PJh("option",{value:"office"},"The office only"))),
+      PJh("label",null,PJh("span",null,"Big trucks go to job sites"),PJh("select",{className:"inp",value:s.big_to_sites===!1?"no":"yes",onChange:function(ev){DSset(ctx,"big_to_sites",ev.target.value==="yes",ev.target.value==="yes"?"Big trucks go to job sites":"Big trucks stay at yards, pits and dumps")}},
+        PJh("option",{value:"yes"},"Yes"),PJh("option",{value:"no"},"No: yards, pits and dumps only"))),
+      PJh("div",{className:"ds-srcs"},PJh("span",null,"Where each material is bought (read only)"),
+        src?src.map(function(k){var x=s.sources[k]||{};return PJh("div",{key:k},PJh("b",null,DSMAT[k]||k),": "+(DSplaceName(b,null,x.grp)||x.grp||"?")+(x.n!=null?" · "+x.n+(x.of!=null?" of "+x.of:"")+" invoice lines":""))}):PJh("div",{className:"dim"},"not known: the database does not send it yet"))),
+    PJh("div",{className:"ds-pnote"},"Each place has two names: the full name is the office's (this board); the name on the phones is what a trucker sees on his stop and a foreman in his list of sites. EDIT changes both."),
+    PJh("div",{className:"ds-ptools"},PJh("div",{className:"segs ds-segs",role:"group","aria-label":"Which places"},[["site","JOB SITES"],["other","YARDS, PITS, DUMPS"],["all","ALL"]].map(function(k){return PJh("button",{key:k[0],className:"ds-seg"+(kf===k[0]?" on":""),"aria-pressed":kf===k[0],onClick:function(){setKf(k[0])}},k[1])})),
+      PJh("input",{className:"inp",value:q,placeholder:"Find a place","aria-label":"Find a place",onChange:function(ev){setQ(ev.target.value)}})),
+    PJh("div",{className:"ds-plist"},rows.map(function(x){var bs=x.basis||{};
+      return PJh("div",{key:x.place_id,className:"ds-pl"},
+        PJh("div",{className:"ds-p1"},PJh("b",null,x.name),x.short&&x.short!==x.name?PJh("span",{className:"ds-short"},"on the phones: "+x.short):null,PJh("span",{className:"dim"},DSKIND[x.kind]||x.kind),x.job?PJh("span",{className:"dim"},x.job):null,
+          PJh("label",{className:"ds-pp"},PJh("span",null,"Priority"),PJh("select",{className:"inp",value:x.priority==null?"":String(x.priority),"aria-label":"Priority of "+x.name,onChange:function(ev){DSplacePrio(ctx,x,ev.target.value)}},
+            PJh("option",{value:""},"none"),PJh("option",{value:"1"},"1 · first"),PJh("option",{value:"2"},"2"),PJh("option",{value:"3"},"3"),PJh("option",{value:"4"},"4 · can wait"))),
+          PJh("button",{className:"btn sm",onClick:function(){DSplaceEdit(ctx,x)}},"EDIT"),
+          x.kind==="site"?null:PJh("button",{className:"btn sm","aria-label":"Change hours of "+x.name,onClick:function(){DShours(ctx,x)}},"CHANGE HOURS")),
+        x.kind==="site"?null:PJh("div",{className:"ds-p2 ds-facts2"},
+          PJh("span",null,DSfact("Hours",DSopen(x.open),bs.open)),PJh("span",null,DSfact("Sells",Array.isArray(x.sells)&&x.sells.length?x.sells.map(DSword).join(", "):null,bs.sells)),
+          PJh("span",null,DSfact("Takes",Array.isArray(x.accepts)&&x.accepts.length?x.accepts.map(DSword).join(", "):null,bs.accepts)),PJh("span",null,DSfact("Fees",DSfee(x.fee),bs.fee))),
+        PJh("div",{className:"ds-p2"},x.source==="request"?PJh("span",{className:"lc-chip amber"},"made by a request"):null,x.source==="request"?" ":"",
+          (x.source==="seed"?"from the seed (phase 1)":x.source==="request"?"where a foreman asked for a truck: give it its name and priority":x.source==="office"?"from the office":"")+(x.confidence?" · "+x.confidence:"")))})))}
+function DSfee(f){if(!f||typeof f!=="object")return null;var k=Object.keys(f);if(!k.length)return null;
+  return k.map(function(x){var v=f[x],w=DSMAT[x]||String(x).replace(/_/g," ");return w+" "+(typeof v==="number"?"$"+v:String(v))}).join(", ")}
+function DSplaceRow(b,id){var p=null;(b&&b.places||[]).some(function(x){if(x.place_id===id){p=x;return!0}return!1});return p}
+
+/* search (v256 pattern): a request by its H number opens its card in DISPATCH (MZseekW) */
+function DSsearch(q){q=String(q||"").trim();if(!q)return[];var i=q.toLowerCase(),out=[],seen={};
+  ["real","practice"].forEach(function(w){var l=DSlast[w];if(!l||!l.b)return;(l.b.requests||[]).forEach(function(r){if(seen[r.req_no])return;
+    if([r.req_no,r.requested_for,r.requested_by,r.jobsite,r.place&&r.place.name,DSMAT[r.what]].some(function(x){return String(x||"").toLowerCase().indexOf(i)>=0})){seen[r.req_no]=1;out.push({req_no:r.req_no,world:w,r:r})}})});
+  if(!out.length&&/^h\d{1,7}$/i.test(q))out.push({req_no:q.toUpperCase(),world:null,r:null});return out.slice(0,8)}
+function DSsrch(p){return PJh(UmSec,{go:function(){DSgoSeek(null,p.go)},label:"DISPATCH REQUESTS",n:p.rows.length,room:"haul"},p.rows.map(function(x){var r=x.r;
+  return PJh(UmRow,{key:x.req_no,onClick:function(){DSgoSeek(x,p.go)}},PJh("span",{className:"mono"},x.req_no),
+    PJh("span",{className:"rf"},r?DSreqWhat(r)+" · "+DSreqWhere(r):"open it in Haul → DISPATCH"),PJh("span",{className:"dim"},r?"for "+DSname(r.requested_for):""),PJh("span",{className:"dim"},r?r.status+(x.world==="practice"?" · practice":""):""))}))}
+function DSgoSeek(x,go){if(x)MZseekW={k:"dispatch",req:x.req_no,world:x.world,at:Date.now()};try{localStorage.setItem("muniz_haul_side","dispatch")}catch(e){}
+  go("haul");try{window.dispatchEvent(new CustomEvent("mz-haul-side",{detail:"dispatch"}))}catch(e){}}
+/* the Haul room: one switch, four sides (v241: FOREMEN; DISPATCH: the board above, inside DSguard) */
 function HlRoot(p){var a=(0,M.useState)(function(){return SDside()}),side=a[0],set0=a[1];
-  var setSide=function(v){v=v==="dump"||v==="foremen"?v:"truckers";try{localStorage.setItem("muniz_haul_side",v)}catch(x){}set0(v)};
-  (0,M.useEffect)(function(){var f=function(ev){var v=ev&&ev.detail;if(v==="dump"||v==="truckers"||v==="foremen")setSide(v)};window.addEventListener("mz-haul-side",f);return function(){window.removeEventListener("mz-haul-side",f)}},[]);
-  return side==="dump"?PJh(SDroom,Object.assign({},p,{onSide:setSide})):side==="foremen"?PJh(FMroom,Object.assign({},p,{onSide:setSide})):PJh(Hl,Object.assign({},p,{onSide:setSide}))}
+  var setSide=function(v){v=v==="dump"||v==="foremen"||v==="dispatch"?v:"truckers";try{localStorage.setItem("muniz_haul_side",v)}catch(x){}set0(v)};
+  (0,M.useEffect)(function(){var f=function(ev){var v=ev&&ev.detail;if(v==="dump"||v==="truckers"||v==="foremen"||v==="dispatch")setSide(v)};window.addEventListener("mz-haul-side",f);return function(){window.removeEventListener("mz-haul-side",f)}},[]);
+  return side==="dispatch"?PJh(DSguardOf(),Object.assign({},p,{onSide:setSide})):side==="dump"?PJh(SDroom,Object.assign({},p,{onSide:setSide})):side==="foremen"?PJh(FMroom,Object.assign({},p,{onSide:setSide})):PJh(Hl,Object.assign({},p,{onSide:setSide}))}
 /* v277 · ROUTES TODAY on the small dumps map (Tito, Nov 20: "The same way on Haul tab when I am looking at the truckers I want to be
    able see routes in the map the same for small dumps"): each small dump truck's GPS trail since midnight, read the way the TRUCKERS
    console reads its trails (gps_positions, again every minute while this side is open; not while the page is hidden or untouched for
@@ -2590,8 +3109,9 @@ var ACSCR={inicio:"Name list",menu:"Menu",para:"Ordering for someone",prov:"Stor
   lista:"Cart","lista/mandar":"“Did you send it?”",listo:"Sent · waiting",hecho:"Order registered",revisar:"Approval link",recoger:"Pickup link",final:"Ticket link",
   "fuel/est":"Fuel · station","fuel/fuel":"Fuel · fuel type","fuel/veh":"Fuel · plate & odometer","fuel/po":"Fuel · PO on screen",
   "fuel/bye":"Fuel · “Did they write it down?”","fuel/dup":"Fuel · already has a PO","fuel/nombre":"Fuel · name list","fuel/para":"Fuel · for whom",
-  "fuel/oficina":"Fuel · office","fuel/inicio":"Fuel",mis:"My orders",bandeja:"Inbox"};
-var ACBTN={"LATAS":"Paint: cans (fewer than a box)","CAJA DE ##":"Paint: a box of 12","NOMBRE":"a name on the list","ARTÍCULO":"an item card (adds one)","ARTÍCULO · −":"an item card's − (one less)","ARTÍCULO · 🔍":"an item card's photo",
+  "fuel/oficina":"Fuel · office","fuel/inicio":"Fuel",mis:"My orders",bandeja:"Inbox","camion/parada":"Truck · next stop","camion/pedir":"Truck · request"};
+var ACBTN={/* v283 CAMIÓN */"CAMIÓN":"Truck (menu card)","PROBLEMA":"Trucker: problem","PROBLEMA · NO SE PUEDE CARGAR":"Problem: cannot load","PROBLEMA · LA OBRA NO ESTÁ LISTA":"Problem: site not ready","PROBLEMA · PROBLEMA CON EL CAMIÓN":"Problem: truck trouble","PROBLEMA · OTRO":"Problem: other","PROBLEMA · CANCELAR":"Problem: cancel","AVISAR A LA OFICINA":"Trucker: send the problem to the office","ACTIVAR AVISOS":"Trucker: turn on notifications","CÓMO LLEGAR":"Trucker: open the stop in the maps","PRÁCTICA · LLEGUÉ":"Practice truck: arrived","PRÁCTICA · LISTO":"Practice truck: done","MATERIAL":"Truck request: material","RECOGER CONCRETO":"Truck request: haul concrete","RECOGER TIERRA":"Truck request: haul dirt","MATERIAL · BASE":"Material: base","MATERIAL · ARENA":"Material: sand","MATERIAL · TIERRA NEGRA":"Material: topsoil","MATERIAL · LOAM":"Material: loam","MATERIAL · PIEDRA":"Material: stone","MATERIAL · MULCH":"Material: mulch","MATERIAL · COLD MIX":"Material: cold mix","MATERIAL · OTRO":"Material: other","# CARGAS":"# loads","MÁS CARGAS":"More than 3 loads","CARGAS −":"One load less","CARGAS +":"One load more","HAY PARTE":"Haul: part of a load","HAY LLENO":"Haul: a full load","HAY MÁS DE UNO":"Haul: more than one load","MÁQUINA · SÍ":"Loader on site: yes","MÁQUINA · NO":"Loader on site: no","AQUÍ DONDE ESTOY":"Where: here (my truck)","OBRA DE LA LISTA":"Where: a listed site","OTRO LUGAR":"Where: another place (typed)","MÁS OBRAS":"Where: show every listed site","CUÁNDO · YA":"When: now","A LAS #":"When: at an hour","CUADRILLA PARADA · SÍ":"Crew stopped: yes","CUADRILLA PARADA · NO":"Crew stopped: no","CAMIÓN · SIGUIENTE":"Truck request: next","PEDIR CAMIÓN":"Send the truck request","CAMIÓN · LISTO":"Truck request: done","OTRO CAMIÓN":"Another truck request","CANCELAR PEDIDO":"Cancel a truck request","PARA QUIÉN":"Truck request: for whom","PARA MÍ":"Truck request: for myself","PRÁCTICA · SWITCH":"Truck request: practice switch (office)","PRÁCTICA · PEDIR CAMIÓN":"Practice truck: request a truck",
+  "LATAS":"Paint: cans (fewer than a box)","CAJA DE ##":"Paint: a box of 12","NOMBRE":"a name on the list","ARTÍCULO":"an item card (adds one)","ARTÍCULO · −":"an item card's − (one less)","ARTÍCULO · 🔍":"an item card's photo",
   "Regresar":"Back","Atras":"Back","Atrás":"Back","←":"Back","Mis pedidos":"My orders","📋 MIS PEDIDOS":"My orders","MATERIALES":"Materials","COMBUSTIBLE":"Fuel",
   "¿NO ESTÁ TU NOMBRE? Tócame para agregarl":"Name not on the list? Add it","🚛 SOY CHOFER — recojo para un mayordomo":"I'm a driver, picking up for a foreman",
   "CAMBIAR":"Change the name","EN":"English names","ES":"Spanish names","TODO":"All categories","VER MI PEDIDO →":"See my order","🔊 ESCUCHAR MI PEDIDO":"Hear my order read out",
@@ -3213,7 +3733,7 @@ function MZjTick(){var s=(0,M.useState)(0),b=s[1];(0,M.useEffect)(function(){var
       try{window.__mzFuelFocus=jm[1]!=="fuelpo"?null:/^f\d+$/.test(jm[2])?{po:jm[2].toUpperCase(),view:"pos",at:jw.at,ttl:12e4}:{id:jm[2],view:"pos",at:jw.at,ttl:12e4}}catch(x){}
       MZjump=jm[1]==="fuelpo"?null:jw}
     else if(Date.now()-MZjAt<5e3){try{history.replaceState(null,"",location.pathname+location.search)}catch(x){}return}/* the worker's fallback for older pages, right after this page opened the exact link */
-    else if(h==="dump"||h==="dumps"||h==="haul-dump"){room="haul";side="dump"}else if(h==="truckers"||h==="haul-truckers"){room="haul";side="truckers"}else if(h==="foremen"||h==="haul-foremen"||h==="payroll"){room="haul";side="foremen"}else if(h==="live"||h==="feed")room="situation";else if(h==="idle"||h==="foreman-idle"){room="fuel";try{window.__mzFuelFocus={view:"idle",at:Date.now()}}catch(x){}}else if(ROOMS.indexOf(h)>=0)room=h;
+    else if(h==="dump"||h==="dumps"||h==="haul-dump"){room="haul";side="dump"}else if(h==="truckers"||h==="haul-truckers"){room="haul";side="truckers"}else if(h==="foremen"||h==="haul-foremen"||h==="payroll"){room="haul";side="foremen"}else if(h==="dispatch"||h==="haul/dispatch"||h==="haul-dispatch"||/^haul\/dispatch\/h\d{1,7}$/.test(h)){room="haul";side="dispatch";if(/\/h\d/.test(h))DSpendSeek={k:"dispatch",req:h.split("/")[2].toUpperCase(),at:Date.now()}}else if(h==="live"||h==="feed")room="situation";else if(h==="idle"||h==="foreman-idle"){room="fuel";try{window.__mzFuelFocus={view:"idle",at:Date.now()}}catch(x){}}else if(ROOMS.indexOf(h)>=0)room=h;
     if(!room)return;try{localStorage.setItem("muniz_ops_room",room);if(side)localStorage.setItem("muniz_haul_side",side)}catch(x){}
     try{history.replaceState(null,"",location.pathname+location.search)}catch(x){}
     setTimeout(function(){try{window.dispatchEvent(new CustomEvent("mz-go",{detail:room}));if(side)window.dispatchEvent(new CustomEvent("mz-haul-side",{detail:side}));if(jw){window.dispatchEvent(new CustomEvent("mz-jump",{detail:jw}));window.dispatchEvent(new CustomEvent("mz-force",{detail:jl}))}}catch(x){}},0)};
@@ -4544,7 +5064,7 @@ function MZseekGet(k){var w=MZseekW;if(!w||w.k!==k)return null;if(Date.now()-w.a
 function MZtkInto(F,T){F.gallons=(Number(F.gallons)||0)+(Number(T.gallons)||0)||F.gallons;F.amount=(Number(F.amount)||0)+(Number(T.amount)||0)||F.amount;F.plate=F.plate||T.plate;F.reconciled=!0;T.fuel_type&&F.comb&&/DIESEL/.test(T.fuel_type||"")!==(F.comb==="DIESEL")&&(T.gallons||0)>12&&(F.flags=[...F.flags||[],`Statement says ${T.fuel_type}, PO says ${F.comb}`])}
 function UmSec({label:a,n:f,room:d,go:r,children:N}){return f?(0,s.jsx)(G,{title:`${a} \xB7 ${f}`,right:(0,s.jsxs)("button",{className:"btn sm",onClick:()=>r(d),children:["open ",a.toLowerCase()," \u2192"]}),children:N}):null}
 function UmRow({onClick:a,children:f}){return(0,s.jsx)("div",{className:"recent srch",onClick:a,style:{cursor:"pointer"},children:f})}
-function Um({d:e,q:t,now:n,onGo:r,onFocusOrder:l,mapGo:o}){let i=t.trim().toLowerCase(),u=a=>String(a||"").toLowerCase().includes(i),c=(e.orders||[]).filter(a=>!a.is_practice&&[a.req_no,a.po,a.foreman,hn(a),a.supervisor,a.provider,...(a.lines||[]).map(f=>(f.code||"")+" "+(f.descr||""))].some(u)).slice(0,12),p=(e.fuel||[]).filter(a=>[a.po,a.who,a.plate,a.vehicle_id,a.vehicle_desc,a.jobsite,a.station].some(u)).slice(0,12),w=(e.fleet||[]).filter(a=>{let fx=a.vehicle_id&&(e.fleetio||[]).find(v=>v.vehicle_id===a.vehicle_id)||{};return[a.name,a.person,a.assigned_to,a.vehicle_id,a.plate,a.vin,a.last_geofence,fx.plate,fx.vin,fx.name].some(u)}).slice(0,12),S=(e.ledger||[]).filter(a=>[a.invoice,a.po,a.foreman,a.project,a.vendor,a.po_descr].some(u)).slice(0,12),y=(e.ppl||[]).filter(a=>[a.name,a.role,a.supervisor,a.pm,a.same_as,a.notes].some(u)).slice(0,12),E=(e.tickets||[]).filter(a=>[a.po_raw,a.creator,a.plate,a.station,a.project].some(u)).slice(0,8),LCs=LCsearch(e,u),h=c.length+p.length+w.length+S.length+y.length+E.length+LCs.t.length+LCs.p.length,O=UmSec,D=UmRow;return h?(0,s.jsxs)("div",{className:"room",children:[(0,s.jsxs)("div",{className:"dim xs",style:{margin:"0 0 10px 2px"},children:[h," result",h===1?"":"s"," for ",(0,s.jsxs)("b",{className:"ink",children:["\u201C",t,"\u201D"]})," \xB7 Esc clears"]}),(0,s.jsx)(O,{go:r,label:"ORDERS",n:c.length,room:"orders",children:c.map(a=>(0,s.jsxs)(D,{onClick:()=>l(a.id),children:[(0,s.jsx)("span",{className:"mono",children:a.req_no}),(0,s.jsx)("span",{className:"rf",children:z(a.foreman)}),(0,s.jsx)(V,{c:Me[a.provider]||_.dim,children:a.provider}),(0,s.jsx)("span",{className:"dim",children:hn(a)||"\u2014"}),(0,s.jsx)("span",{className:"mono dim",children:H(a.est_total)}),(0,s.jsx)(V,{c:(yo[a.status]||["",_.dim])[1],dim:!0,children:(yo[a.status]||[a.status])[0]}),a.po?(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po]}):null]},a.id))}),(0,s.jsx)(O,{go:r,label:"FUEL POs",n:p.length,room:"fuel",children:p.map(a=>(0,s.jsxs)(D,{onClick:()=>{try{window.__mzFuelFocus={id:a.id,view:"pos",at:Date.now()}}catch(x){}r("fuel")},children:[(0,s.jsx)("span",{className:"mono",children:a.po}),(0,s.jsx)("span",{className:"rf",children:z(a.who)}),(0,s.jsx)("span",{className:"mono",children:a.vehicle_id||a.plate||"\u2014"}),(0,s.jsx)("span",{className:"dim",children:a.jobsite}),(0,s.jsx)(V,{c:Me[a.station]||_.dim,children:a.station}),(0,s.jsx)("span",{className:"dim mono",children:Br(a.ts)})]},a.id))}),(0,s.jsx)(O,{go:r,label:"FLEET",n:w.length,room:"fleet",children:w.map(a=>(0,s.jsxs)(D,{onClick:()=>{r("fleet"),a.last_lat&&setTimeout(()=>o(a.last_lat,a.last_lon,z(a.person||a.assigned_to||a.name)),250)},children:[(0,s.jsx)("span",{className:"rf",children:z(a.person||a.assigned_to||(a.name||"").replace(/\s*VIN.*$/i,""))}),(0,s.jsx)("span",{className:"mono",children:a.vehicle_id||"unlinked"}),(0,s.jsx)("span",{className:"mono dim",children:a.plate||(/^(CAMIONETA|CAMION)$/i.test(a.tipo||"")&&a.vehicle_id&&((e.fleetio||[]).find(v=>v.vehicle_id===a.vehicle_id)||{}).plate)||""}),(0,s.jsx)("span",{className:"dim",children:a.last_geofence||(a.last_lat?`${(+a.last_lat).toFixed(4)}, ${(+a.last_lon).toFixed(4)}`:"\u2014")}),(0,s.jsx)("span",{className:"dim mono",children:a.secs_since_seen!=null?Ze(a.secs_since_seen)+" ago":""})]},a.actsoft_id))}),(0,s.jsx)(O,{go:r,label:"INVOICES",n:S.length,room:"ledger",children:S.map(a=>(0,s.jsxs)(D,{onClick:()=>{MZseekW={k:"ledger",vendor:a.vendor,invoice:a.invoice,at:Date.now()};r("ledger")},children:[(0,s.jsx)(V,{c:Me[a.vendor]||_.dim,children:a.vendor}),(0,s.jsx)("span",{className:"mono",children:a.invoice}),(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po||"\u2014"]}),(0,s.jsx)("span",{className:"rf",children:z(a.foreman)}),(0,s.jsx)("span",{className:"dim",children:a.project||""}),(0,s.jsx)("span",{className:"mono dim",children:H(a.total)}),(0,s.jsx)("span",{className:a.po_check==="OK"?"dim":"red",children:MZen(a.po_check)})]},a.vendor+a.invoice))}),(0,s.jsx)(O,{go:r,label:"STATEMENT TICKETS",n:E.length,room:"fuel",children:E.map(a=>(0,s.jsxs)(D,{onClick:()=>{try{window.__mzFuelFocus={tk:a.id,view:"pos",at:Date.now()}}catch(x){}r("fuel")},children:[(0,s.jsx)(V,{c:Me[a.station]||_.dim,children:a.station}),(0,s.jsx)("span",{className:"mono",children:a.ticket_date}),(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po_raw||"\u2014"]}),(0,s.jsx)("span",{className:"rf",children:z(a.creator)}),(0,s.jsxs)("span",{className:"dim",children:[a.fuel_type," \xB7 ",a.gallons?Math.round(a.gallons)+" gal":""]}),(0,s.jsx)("span",{className:"mono dim",children:H(a.amount)})]},a.id))}),LCs.t.length?(0,s.jsx)(LCsrchT,{rows:LCs.t,go:r,today:LCs.b.today}):null,LCs.p.length?(0,s.jsx)(LCsrchP,{rows:LCs.p,go:r,today:LCs.b.today}):null,(0,s.jsx)(O,{go:r,label:"PEOPLE",n:y.length,room:"people",children:y.map(a=>(0,s.jsxs)(D,{onClick:()=>{MZseekW={k:"people",name:a.name,at:Date.now()};r("people")},children:[(0,s.jsx)("span",{className:"rf",children:z(a.name)}),(0,s.jsx)(V,{c:_.dim,dim:!0,children:a.role}),(0,s.jsx)("span",{className:"dim",children:a.supervisor?"\u2192 "+z(a.supervisor):""}),(0,s.jsx)("span",{className:"dim",children:a.pm?"PM "+z(a.pm):""}),a.same_as?(0,s.jsxs)("span",{className:"dim",children:["= ",z(a.same_as)]}):null]},a.name))})]}):(0,s.jsx)("div",{className:"room",children:(0,s.jsxs)(ve,{children:["Nothing matches \u201C",t,"\u201D across orders, fuel POs, trucks, invoices, people, statement tickets, 811 tickets or ROW permits."]})})}function jm({onIn:e}){let[t,n]=(0,M.useState)(""),[r,l]=(0,M.useState)(""),[o,i]=(0,M.useState)(""),[u,c]=(0,M.useState)(!1),p=async()=>{c(!0),i("");try{e(await wm(t.trim(),r))}catch(v){let k=String(v&&v.message||v);i(k==="BADPASS"?"Wrong email or password.":k==="NOTOFFICE"?"That account exists but isn't in office_users.":k.startsWith("NET:")?"No se pudo conectar ("+k.slice(4)+")":"Sign-in failed.")}finally{c(!1)}};return(0,s.jsx)("div",{className:"gate",children:(0,s.jsxs)("div",{className:"gcard",children:[(0,s.jsx)("div",{className:"bm big",children:"M"}),(0,s.jsx)("div",{className:"bn",children:"MU\xD1IZ OPS"}),(0,s.jsx)("div",{className:"bs",children:"COMMAND CENTER \xB7 OFFICE ACCESS"}),(0,s.jsx)("input",{className:"inp",placeholder:"email",value:t,onChange:w=>n(w.target.value),autoFocus:!0}),(0,s.jsx)("input",{className:"inp",type:"password",placeholder:"password",value:r,onChange:w=>l(w.target.value),onKeyDown:w=>w.key==="Enter"&&p()}),o?(0,s.jsx)("div",{className:"err",children:o}):null,(0,s.jsx)("button",{className:"btn green big",disabled:u||!t||!r,onClick:p,children:"ENTER"}),(0,s.jsx)("div",{className:"dim xs",children:"Every order, fuel PO and truck movement in one place."})]})})}function MzLink(){try{
+function Um({d:e,q:t,now:n,onGo:r,onFocusOrder:l,mapGo:o}){let i=t.trim().toLowerCase(),u=a=>String(a||"").toLowerCase().includes(i),c=(e.orders||[]).filter(a=>!a.is_practice&&[a.req_no,a.po,a.foreman,hn(a),a.supervisor,a.provider,...(a.lines||[]).map(f=>(f.code||"")+" "+(f.descr||""))].some(u)).slice(0,12),p=(e.fuel||[]).filter(a=>[a.po,a.who,a.plate,a.vehicle_id,a.vehicle_desc,a.jobsite,a.station].some(u)).slice(0,12),w=(e.fleet||[]).filter(a=>{let fx=a.vehicle_id&&(e.fleetio||[]).find(v=>v.vehicle_id===a.vehicle_id)||{};return[a.name,a.person,a.assigned_to,a.vehicle_id,a.plate,a.vin,a.last_geofence,fx.plate,fx.vin,fx.name].some(u)}).slice(0,12),S=(e.ledger||[]).filter(a=>[a.invoice,a.po,a.foreman,a.project,a.vendor,a.po_descr].some(u)).slice(0,12),y=(e.ppl||[]).filter(a=>[a.name,a.role,a.supervisor,a.pm,a.same_as,a.notes].some(u)).slice(0,12),E=(e.tickets||[]).filter(a=>[a.po_raw,a.creator,a.plate,a.station,a.project].some(u)).slice(0,8),LCs=LCsearch(e,u),DSs=DSsearch(t),h=c.length+p.length+w.length+S.length+y.length+E.length+LCs.t.length+LCs.p.length+DSs.length,O=UmSec,D=UmRow;return h?(0,s.jsxs)("div",{className:"room",children:[(0,s.jsxs)("div",{className:"dim xs",style:{margin:"0 0 10px 2px"},children:[h," result",h===1?"":"s"," for ",(0,s.jsxs)("b",{className:"ink",children:["\u201C",t,"\u201D"]})," \xB7 Esc clears"]}),(0,s.jsx)(O,{go:r,label:"ORDERS",n:c.length,room:"orders",children:c.map(a=>(0,s.jsxs)(D,{onClick:()=>l(a.id),children:[(0,s.jsx)("span",{className:"mono",children:a.req_no}),(0,s.jsx)("span",{className:"rf",children:z(a.foreman)}),(0,s.jsx)(V,{c:Me[a.provider]||_.dim,children:a.provider}),(0,s.jsx)("span",{className:"dim",children:hn(a)||"\u2014"}),(0,s.jsx)("span",{className:"mono dim",children:H(a.est_total)}),(0,s.jsx)(V,{c:(yo[a.status]||["",_.dim])[1],dim:!0,children:(yo[a.status]||[a.status])[0]}),a.po?(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po]}):null]},a.id))}),(0,s.jsx)(O,{go:r,label:"FUEL POs",n:p.length,room:"fuel",children:p.map(a=>(0,s.jsxs)(D,{onClick:()=>{try{window.__mzFuelFocus={id:a.id,view:"pos",at:Date.now()}}catch(x){}r("fuel")},children:[(0,s.jsx)("span",{className:"mono",children:a.po}),(0,s.jsx)("span",{className:"rf",children:z(a.who)}),(0,s.jsx)("span",{className:"mono",children:a.vehicle_id||a.plate||"\u2014"}),(0,s.jsx)("span",{className:"dim",children:a.jobsite}),(0,s.jsx)(V,{c:Me[a.station]||_.dim,children:a.station}),(0,s.jsx)("span",{className:"dim mono",children:Br(a.ts)})]},a.id))}),(0,s.jsx)(O,{go:r,label:"FLEET",n:w.length,room:"fleet",children:w.map(a=>(0,s.jsxs)(D,{onClick:()=>{r("fleet"),a.last_lat&&setTimeout(()=>o(a.last_lat,a.last_lon,z(a.person||a.assigned_to||a.name)),250)},children:[(0,s.jsx)("span",{className:"rf",children:z(a.person||a.assigned_to||(a.name||"").replace(/\s*VIN.*$/i,""))}),(0,s.jsx)("span",{className:"mono",children:a.vehicle_id||"unlinked"}),(0,s.jsx)("span",{className:"mono dim",children:a.plate||(/^(CAMIONETA|CAMION)$/i.test(a.tipo||"")&&a.vehicle_id&&((e.fleetio||[]).find(v=>v.vehicle_id===a.vehicle_id)||{}).plate)||""}),(0,s.jsx)("span",{className:"dim",children:a.last_geofence||(a.last_lat?`${(+a.last_lat).toFixed(4)}, ${(+a.last_lon).toFixed(4)}`:"\u2014")}),(0,s.jsx)("span",{className:"dim mono",children:a.secs_since_seen!=null?Ze(a.secs_since_seen)+" ago":""})]},a.actsoft_id))}),(0,s.jsx)(O,{go:r,label:"INVOICES",n:S.length,room:"ledger",children:S.map(a=>(0,s.jsxs)(D,{onClick:()=>{MZseekW={k:"ledger",vendor:a.vendor,invoice:a.invoice,at:Date.now()};r("ledger")},children:[(0,s.jsx)(V,{c:Me[a.vendor]||_.dim,children:a.vendor}),(0,s.jsx)("span",{className:"mono",children:a.invoice}),(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po||"\u2014"]}),(0,s.jsx)("span",{className:"rf",children:z(a.foreman)}),(0,s.jsx)("span",{className:"dim",children:a.project||""}),(0,s.jsx)("span",{className:"mono dim",children:H(a.total)}),(0,s.jsx)("span",{className:a.po_check==="OK"?"dim":"red",children:MZen(a.po_check)})]},a.vendor+a.invoice))}),(0,s.jsx)(O,{go:r,label:"STATEMENT TICKETS",n:E.length,room:"fuel",children:E.map(a=>(0,s.jsxs)(D,{onClick:()=>{try{window.__mzFuelFocus={tk:a.id,view:"pos",at:Date.now()}}catch(x){}r("fuel")},children:[(0,s.jsx)(V,{c:Me[a.station]||_.dim,children:a.station}),(0,s.jsx)("span",{className:"mono",children:a.ticket_date}),(0,s.jsxs)("span",{className:"mono",children:["PO ",a.po_raw||"\u2014"]}),(0,s.jsx)("span",{className:"rf",children:z(a.creator)}),(0,s.jsxs)("span",{className:"dim",children:[a.fuel_type," \xB7 ",a.gallons?Math.round(a.gallons)+" gal":""]}),(0,s.jsx)("span",{className:"mono dim",children:H(a.amount)})]},a.id))}),LCs.t.length?(0,s.jsx)(LCsrchT,{rows:LCs.t,go:r,today:LCs.b.today}):null,LCs.p.length?(0,s.jsx)(LCsrchP,{rows:LCs.p,go:r,today:LCs.b.today}):null,DSs.length?(0,s.jsx)(DSsrch,{rows:DSs,go:r}):null,(0,s.jsx)(O,{go:r,label:"PEOPLE",n:y.length,room:"people",children:y.map(a=>(0,s.jsxs)(D,{onClick:()=>{MZseekW={k:"people",name:a.name,at:Date.now()};r("people")},children:[(0,s.jsx)("span",{className:"rf",children:z(a.name)}),(0,s.jsx)(V,{c:_.dim,dim:!0,children:a.role}),(0,s.jsx)("span",{className:"dim",children:a.supervisor?"\u2192 "+z(a.supervisor):""}),(0,s.jsx)("span",{className:"dim",children:a.pm?"PM "+z(a.pm):""}),a.same_as?(0,s.jsxs)("span",{className:"dim",children:["= ",z(a.same_as)]}):null]},a.name))})]}):(0,s.jsx)("div",{className:"room",children:(0,s.jsxs)(ve,{children:["Nothing matches \u201C",t,"\u201D across orders, fuel POs, trucks, invoices, people, statement tickets, 811 tickets, ROW permits or dispatch requests."]})})}function jm({onIn:e}){let[t,n]=(0,M.useState)(""),[r,l]=(0,M.useState)(""),[o,i]=(0,M.useState)(""),[u,c]=(0,M.useState)(!1),p=async()=>{c(!0),i("");try{e(await wm(t.trim(),r))}catch(v){let k=String(v&&v.message||v);i(k==="BADPASS"?"Wrong email or password.":k==="NOTOFFICE"?"That account exists but isn't in office_users.":k.startsWith("NET:")?"No se pudo conectar ("+k.slice(4)+")":"Sign-in failed.")}finally{c(!1)}};return(0,s.jsx)("div",{className:"gate",children:(0,s.jsxs)("div",{className:"gcard",children:[(0,s.jsx)("div",{className:"bm big",children:"M"}),(0,s.jsx)("div",{className:"bn",children:"MU\xD1IZ OPS"}),(0,s.jsx)("div",{className:"bs",children:"COMMAND CENTER \xB7 OFFICE ACCESS"}),(0,s.jsx)("input",{className:"inp",placeholder:"email",value:t,onChange:w=>n(w.target.value),autoFocus:!0}),(0,s.jsx)("input",{className:"inp",type:"password",placeholder:"password",value:r,onChange:w=>l(w.target.value),onKeyDown:w=>w.key==="Enter"&&p()}),o?(0,s.jsx)("div",{className:"err",children:o}):null,(0,s.jsx)("button",{className:"btn green big",disabled:u||!t||!r,onClick:p,children:"ENTER"}),(0,s.jsx)("div",{className:"dim xs",children:"Every order, fuel PO and truck movement in one place."})]})})}function MzLink(){try{
   let q=new URLSearchParams(location.search),h=new URLSearchParams((location.hash||"").replace(/^#/,""));
   let th=q.get("token_hash"),at=h.get("access_token"),er=h.get("error_code")||h.get("error")||q.get("error_code")||q.get("error");
   if(!th&&!at&&!er)return null;

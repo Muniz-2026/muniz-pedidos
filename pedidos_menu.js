@@ -1,5 +1,10 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.14
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.15
+   v2.15: CAMIÓN (camion.js, v283). El chofer de camión ve su parada (con COMBUSTIBLE a un toque) cuando dsp_hello dice
+          que el sistema está en vivo; el nombre de práctica ve su parada de mentira; quien puede pedir camión tiene una
+          tercera tarjeta CAMIÓN. Con el modo apagado, sin respuesta o sin camion.js: igual que v2.14.
+          El nombre de práctica (config CAMION.PRACTICA) lo pone en la lista de nombres este archivo, no config.js: con un
+          pedidos_menu.js viejo no sale.
    v2.14: el renglón con tu nombre debajo de PARA MÍ (combustible de la oficina) en 13 px, no 12 (DESIGN.md: nada bajo 13 px). v262.
    v2.13: la tienda ya no se ve antes del menú, ni el menú antes de la CLAVE (Tito, Nov 10, video: "a different screen
           blinks quickly"). El menú salía en el toque del nombre y, si el app pedía la CLAVE (oficina), se quitaba un
@@ -30,6 +35,16 @@
    ===================================================================== */
 (function () {
   "use strict";
+  /* v2.15 · el nombre de práctica de CAMIÓN entra a la lista de nombres AQUÍ, lo primero, antes de que app.js la dibuje:
+     sale solo con este archivo, que lo cuida (su toque abre la parada de práctica, nunca el menú). config.js no lo pone. */
+  try {
+    var C0 = window.MUNIZ_CONFIG, P0 = C0 && C0.CAMION && C0.CAMION.PRACTICA;
+    if (C0 && Array.isArray(P0) && P0.length) {
+      if (!Array.isArray(C0.PERSONAL)) C0.PERSONAL = [];
+      var L0 = C0.PERSONAL.map(function (x) { return String(x || "").toUpperCase().trim(); });
+      P0.forEach(function (x) { x = String(x || "").toUpperCase().trim(); if (x && L0.indexOf(x) < 0) { C0.PERSONAL.push(x); L0.push(x); } });
+    }
+  } catch (e) { }
   var K_PED = "muniz_pedido", K_FUEL_ME = "muniz_fuel_me", K_SEEN = "muniz_menu_seen";
   var TITLE = /¿A QUÉ TIENDA VAS\?/i;
 
@@ -44,7 +59,7 @@
   function hide() {
     if (!overlay) return;
     var el = overlay; overlay = null;
-    if (el.parentNode) el.parentNode.removeChild(el); if (!panel) { showPills(); dlg(false); }
+    if (el.parentNode) el.parentNode.removeChild(el); if (!panel && !cam) { showPills(); dlg(false); }
   }
   /* el último PO de combustible de esta persona en este teléfono (lo guarda fuel.js) */
   function lastFuelPO(name) {
@@ -113,7 +128,7 @@
   function peopleForPicker() {
     var c = window.MUNIZ_CONFIG || {}, F = c.COMBUSTIBLE || {}, seen = {}, groups = { may: [], sup: [], pm: [] };
     var office = {}; Object.keys(c.OFICINA || {}).forEach(function (k) { office[upk(k)] = 1; });
-    var drivers = {}; (F.CHOFERES_CAMION || []).forEach(function (k) { drivers[upk(k)] = 1; });
+    var drivers = {}; (F.CHOFERES_CAMION || []).concat((c.CAMION || {}).PRACTICA || []).forEach(function (k) { drivers[upk(k)] = 1; });   // v2.15: + práctica
     var sups = {}; Object.keys(c.SUPERVISORES || {}).forEach(function (k) { sups[upk(k)] = 1; });
     var pms = {}; (Array.isArray(c.GERENTES) ? c.GERENTES : Object.keys(c.GERENTES || {})).forEach(function (k) { pms[upk(k)] = 1; });
     function add(n, g) { n = upk(n); if (!n || seen[n] || office[n] || drivers[n]) return; seen[n] = 1; groups[g].push(n); }
@@ -166,9 +181,13 @@
   }
   var directFuel = false;
   function show(name) {
-    if (overlay || panel) return;
+    if (overlay || panel || cam) return;
     pend = "";                                    // v2.13: el nombre tocado ya tiene su pantalla
     dlg(true);
+    var cw = camTruck(name);                      // v2.15: chofer con el sistema en vivo, o el nombre de práctica → su parada
+    if (cw && openCam(name, cw)) return;
+    if (camPractice(name)) return;                // v2.15: el nombre de práctica nunca ve el menú (nada real: ni pedido ni PO)
+    if (camEarly(name)) return;                  // v2.15: camion.js todavía no carga (el app abrió en la tienda): espera el fin de la carga
     if (isDriver(name)) {
       directFuel = true; markSeen(name);
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }
@@ -199,13 +218,116 @@
       openFuel(name);
     };
     overlay.querySelector("#mz-back").onclick = function () { hide(); clearSeen(); appBack(); };
+    camCard(name);                                // v2.15: la tarjeta CAMIÓN, solo si dsp_hello lo dice
+  }
+
+  /* ---------- v2.15 · CAMIÓN (camion.js: los cuatro camiones grandes) ----------
+     Todo depende de window.MunizCamion y de la respuesta de dsp_hello que camion.js guarda en el teléfono (se pregunta
+     otra vez a los 10 minutos; "chofer en vivo" abre su parada hasta 18 horas, con COMBUSTIBLE desde el primer cuadro):
+     sin ella, con el modo "off", con un error o si camion.js no cargó, todo sigue como hoy (el chofer va directo a
+     combustible, el menú trae MATERIALES y COMBUSTIBLE). Nada de aquí espera a la red.
+     · chofer (dsp_hello: trucker, modo live) o el nombre de práctica (CAMION.PRACTICA, cualquier modo menos off) → su
+       parada (camion/parada), con COMBUSTIBLE a un toque;
+     · requester → la tarjeta CAMIÓN debajo de las dos de hoy → pedir un camión (camion/pedir); la oficina escoge
+       ¿PARA QUIÉN ES? dentro de esa pantalla. */
+  var camOff = {};                                   // nombre → hasta cuándo no se abre la parada (falló, o el modo cambió)
+  function camApi() { try { var C = window.MunizCamion; return C && typeof C.mountTrucker === "function" && typeof C.truckerWorld === "function" ? C : null; } catch (e) { return null; } }
+  function camTruck(name) {
+    try { var C = camApi(), n = upk(name); if (!C || (camOff[n] && Date.now() < camOff[n])) return ""; return C.truckerWorld(n) || ""; } catch (e) { return ""; }
+  }
+  /* el app puede pintar la tienda antes de que camion.js (cargado al final de la página) corra: si en ese momento la
+     respuesta guardada en el teléfono dice que este nombre ve su parada (chofer en vivo: hasta 18 h; práctica: 10 min), se
+     espera al fin de la carga (milisegundos) y se decide entonces; si camion.js no llegó, show() sigue con lo de hoy. Sin
+     respuesta guardada: lo de hoy al instante. */
+  /* el nombre de práctica (config CAMION.PRACTICA) es solo del sistema de camiones: no está en People. Siempre su parada de
+     mentira (camion.js dice si el sistema está apagado); si camion.js no está, regresa a los nombres. Nunca el menú: nada de
+     lo que hace ahí (pedido de material, PO de combustible) es de práctica. */
+  function isPracticeName(n) { try { var l = ((window.MUNIZ_CONFIG || {}).CAMION || {}).PRACTICA || []; for (var i = 0; i < l.length; i++) if (upk(l[i]) === upk(n)) return true; } catch (e) { } return false; }
+  function camPractice(name) {
+    if (!isPracticeName(name)) return false;
+    if (camApi() && openCam(name, "practice")) return true;
+    if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", function () { if (!overlay && !panel && !cam) show(name); }); return true; }
+    dlg(false); clearSeen(); appBack();
+    try { if (window.MZhint) window.MZhint("La práctica de camión no abrió. Cierra el app y ábrelo otra vez.", { tone: "stop", ms: 6000 }); } catch (e) { }
+    return true;
+  }
+  var camWait = {};
+  function camEarly(name) {
+    try {
+      var n = upk(name);
+      if (camWait[n] && document.readyState === "loading") return true;            // ya está esperando
+      if (camApi() || document.readyState !== "loading" || (camOff[n] && Date.now() < camOff[n])) return false;
+      var c = JSON.parse(localStorage.getItem("muniz_cam_hello") || "{}") || {}, e = c[n], h = e && e.h, age = e && e.at ? Date.now() - e.at : -1;
+      if (!h || !e.at || age < -60000 || h.ok !== true) return false;
+      // chofer en vivo: la respuesta guardada vale 18 h (el primer toque del día abre su parada); práctica: 10 min
+      if (!((h.role === "trucker" && h.mode === "live" && age <= 18 * 3600e3) || (h.role === "practice" && h.mode !== "off" && age <= 10 * 60e3))) return false;
+      camWait[n] = 1;
+      document.addEventListener("DOMContentLoaded", function () { camWait[n] = 0; if (!overlay && !panel && !cam) show(n); });
+      return true;
+    } catch (e) { return false; }
+  }
+  function camPanel(scr) {
+    var el = document.createElement("div");
+    el.id = "mz-cam"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "Camión"); el.setAttribute("data-scr", scr);
+    el.style.cssText = "position:fixed;inset:0;z-index:9993;background:#F2F2F7;overflow-y:auto;-webkit-overflow-scrolling:touch;";
+    document.body.appendChild(el); return el;
+  }
+  function openCam(name, world) {                    // la parada del chofer; false = no se pudo y sigue lo de hoy
+    var C = camApi(); if (!C || cam) return false;
+    var n = upk(name);
+    cam = camPanel("camion/parada"); dlg(true); hidePills();
+    try {
+      camHandle = C.mountTrucker(cam, { who: n, world: world,
+        onFuel: function () { try { localStorage.setItem(K_FUEL_ME, JSON.stringify(n)); } catch (e) { } openFuel(n); },
+        onClose: function () { closeCam(); clearSeen(); appBack(); },
+        onFallback: function () {                        // el servidor dice off / shadow, o no contestó y no hay nada guardado
+          camOff[n] = Date.now() + 10 * 60e3; closeCam();
+          if (panel) { directFuel = true; markSeen(n); return; }   // ya está en combustible: al cerrarlo, a los nombres, como hoy
+          show(n);
+        } });
+      return true;
+    } catch (e) { camOff[n] = Date.now() + 10 * 60e3; closeCam(); dlg(true); return false; }
+  }
+  function openReq(name) {                           // pedir un camión, encima del menú
+    var C = camApi(); if (!C || cam || panel || typeof C.mountRequest !== "function") return;
+    cam = camPanel("camion/pedir"); dlg(true); hidePills();
+    try { camHandle = C.mountRequest(cam, { who: upk(name), office: isOfficeName(name), onClose: function () { closeCam(); } }); }
+    catch (e) { closeCam(); try { if (window.MZhint) window.MZhint("No abrió CAMIÓN. Cierra el app y ábrelo otra vez.", { tone: "stop", ms: 6000 }); } catch (x) { } }
+  }
+  function closeCam() {
+    var C = camApi();
+    try { if (C && camHandle) C.unmount(); } catch (e) { }
+    camHandle = null;
+    if (cam && cam.parentNode) cam.parentNode.removeChild(cam);
+    cam = null; if (!panel) window.__mzBusy = false;
+    if (!overlay && !panel) { dlg(false); showPills(); }
+    if (window.__mzFlushReload) window.__mzFlushReload();
+  }
+  /* la tarjeta CAMIÓN: al dibujar el menú si la respuesta ya está guardada; si no, cuando llegue (debajo de las dos de hoy) */
+  function camCard(name) {
+    try {
+      var C = camApi(), ov = overlay, n = upk(name); if (!C || !ov || typeof C.wantsCard !== "function") return;
+      var add = function () {
+        try {
+          if (!ov || overlay !== ov || panel || cam || ov.querySelector("#mz-cam-card")) return;
+          if (!C.wantsCard(n)) return;
+          var f = ov.querySelector("#mz-fuel"); if (!f || !f.parentNode) return;
+          var w = document.createElement("div");
+          w.innerHTML = card("mz-cam-card", "#1C1C1E", "🚛", "CAMIÓN", "Material · recoger concreto o tierra", "PEDIR CAMIÓN →");
+          var b = w.firstChild; f.parentNode.appendChild(b);
+          b.onclick = function () { openReq(n); };
+        } catch (e) { }
+      };
+      add();
+      if (!ov.querySelector("#mz-cam-card") && typeof C.ask === "function") C.ask(n).then(add, function () { });
+    } catch (e) { }
   }
 
   /* el app no crea historial al tocar un nombre: para regresar, tocamos SU flecha ← (la de la pantalla de la tienda) */
   function appBack() {
     var btns = document.querySelectorAll("button, a");
     for (var i = 0; i < btns.length; i++) {
-      var b = btns[i]; if (overlay && overlay.contains(b)) continue; if (panel && panel.contains(b)) continue;
+      var b = btns[i]; if (overlay && overlay.contains(b)) continue; if (panel && panel.contains(b)) continue; if (cam && cam.contains(b)) continue;
       var txt = (b.textContent || "").trim(), lab = (b.getAttribute("aria-label") || "").toLowerCase();
       if (txt === "←" || txt === "‹" || /atr[aá]s|regresar|volver|back/.test(lab)) { b.click(); return true; }
     }
@@ -214,7 +336,7 @@
   }
 
   /* ---------- COMBUSTIBLE dentro del app: mismo documento, mismo estilo, una sola cabecera ---------- */
-  var panel = null, fuelHandle = null, hiddenPills = [];
+  var panel = null, fuelHandle = null, hiddenPills = [], cam = null, camHandle = null;   // cam: la pantalla CAMIÓN (v2.15)
   /* ---------- combustible: ¿PARA QUIÉN ES? (solo oficina) ----------
      Cuando un chofer llama a la oficina por combustible, la oficina pide el PO A NOMBRE DE ÉL:
      sale con su nombre y su unidad (placa, diésel/gasolina, millaje), y el servidor anota quién
@@ -232,7 +354,7 @@
     Object.keys(c.SUPERVISORES || {}).forEach(function (n) { add(n, "SUPERVISOR"); });
     (Array.isArray(c.GERENTES) ? c.GERENTES : Object.keys(c.GERENTES || {})).forEach(function (n) { add(n, "GERENTE"); });
     (F.USUARIOS_EXTRA || []).forEach(function (n) { add(n, "PERSONAL"); });
-    (c.PERSONAL || []).forEach(function (n) { add(n, "PERSONAL"); });
+    (c.PERSONAL || []).forEach(function (n) { if (!isPracticeName(n)) add(n, "PERSONAL"); });   // v2.15: sin el nombre de práctica
     Object.keys(c.OFICINA || {}).forEach(function (n) { add(n, "OFICINA"); });
     return out;
   }
@@ -336,9 +458,9 @@ function openFuel(name, por) {
     window.__mzFuelPor = "";
     if (fuelHandle) { try { fuelHandle.unmount(); } catch (e) { } fuelHandle = null; }
     if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
-    panel = null; document.body.style.overflow = ""; window.__mzBusy = false; if (!overlay) dlg(false);
+    panel = null; document.body.style.overflow = ""; window.__mzBusy = false; if (!overlay && !cam) dlg(false);
     if (overlay) { hidePills(); try { var sub = overlay.querySelector("#mz-fuel-sub"); if (sub) sub.innerHTML = fuelSubHTML(who() || tapped); var cta = overlay.querySelector("#mz-fuel > div:last-child"); if (cta && lastFuelPO(who() || tapped)) cta.textContent = "OTRO PO →"; } catch (e) { } }
-    else showPills();
+    else if (cam) hidePills(); else showPills();
     if (window.__mzFlushReload) window.__mzFlushReload();   // si llegó una versión nueva mientras cargaba, ahora sí
     if (directFuel) { directFuel = false; clearSeen(); appBack(); return; }   // chofer: de regreso a la lista de nombres
     clearSeen(); onStores = false; now(); check();   // de vuelta al menú ¿QUÉ VAS A HACER?, en este mismo cuadro (v2.13)
@@ -379,7 +501,7 @@ function openFuel(name, por) {
   var NAME_RE = /^[A-ZÁÉÍÓÚÜÑ]+(?: [A-ZÁÉÍÓÚÜÑ]+)+$/;
   var NOT_NAME = /MIS PEDIDOS|CAMBIAR|PRÁCTICA|PRACTICA|CHOFER|CANCELAR|AGREGAR|QUITAR|BORRAR|SALIR|^EN$|^ES$|^←/;
   document.addEventListener("click", function (ev) {
-    if (panel || overlay) return;
+    if (panel || overlay || cam) return;
     if (!hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) return;
     if (pinOpen()) return;                                                       // tecleando la clave: no es un nombre
     var b = ev.target && ev.target.closest ? ev.target.closest("button") : null; if (!b) return;
@@ -399,7 +521,7 @@ function openFuel(name, por) {
   function check() {
     clearTimeout(t);
     t = setTimeout(function () {
-      if (panel) { hidePills(); return; }                                           // combustible abierto encima: no tocar
+      if (panel || cam) { hidePills(); return; }                                           // combustible abierto encima: no tocar
       if (hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) { if (!pinOpen()) pend = ""; clearSeen(); hide(); if (getPara()) setPara(""); return; }   // lista de nombres: se olvida para quién era
       if (pinOpen()) { hide(); return; }                                             // pantalla de la clave: nada encima
       if (hasText(TITLE, "h1,h2,h3,div,span")) { var n = who() || (Date.now() - tappedAt < 2000 ? tapped : ""); if (n && !seen(n)) show(n); }
@@ -418,7 +540,7 @@ function openFuel(name, por) {
   function now() {
     var h = document.querySelector("#root h1"), st = !!h && TITLE.test(h.textContent || "");
     var came = st && !onStores; onStores = st;
-    if (!came || overlay || panel) return;                                       // sólo la tienda que acaba de salir
+    if (!came || overlay || panel || cam) return;                                       // sólo la tienda que acaba de salir
     var n = pend || who();
     if (!n || seen(n) || pinOpen() || hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) return;
     show(n);

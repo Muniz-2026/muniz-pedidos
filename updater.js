@@ -1,4 +1,6 @@
-/* MUÑIZ Pedidos · actualizador  ·  v2.1
+/* MUÑIZ Pedidos · actualizador  ·  v2.2
+   v2.2 (v283): la parada del chofer (camion/parada) es un momento seguro: al recargar vuelve igual, en su parada.
+         Pedir un camión (camion/pedir) no: es un formulario (y camion.js levanta __mzBusy mientras está abierto).
    v2.1 (23 oct 2026): la bandeja del supervisor también se actualiza sola (bandeja.js levanta __mzBusy mientras una
          tarjeta tiene cambios sin guardar, y entonces no se recarga); se quitan dos registros que nadie leía.
    v2.0 (22 oct 2026): un app que el teléfono deja abierto en memoria (sobre todo el ícono de la pantalla de
@@ -29,7 +31,8 @@
      escrito, y entonces no se recarga. fuel/para (el que escoge la oficina no se guarda) y fuel/oficina (login) quedan
      fuera a propósito. Una pantalla nueva de mz_track.js no recarga hasta que se agregue aquí */
   var SAFE = { inicio: 1, para: 1, prov: 1, menu: 1, pedir: 1, "pedir/foto": 1, listo: 1, hecho: 1, mis: 1,
-               "fuel/inicio": 1, "fuel/nombre": 1, "fuel/est": 1, bandeja: 1 };
+               "fuel/inicio": 1, "fuel/nombre": 1, "fuel/est": 1, bandeja: 1,
+               "camion/parada": 1 };
   function screen() { try { return window.MZT && window.MZT.screen ? String(window.MZT.screen() || "") : ""; } catch (e) { return ""; } }
   window.__mzUpd = function () { return { build: BUILD, pub: PUB, stale: stale, pending: pending, reloading: reloading, busy: !!window.__mzBusy, had: had, screen: screen() }; };
   function typing() { try { var a = document.activeElement; return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); } catch (e) { return false; } }

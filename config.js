@@ -232,6 +232,11 @@ window.MUNIZ_CONFIG = {
     ALERTAS: { HORAS_MIN_ENTRE_CARGAS: 6 },
   },
 
+  /* ===== CAMION (los camiones grandes, v283) =====
+     PRACTICA: el nombre que ve la pantalla del chofer con un camion de mentira (nada es real). No va en PERSONAL:
+     pedidos_menu.js (v2.15) lo pone en la lista de nombres, y con un pedidos_menu.js viejo no sale. */
+  CAMION: { PRACTICA: ["SANTIAGO NUNEZ"] },
+
   /* (compatibilidad con la version anterior - ya no se usa; la clave vive en la base de datos desde v214) */
   MASTER_USER: "TITO CUETO",
   OFFICE_PIN:  "",

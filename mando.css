@@ -1998,3 +1998,125 @@ html[data-theme] .hl-srow.go.on{background:var(--btn-hover);box-shadow:inset 3px
 .sd-rt i{flex:0 0 auto;width:20px;height:3px;border-radius:2px;background:var(--rc)}
 .sd-rt i.dash{background:repeating-linear-gradient(90deg,var(--rc) 0 6px,transparent 6px 10px)}
 .sd-legend i.rt{width:20px;height:3px;border-radius:2px;vertical-align:3px}
+
+/* ===== DISPATCH board ===== */
+/* Haul → DISPATCH (spec2 §10). Grey = normal, amber = a person has to look, red = act now. Tokens only (light + dark from the
+   theme blocks); a truck's lane wears the color its marker has on the map (blue, orange, green, violet, cyan, red tokens). */
+html[data-theme] .ds-room{display:grid;gap:14px;min-width:0}
+html[data-theme] .ds-room>.sd-switch{margin:0}
+html[data-theme] .ds-line{padding:12px 16px;border-radius:12px;border:1px solid var(--line2);background:var(--panel);font:500 14px/1.45 var(--sans);color:var(--ink2);display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+html[data-theme] .ds-line.red{border-color:color-mix(in srgb,var(--red) 45%,var(--line2));color:var(--red-t)}
+html[data-theme] .ds-line.amber{border-color:color-mix(in srgb,var(--amber) 45%,var(--line2));color:var(--ink)}
+html[data-theme] .ds-head{padding:14px 18px;display:grid;gap:12px}
+html[data-theme] .ds-hrow{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;justify-content:space-between}
+html[data-theme] .ds-hl{display:grid;gap:8px;min-width:0}
+html[data-theme] .ds-hr{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+html[data-theme] .ds-eyebrow{font:650 11px/1 var(--sans);letter-spacing:.18em;color:var(--dim)}
+html[data-theme] .segs.ds-segs{flex-wrap:wrap;max-width:100%;width:max-content}
+html[data-theme] .segs .ds-seg{min-height:34px;padding:8px 13px;font-size:12px;letter-spacing:.06em}
+html[data-theme] .segs .ds-seg.wait{color:var(--dim);cursor:help;font-weight:500;letter-spacing:.02em}
+html[data-theme] .segs .ds-seg:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+html[data-theme] .ds-head .btn[aria-expanded="true"]{border-color:var(--btn-line-hover);background:var(--btn-hover)}
+html[data-theme] .ds-facts{display:flex;flex-wrap:wrap;gap:6px 22px;padding-top:10px;border-top:1px dashed var(--line2);font:500 13px/1.45 var(--sans);color:var(--dim)}
+html[data-theme] .ds-facts>span{min-width:0;overflow-wrap:anywhere}
+html[data-theme] .ds-facts b{font-weight:650;color:var(--ink2);margin-right:6px}
+html[data-theme] .ds-facts .amber,html[data-theme] .ds-facts .amber b{color:var(--amber-t)}
+html[data-theme] .ds-facts .red,html[data-theme] .ds-facts .red b{color:var(--red-t)}
+html[data-theme] .ds-flags{display:grid;gap:6px;padding:10px 12px}
+html[data-theme] .ds-flag{--fc:var(--amber);display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid var(--line);border-left:4px solid var(--fc);background:var(--panel)}
+html[data-theme] .ds-flag.red{--fc:var(--red)}
+html[data-theme] .ds-ft{font:550 13.5px/1.4 var(--sans);color:var(--ink);min-width:0;overflow-wrap:anywhere}
+html[data-theme] .ds-fa{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+html[data-theme] .ds-grid{display:grid;gap:14px;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr);align-items:start;min-width:0}
+html[data-theme] .ds-grid>.panel{min-width:0;margin:0}
+html[data-theme] .ds-list{display:grid;gap:10px;padding:12px}
+html[data-theme] .ds-empty{padding:14px 16px;font:500 13.5px/1.45 var(--sans);color:var(--dim)}
+html[data-theme] .ds-card{display:grid;gap:5px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);min-width:0}
+html[data-theme] .ds-card.amber{border-left:4px solid var(--amber)}
+html[data-theme] .ds-card.on,html[data-theme] .ds-lane.on{box-shadow:0 0 0 2px var(--focus)}
+html[data-theme] .ds-c1{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font:600 15px/1.3 var(--sans);color:var(--ink)}
+html[data-theme] .ds-c1 .mono{font-variant-numeric:tabular-nums;color:var(--ink2)}
+html[data-theme] .ds-c2{font:500 13px/1.4 var(--sans);color:var(--ink2);overflow-wrap:anywhere}
+html[data-theme] .ds-c2.amber{color:var(--amber-t)}
+html[data-theme] .ds-c2.dim{color:var(--dim)}
+html[data-theme] .ds-prio{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font:700 12px/1.25 var(--sans);border:1px solid var(--line2);color:var(--ink2)}
+html[data-theme] .ds-prio.p1{color:var(--red-t);border-color:color-mix(in srgb,var(--red) 40%,var(--line2))}
+html[data-theme] .ds-prio.p2{color:var(--amber-t);border-color:color-mix(in srgb,var(--amber) 40%,var(--line2))}
+html[data-theme] .ds-loads{display:grid;gap:4px;margin-top:4px}
+html[data-theme] .ds-load{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;padding:6px 8px;border-radius:8px;background:var(--panel2);font:500 13px/1.35 var(--sans);color:var(--ink2)}
+html[data-theme] .ds-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+html[data-theme] .ds-lane{--dc:var(--faint);display:grid;gap:8px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);border-left:4px solid var(--dc);background:var(--panel);min-width:0}
+html[data-theme] .ds-lane.ds-c0{--dc:var(--blue)}
+html[data-theme] .ds-lane.ds-c1{--dc:var(--orange)}
+html[data-theme] .ds-lane.ds-c2{--dc:var(--green)}
+html[data-theme] .ds-lane.ds-c3{--dc:var(--violet)}
+html[data-theme] .ds-lane.ds-c4{--dc:var(--cyan)}
+html[data-theme] .ds-lane.ds-c5{--dc:var(--red)}
+html[data-theme] .ds-lane.hired{background:var(--panel2)}
+html[data-theme] .ds-l1{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;font:600 15px/1.3 var(--sans);color:var(--ink)}
+html[data-theme] .ds-l1 .dim{font-weight:500;font-size:13px}
+html[data-theme] .ds-l1r{margin-left:auto;font:500 13px/1.3 var(--sans);color:var(--dim)}
+html[data-theme] .ds-l1r.amber{color:var(--amber-t)}
+html[data-theme] .ds-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--dc);align-self:center}
+html[data-theme] .ds-dot.mv{width:0;height:0;border-radius:0;background:none;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid var(--dc)}
+html[data-theme] .ds-l2{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between;font:500 13px/1.4 var(--sans);color:var(--ink2)}
+html[data-theme] .ds-l2 .dim{color:var(--dim)}
+html[data-theme] .ds-stops{display:grid;gap:6px}
+html[data-theme] .ds-sub{font:650 11px/1.2 var(--sans);letter-spacing:.14em;color:var(--dim);margin-top:2px}
+html[data-theme] .ds-stop{display:grid;grid-template-columns:26px minmax(0,1fr);gap:4px 10px;align-items:start;padding:7px 8px;border-radius:8px;background:var(--panel2)}
+html[data-theme] .ds-stop>.ds-fa{grid-column:2;justify-content:flex-start}
+html[data-theme] .ds-stop.now{border:1px solid color-mix(in srgb,var(--dc) 55%,var(--line2))}
+html[data-theme] .ds-sq{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--dc);color:#fff;font:700 12px/1 var(--sans)}
+html[data-theme] .ds-sm{display:grid;gap:3px;min-width:0}
+html[data-theme] .ds-s1{font:550 13.5px/1.35 var(--sans);color:var(--ink);overflow-wrap:anywhere}
+html[data-theme] .ds-s2{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font:500 12.5px/1.4 var(--sans);color:var(--dim);overflow-wrap:anywhere}
+html[data-theme] .ds-s2.amber{color:var(--amber-t);font-weight:600}
+html[data-theme] .ds-hired{display:grid;gap:8px;padding:0 12px 12px}
+html[data-theme] .ds-mapp{overflow:hidden}
+html[data-theme] .hl-map.ds-map{height:560px;min-height:0;border-radius:0 0 14px 14px}
+html[data-theme] .ds-picking.leaflet-container,html[data-theme] .ds-picking .leaflet-interactive{cursor:crosshair!important}
+html[data-theme] .ds-tot{padding:10px 16px;font:500 13.5px/1.45 var(--sans);color:var(--ink2);border-bottom:1px solid var(--hair)}
+html[data-theme] .ds-tot b{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+html[data-theme] .ds-tot b.amber{color:var(--amber-t)}
+html[data-theme] .ds-tbl td{vertical-align:top;font-size:13px}
+html[data-theme] .ds-tbl .nowrap{white-space:nowrap}
+html[data-theme] .ds-why{min-width:260px}
+html[data-theme] .ds-rsn{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+html[data-theme] .ds-rsn .inp{flex:1 1 180px;min-width:0}
+html[data-theme] .ds-wk{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel)}
+html[data-theme] .ds-wt{font:500 13.5px/1.4 var(--sans);color:var(--ink2);min-width:0;overflow-wrap:anywhere}
+html[data-theme] .ds-wt b{color:var(--ink);font-weight:650}
+html[data-theme] .ds-sets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px;padding:14px 16px;border-bottom:1px solid var(--hair)}
+html[data-theme] .ds-sets label,html[data-theme] .ds-srcs{display:grid;gap:6px;align-content:start;font:500 13px/1.4 var(--sans);color:var(--ink2);min-width:0}
+html[data-theme] .ds-sets label>span,html[data-theme] .ds-srcs>span{font:650 12px/1.3 var(--sans);color:var(--ink)}
+html[data-theme] .ds-srcs b{color:var(--ink);font-weight:650}
+html[data-theme] .ds-srcs .dim{color:var(--dim)}
+html[data-theme] .ds-ptools{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:12px 16px}
+html[data-theme] .ds-ptools .inp{flex:1 1 220px;min-width:0;max-width:360px}
+html[data-theme] .ds-plist{display:grid;gap:6px;padding:0 12px 14px;max-height:560px;overflow-y:auto}
+html[data-theme] .ds-pl{display:grid;gap:4px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel)}
+html[data-theme] .ds-p1{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font:600 14px/1.3 var(--sans);color:var(--ink)}
+html[data-theme] .ds-p1 .dim{font-weight:500;font-size:13px}
+html[data-theme] .ds-pp{display:inline-flex;gap:6px;align-items:center;margin-left:auto;font:500 12.5px/1 var(--sans);color:var(--dim)}
+html[data-theme] .ds-pp .inp{min-height:34px;padding-top:4px;padding-bottom:4px}
+html[data-theme] .ds-p2{font:500 12.5px/1.45 var(--sans);color:var(--dim);overflow-wrap:anywhere}
+html[data-theme] .ds-facts2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 16px;color:var(--ink2)}
+html[data-theme] .lc-chip.ds-told{--c:var(--accent);font-weight:650}
+html[data-theme] .ds-why1{color:var(--amber-t)}
+html[data-theme] .ds-notes{display:grid;gap:4px;padding-top:8px;font:500 13px/1.45 var(--sans);color:var(--ink2)}
+html[data-theme] .ds-notes b{font-weight:650;color:var(--ink)}
+html[data-theme] .ds-notes ul{margin:0;padding-left:18px;display:grid;gap:2px}
+html[data-theme] .ds-stop.dropped{opacity:.75}
+html[data-theme] .ds-stop.dropped .ds-sq{background:var(--faint)}
+html[data-theme] .ds-stop.dropped s{text-decoration-thickness:1.5px}
+html[data-theme] .ds-short{font:500 13px/1.3 var(--sans);color:var(--ink2)}
+html[data-theme] .ds-pnote{padding:10px 16px 0;font:500 13px/1.45 var(--sans);color:var(--dim)}
+html[data-theme] .ds-asks .ds-list{padding-top:8px}
+@media (max-width:1400px){html[data-theme] .ds-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}html[data-theme] .ds-grid>.ds-mapp{grid-column:1/-1}}
+@media (max-width:900px){html[data-theme] .ds-facts2{grid-template-columns:minmax(0,1fr)}html[data-theme] .ds-grid{grid-template-columns:minmax(0,1fr)}html[data-theme] .ds-sets{grid-template-columns:minmax(0,1fr)}
+  html[data-theme] .hl-map.ds-map{height:420px}html[data-theme] .ds-l1r{margin-left:0;flex-basis:100%}html[data-theme] .ds-pp{margin-left:0}}
+/* the Haul switch has four sides now: it wraps on a phone instead of running off the screen */
+@media (max-width:560px){html[data-theme] .sd-switch{flex-wrap:wrap;border-radius:16px;width:auto}html[data-theme] .sd-sw{padding:10px 12px;letter-spacing:.12em}}
+
+/* phones: the mode and world switches wrap instead of scrolling sideways (the shared .segs scrolls under 640 px) */
+@media (max-width:640px){html[data-theme] .segs.ds-segs{overflow:visible;flex-wrap:wrap;display:flex;width:auto;max-width:100%;box-sizing:border-box}html[data-theme] .segs .ds-seg{white-space:normal;text-align:left;flex:1 1 auto;min-width:0}}

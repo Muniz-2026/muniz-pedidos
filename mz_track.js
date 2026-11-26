@@ -1,5 +1,7 @@
 /* =====================================================================
-   MUÑIZ · ACTIVIDAD EN VIVO  ·  mz_track.js  ·  v1.3
+   MUÑIZ · ACTIVIDAD EN VIVO  ·  mz_track.js  ·  v1.4
+   v1.4 (v283): la pantalla CAMIÓN (camion.js, #mz-cam) se llama camion/parada (el chofer) o camion/pedir (pedir un
+         camión). updater.js recarga en camion/parada, nunca en camion/pedir.
    v1.3 (10 nov 2026): al tocar IR AL INICIO en un link que no abrió (link_rescue borra el link sin recargar) la pantalla
          seguía diciendo "revisar": ACTIVITY veía otra pantalla y updater.js nunca actualizaba ese teléfono. Ahora la
          pantalla sale del link que hay ahora en la dirección; si el app no abrió con un link, igual que antes.
@@ -31,7 +33,7 @@
   var KEY = String(SB.ANON_KEY || "").trim();
   if (!URL_ || !KEY) return;                      // sin base de datos: no hace nada
 
-  var VERSION = "1.3";
+  var VERSION = "1.4";
   var ME = document.currentScript, PAGE = (ME && ME.getAttribute("data-page")) || "pedidos";   // pedidos · fuel · bandeja
   var K_DEV = "muniz_device_id", K_PED = "muniz_pedido", K_Q = "muniz_mzt_q_" + PAGE, K_FIRST = "muniz_mzt_first", K_SEEN = "muniz_mzt_seen";
   var MAXQ = 400;
@@ -98,6 +100,8 @@
       }
       var panel = d.querySelector("body > .mzf-scroll");
       if (panel) return panel.querySelector(".mzf-names") ? "fuel/nombre" : "fuel/" + ((fuelS && fuelS.open && fuelS.step) || "est");
+      var cam = d.getElementById("mz-cam");          // v1.4: CAMIÓN (encima del menú; el combustible va encima de ella)
+      if (cam) { var cs = cam.getAttribute("data-scr") || ""; return /^camion\/(parada|pedir)$/.test(cs) ? cs : "camion/pedir"; }
       if (d.getElementById("mz-fpara-q")) return "fuel/para";
       if (d.getElementById("mz-para-back")) return "para";
       if (d.getElementById("mz-mat")) return "menu";
