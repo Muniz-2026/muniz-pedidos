@@ -1,4 +1,5 @@
-/* MUÑIZ Pedidos - service worker  ·  v283
+/* MUÑIZ Pedidos - service worker  ·  v284
+     · v284: Pedidos: a truck driver whose phone reloads the page (the phone bringing it back, or a new version arriving while he chooses the station) comes back on fuel, not on the material stores; if fuel cannot open he goes back to the names with a message instead of a blank screen; the menu's three "no abrió" messages now show (pedidos_menu.js 2.16).
      · v283: Pedidos: CAMIÓN — a big-truck driver sees his next stop and a foreman can ask for a truck (dispatch); while the dispatch mode is off nothing changes on any phone.
      · v282: Command Center Haul → Foremen / Truckers payroll: a job with several job numbers (CAUDI) takes the one the office's dated list has in force that day (parche227).
      · v281: Fuel: when the miles typed fit another truck, one tap puts that truck's plate in (the phone's plate memory after a truck swap).
@@ -115,7 +116,7 @@
        an approval link (and updater.js can update that phone); the office PARA MÍ name line is 13 px.
    Publishing rule: EVERY push must change this file (bump the version below).
    The version line is what makes phones notice. */
-const CACHE = "muniz-pedidos-v283";
+const CACHE = "muniz-pedidos-v284";
 const SHELL = [
   "./","./index.html","./updater.js","./app.js","./styles.css","./pedidos-ui.css","./pedidos-motion.js","./manifest.json","./config.js","./link_rescue.js","./pedidos_db.js","./mz_track.js","./pedidos_menu.js","./camion.js","./camion.css","./catalog_ace.json","./catalog_cmc.json","./catalog_rss.json","./catalog_whitecap.json","./fuel.html","./fuel.js","./fuel.css","./bandeja.html","./bandeja.js","./bandeja.css",
   "./icon-192.png","./icon-512.png","./apple-touch-icon.png","./fuel.webmanifest"

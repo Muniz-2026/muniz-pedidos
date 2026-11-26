@@ -1,5 +1,11 @@
 /* =====================================================================
-   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.15
+   MUÑIZ PEDIDOS · MENÚ DESPUÉS DEL NOMBRE  ·  v2.16
+   v2.16: (1) el chofer de camión al que se le recarga la página (el teléfono la vuelve a traer, o llega una versión nueva
+          mientras escoge la estación) regresa a COMBUSTIBLE, no a ¿A QUÉ TIENDA VAS? Antes show() lo marcaba "visto" al
+          abrir el combustible y, como la marca vive en la sesión, después de recargar nada se abría. Un chofer no tiene
+          menú: ya no se marca. (2) Si el combustible no abre (fuel.js no cargó) el chofer regresa a los nombres con el
+          aviso; antes quedaba la pantalla en blanco. (3) Los tres avisos "No abrió…" de este archivo ahora sí se ven:
+          llamaban a MZhint, que vive dentro de app.js y desde aquí no existe (aviso()). v284.
    v2.15: CAMIÓN (camion.js, v283). El chofer de camión ve su parada (con COMBUSTIBLE a un toque) cuando dsp_hello dice
           que el sistema está en vivo; el nombre de práctica ve su parada de mentira; quien puede pedir camión tiene una
           tercera tarjeta CAMIÓN. Con el modo apagado, sin respuesta o sin camion.js: igual que v2.14.
@@ -189,9 +195,14 @@
     if (camPractice(name)) return;                // v2.15: el nombre de práctica nunca ve el menú (nada real: ni pedido ni PO)
     if (camEarly(name)) return;                  // v2.15: camion.js todavía no carga (el app abrió en la tienda): espera el fin de la carga
     if (isDriver(name)) {
-      directFuel = true; markSeen(name);
+      directFuel = true;
       try { localStorage.setItem(K_FUEL_ME, JSON.stringify(name)); } catch (e) { }
       openFuel(name);
+      /* v2.16 · "visto" ya no se marca con el combustible abierto: una recarga de la página lo vuelve a abrir (antes dejaba al
+         chofer en la tienda). Si el combustible NO abrió (fuel.js no cargó): de regreso a los nombres, con el aviso de openFuel
+         encima; antes quedaba la pantalla en blanco. La marca solo evita otro intento mientras la tienda sigue abajo: la
+         lista de nombres la quita (check). */
+      if (!panel) { directFuel = false; markSeen(name); appBack(); dlg(false); }
       return;
     }
     overlay = document.createElement("div");
@@ -248,7 +259,7 @@
     if (camApi() && openCam(name, "practice")) return true;
     if (document.readyState === "loading") { document.addEventListener("DOMContentLoaded", function () { if (!overlay && !panel && !cam) show(name); }); return true; }
     dlg(false); clearSeen(); appBack();
-    try { if (window.MZhint) window.MZhint("La práctica de camión no abrió. Cierra el app y ábrelo otra vez.", { tone: "stop", ms: 6000 }); } catch (e) { }
+    aviso("La práctica de camión no abrió. Cierra el app y ábrelo otra vez.");
     return true;
   }
   var camWait = {};
@@ -282,7 +293,7 @@
         onClose: function () { closeCam(); clearSeen(); appBack(); },
         onFallback: function () {                        // el servidor dice off / shadow, o no contestó y no hay nada guardado
           camOff[n] = Date.now() + 10 * 60e3; closeCam();
-          if (panel) { directFuel = true; markSeen(n); return; }   // ya está en combustible: al cerrarlo, a los nombres, como hoy
+          if (panel) { directFuel = true; return; }   // ya está en combustible: al cerrarlo, a los nombres, como hoy (v2.16: sin marcar "visto")
           show(n);
         } });
       return true;
@@ -292,7 +303,7 @@
     var C = camApi(); if (!C || cam || panel || typeof C.mountRequest !== "function") return;
     cam = camPanel("camion/pedir"); dlg(true); hidePills();
     try { camHandle = C.mountRequest(cam, { who: upk(name), office: isOfficeName(name), onClose: function () { closeCam(); } }); }
-    catch (e) { closeCam(); try { if (window.MZhint) window.MZhint("No abrió CAMIÓN. Cierra el app y ábrelo otra vez.", { tone: "stop", ms: 6000 }); } catch (x) { } }
+    catch (e) { closeCam(); aviso("No abrió CAMIÓN. Cierra el app y ábrelo otra vez."); }
   }
   function closeCam() {
     var C = camApi();
@@ -439,9 +450,28 @@
     });
   }
   
+  /* v2.16 · el aviso corto del app (MZhint) vive DENTRO de app.js: desde este archivo window.MZhint no existe, y los tres
+     avisos de aquí ("No abrió…") nunca se vieron. Este es el mismo aviso: el mismo elemento (#mz-hint), el mismo estilo
+     (.mz-hint, pedidos-ui.css), arriba de la barra de abajo si la hay. Sin pantalla dueña (_scr vacío): el cambio de
+     pantalla del app no lo cierra (el chofer regresa a los nombres con el aviso puesto); dura 6 s. */
+  function aviso(m) {
+    try {
+      var e = document.getElementById("mz-hint");
+      if (!e) { e = document.createElement("div"); e.id = "mz-hint"; document.body.appendChild(e); }
+      e._scr = ""; e.setAttribute("role", "alert");
+      var pl = function () {
+        var bb = document.documentElement.classList.contains("mz-dialog") ? null : document.querySelector("#root .fixed.bottom-0");
+        e.style.bottom = bb ? Math.max(24, window.innerHeight - bb.getBoundingClientRect().top + 12) + "px" : "";
+      };
+      pl(); setTimeout(pl, 90);
+      e.className = "mz-hint on mz-hint-stop"; e.textContent = "";
+      var s = document.createElement("span"); s.textContent = m; e.appendChild(s);
+      clearTimeout(e._t); e._t = setTimeout(function () { e.className = "mz-hint"; }, 6000);
+    } catch (x) { }
+  }
 function openFuel(name, por) {
     if (panel) return;
-    if (!(window.MunizFuel && window.MunizFuel.mount)) { try { if (window.MZhint) window.MZhint("No abri\u00f3 combustible. Cierra el app y \u00e1brelo otra vez.", { tone: "stop", ms: 6000 }); } catch (e) { } return; }
+    if (!(window.MunizFuel && window.MunizFuel.mount)) { aviso("No abri\u00f3 combustible. Cierra el app y \u00e1brelo otra vez."); return; }
     dlg(true);
     panel = document.createElement("div");
     panel.setAttribute("role", "dialog"); panel.setAttribute("aria-modal", "true"); panel.setAttribute("aria-label", "Combustible");
@@ -545,6 +575,9 @@ function openFuel(name, por) {
     if (!n || seen(n) || pinOpen() || hasText(/Toca tu nombre/i, "h1,h2,h3,div,p")) return;
     show(n);
   }
+  /* v2.16 · al cargar la página, la marca "visto" de un chofer no vale: la pudo dejar la versión anterior con el combustible
+     abierto, o un combustible que no abrió. Se quita aquí, antes de que el app pinte, y now() le abre el combustible en ese cuadro. */
+  try { var w0 = who(); if (w0 && isDriver(w0) && seen(w0)) clearSeen(); } catch (e) { }
   new MutationObserver(function () { now(); check(); }).observe(document.documentElement, { childList: true, subtree: true });
   document.addEventListener("DOMContentLoaded", check);
   window.addEventListener("hashchange", check);
